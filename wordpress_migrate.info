@@ -1,0 +1,14 @@
+; $Id$
+name = "Migration from WordPress"
+description = "Support for migrating WordPress blogs into Drupal"
+package = "Development"
+core = 7.x
+dependencies[] = migrate
+
+files[] = wordpress_migrate.module
+files[] = wordpress_migrate.pages.inc
+files[] = wordpress_source.inc
+files[] = wordpress.inc
+files[] = wordpress_category.inc
+files[] = wordpress_comment.inc
+files[] = wordpress_item.inc

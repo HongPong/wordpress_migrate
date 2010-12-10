@@ -1,0 +1,34 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * WordPress migration module installation
+ */
+
+function wordpress_migrate_schema() {
+  $schema = array();
+  $schema['wordpress_migrate'] = wordpress_migrate_schema_wordpress();
+  return $schema;
+}
+
+function wordpress_migrate_schema_wordpress() {
+  return array(
+    'description' => 'Mapping of machine name to filename for WordPress migrations',
+    'fields' => array(
+      'filename' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Filename of XML imported by this migration',
+      ),
+      'title' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Blog title (used to seed machine name)',
+      ),
+    ),
+    'primary key' => array('filename'),
+  );
+}

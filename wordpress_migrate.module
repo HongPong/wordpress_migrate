@@ -1,0 +1,77 @@
+<?php
+// $Id$
+
+define('WORDPRESS_MIGRATE_ACCESS_MIGRATE', 'migrate wordpress blogs');
+define('WORDPRESS_MIGRATE_ACCESS_CONFIGURE', 'configure wordpress migration');
+
+/**
+ * @file
+ * API and drush commands to support migration of data from WordPress
+ * into a Drupal installation.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function wordpress_migrate_permission() {
+  return array(
+    WORDPRESS_MIGRATE_ACCESS_MIGRATE => array(
+      'title' => t('Migrate WordPress blogs into Drupal'),
+    ),
+    WORDPRESS_MIGRATE_ACCESS_CONFIGURE => array(
+      'title' => t('Configure migration of WordPress blogs'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function wordpress_migrate_menu() {
+  $items = array();
+
+  $items['admin/content/wordpress'] = array(
+    'title' => 'WordPress migration',
+    'description' => 'Migrate WordPress content into Drupal',
+    'page callback' => 'wordpress_migrate_import',
+    'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_MIGRATE),
+    'file' => 'wordpress_migrate.pages.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  /* TODO
+  $items['admin/content/wordpress/configure'] = array(
+    'title' => 'WordPress migration configuration',
+    'description' => 'Configure WordPress migration into Drupal',
+    'page callback' => 'wordpress_migrate_configure',
+    'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_CONFIGURE),
+    'file' => 'wordpress_migrate.pages.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  */
+
+  return $items;
+}
+
+/**
+ * Remove the WordPress*Migration class names from the migration list, replacing
+ * with the actual instances
+ *
+ * @param $migrations
+ */
+function wordpress_migrate_migrations_alter(&$migrations) {
+  // The migration classes itself aren't presented as migrations in and of themselves
+  unset($migrations['WordPressCategoryMigration']);
+  unset($migrations['WordPressBlogEntryMigration']);
+  unset($migrations['WordPressPageMigration']);
+  unset($migrations['WordPressCommentMigration']);
+  $result = db_select('wordpress_migrate', 'wp')
+            ->fields('wp', array('filename'))
+            ->execute();
+  foreach ($result as $row) {
+    foreach (WordPressMigration::migrationList() as $class_name) {
+      $migration = new $class_name(array('filename' => $row->filename));
+      $migrations[$migration->getMachineName()] = $migration;
+    }
+  }
+}
