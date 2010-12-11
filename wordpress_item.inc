@@ -275,16 +275,18 @@ abstract class WordPressItemMigration extends WordPressMigration {
   }
 
   /**
+   * Prepare node - called just before node_save().
    *
    * @param stdClass $node
    * @param stdClass $row
    */
   public function prepare(stdClass $node, stdClass $row) {
     // Match creator username to Drupal username if possible; otherwise, use
-    // current user
+    // the user that initiated the import
     static $drupal_static_fast;
     if (!isset($drupal_static_fast)) {
       $drupal_static_fast['user_map'] = &drupal_static(__FUNCTION__);
+      $drupal_static_fast['default_user'] = &drupal_static(__FUNCTION__ . 'DefaultUser');
     }
     $user_map = &$drupal_static_fast['user_map'];
     if (!isset($user_map[$row->creator])) {
@@ -292,10 +294,17 @@ abstract class WordPressItemMigration extends WordPressMigration {
                                  ->fields('u', array('uid'))
                                  ->condition('name', $row->creator)
                                  ->execute()
-                                 ->fetchfield();
+                                 ->fetchField();
       if (!$user_map[$row->creator]) {
-        global $user;
-        $user_map[$row->creator] = $user->uid;
+        $default_user = &$drupal_static_fast['default_user'];
+        if (!isset($default_user)) {
+          $default_user = db_select('wordpress_migrate', 'wpm')
+                          ->fields('wpm', array('uid'))
+                          ->condition('filename', $this->wxrFile)
+                          ->execute()
+                          ->fetchField();
+        }
+        $user_map[$row->creator] = $default_user;
       }
     }
     $node->uid = $user_map[$row->creator];

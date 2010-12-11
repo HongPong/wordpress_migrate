@@ -80,11 +80,13 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     // TODO: Use filename if nothing's left
     $title = preg_replace('/[^A-Za-z]/', '', $title);
 
-    // Write to the table.
+    // Save info on this blog (including UID of the account performing import)
     // TODO: What to do if this has previously been imported?
+    global $user;
     db_merge('wordpress_migrate')
       ->key(array('filename' => $destination))
       ->fields(array('title' => $title))
+      ->fields(array('uid' => $user->uid))
       ->execute();
 
     // Instantiate each WP migration, passing the filename

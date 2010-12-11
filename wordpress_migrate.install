@@ -28,7 +28,30 @@ function wordpress_migrate_schema_wordpress() {
         'not null' => TRUE,
         'description' => 'Blog title (used to seed machine name)',
       ),
+      'uid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => "User ID of the account initiating the import",
+      ),
     ),
     'primary key' => array('filename'),
   );
+}
+
+/**
+ * Add uid field to wordpress_migrate table.
+ */
+function wordpress_migrate_update_7001() {
+  $ret = array();
+  db_add_field('wordpress_migrate', 'uid', array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => "User ID of the account initiating the import",
+      )
+  );
+
+  $ret[] = t('Added uid column to wordpress_migrate table');
+  return $ret;
 }
