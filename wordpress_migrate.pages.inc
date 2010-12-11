@@ -32,11 +32,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#title' => t('WordPress exported (WXR) file to import into Drupal'),
   );
 
-  // TODO: Select destination node type(s)
-
-  // TODO: Select user to own blog
-
-  // TODO: Select vocabulary for categories
+  // TODO: Alternatively accept credentials to pull directly
 
   $form['submit'] = array(
     '#type' => 'submit',
@@ -50,19 +46,38 @@ function wordpress_migrate_import_form($form, &$form_state) {
  * Submit callback for the WordPress import form.
  */
 function wordpress_migrate_import_form_submit($form, &$form_state) {
-  // TODO: Use configured file scheme, defaulting to private://
-  $tmpfile = $_FILES['files']['tmp_name']['wxr_file'];
-  $destination = '../private/wordpress/' . $_FILES['files']['name']['wxr_file'];
-  $moved = move_uploaded_file($tmpfile, $destination);
-  if ($moved) {
-    // Get the full path where the file lives
-    $destination = realpath($destination);
+  // Get the scheme for saving the WXR file. Note that we default to private, but
+  // that might not be available, so check - if the scheme is not available, punt.
+  $scheme = variable_get('wordpress_migrate_scheme', 'private');
+  $streams = file_get_stream_wrappers(STREAM_WRAPPERS_WRITE);
+  if (!isset($streams[$scheme])) {
+    if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+      $message = t('Scheme %scheme not available - please <a href="@config">configure
+          an appropriate scheme</a> for saving the WordPress WXR file.',
+        array('%scheme' => $scheme, '@config' => url('admin/content/wordpress/configure')));
+    }
+    else {
+      $message = 'WordPress migration is not properly configured - please contact a site administrator';
+    }
+    form_set_error('wxr_file', $message);
+    return;
+  }
 
+  $tmpfile = $_FILES['files']['tmp_name']['wxr_file'];
+  $directory = $scheme . '://wordpress';
+  if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    form_set_error('wxr_file', t('Could not prepare directory %directory',
+      array('%directory' => $directory)));
+    return;
+  }
+  $destination = $directory . '/' . $_FILES['files']['name']['wxr_file'];
+  $moved = file_unmanaged_move($tmpfile, $destination, FILE_EXISTS_REPLACE);
+  if ($moved) {
     // Extract the blog title, which will be used to construct migration machine names
     $xml = simplexml_load_file($destination);
     $title = (string)$xml->channel->title;
     // Keep only alphabetic characters
-    // TODO: error if nothing's left
+    // TODO: Use filename if nothing's left
     $title = preg_replace('/[^A-Za-z]/', '', $title);
 
     // Write to the table.
@@ -81,6 +96,59 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
       array('%filename' => $_FILES['files']['name']['wxr_file'])));
   }
   else {
-    drupal_set_message(t('Failed to move file %filename', array('%filename' => $filename)));
+    drupal_set_message(t('Failed to move file to %filename', array('%filename' => $destination)));
   }
+}
+
+/**
+ * Menu callback: Returns a page for configuring WordPress migrations.
+ */
+function wordpress_migrate_configure() {
+  drupal_set_title(t('WordPress configuration'));
+  return drupal_get_form('wordpress_migrate_configure_form');
+}
+
+/**
+ * Form for configuring WordPress migrations.
+ */
+function wordpress_migrate_configure_form($form, &$form_state) {
+  // Get writable streams
+  $streams = file_get_stream_wrappers(STREAM_WRAPPERS_WRITE);
+
+  // We know customthemes is not appropriate
+  unset($streams['customthemes']);
+
+  $options = array();
+  foreach ($streams as $scheme => $info) {
+    $options[$scheme] = $info['name'];
+  }
+
+  $form['wordpress_migrate_scheme'] = array(
+    '#type' => 'select',
+    '#title' => t('Scheme for saving WordPress WXR dumps'),
+    '#default_value' => variable_get('wordpress_migrate_scheme', 'private'),
+    '#options' => $options,
+    '#description' => t('It is recommended that you choose a scheme which does
+      not allow public downloads. '),
+  );
+
+  // TODO: Select destination node type(s)
+
+  // TODO: Select user to own blog
+
+  // TODO: Select vocabulary for categories
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save configuration changes'),
+  );
+
+  return $form;
+}
+
+/**
+ * Submit callback for the WordPress configure form.
+ */
+function wordpress_migrate_configure_form_submit($form, &$form_state) {
+  variable_set('wordpress_migrate_scheme', $form_state['values']['wordpress_migrate_scheme']);
 }

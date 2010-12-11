@@ -39,7 +39,6 @@ function wordpress_migrate_menu() {
     'type' => MENU_LOCAL_TASK,
   );
 
-  /* TODO
   $items['admin/content/wordpress/configure'] = array(
     'title' => 'WordPress migration configuration',
     'description' => 'Configure WordPress migration into Drupal',
@@ -48,7 +47,6 @@ function wordpress_migrate_menu() {
     'file' => 'wordpress_migrate.pages.inc',
     'type' => MENU_LOCAL_TASK,
   );
-  */
 
   return $items;
 }
