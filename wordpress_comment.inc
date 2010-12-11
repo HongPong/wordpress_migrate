@@ -98,7 +98,7 @@ class WordPressCommentMigration extends WordPressMigration {
     $this->addFieldMapping('pid', 'comment_parent')
          ->sourceMigration($this->generateMachineName('WordPressCommentMigration'));
     $this->addFieldMapping('uid')
-         ->description('Leave alone for now - try looking up from email address');
+         ->description('Use email to match Drupal account; if no match, default to anonymous');
     $this->addFieldMapping('subject')
          ->description('No comment subjects in WP')
          ->issueGroup('DNM');
@@ -142,5 +142,31 @@ class WordPressCommentMigration extends WordPressMigration {
     $row->comment_date = strtotime($row->comment_date);
 
     return TRUE;
+  }
+
+  /**
+   * Prepare comment - called just before comment_save().
+   *
+   * @param stdClass $comment
+   * @param stdClass $row
+   */
+  public function prepare(stdClass $comment, stdClass $row) {
+    // Match creator email to Drupal account if possible; otherwise, use anonymous
+    static $drupal_static_fast;
+    if (!isset($drupal_static_fast)) {
+      $drupal_static_fast['user_map'] = &drupal_static(__FUNCTION__);
+    }
+    $user_map = &$drupal_static_fast['user_map'];
+    if (!isset($user_map[$row->comment_author_email])) {
+      $user_map[$row->comment_author_email] = db_select('users', 'u')
+                                              ->fields('u', array('uid'))
+                                              ->condition('mail', $row->comment_author_email)
+                                              ->execute()
+                                              ->fetchField();
+      if (!$user_map[$row->comment_author_email]) {
+        $user_map[$row->comment_author_email] = 0;
+      }
+    }
+    $comment->uid = $user_map[$row->comment_author_email];
   }
 }
