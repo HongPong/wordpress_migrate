@@ -134,9 +134,15 @@ function wordpress_migrate_configure_form($form, &$form_state) {
 
   // TODO: Select destination node type(s)
 
+  // TODO: Select default text format for bodies etc.
+
   // TODO: Select user to own blog
 
   // TODO: Select vocabulary for categories
+
+  // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
+
+  // TODO: For most of the above, indicate whether they can be overridden per import
 
   $form['submit'] = array(
     '#type' => 'submit',

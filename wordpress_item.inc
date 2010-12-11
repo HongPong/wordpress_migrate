@@ -157,14 +157,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
          ->description('Empty dates handled in prepare()');
     $this->addFieldMapping('changed', 'post_date')
          ->description('Empty dates handled in prepare()');
-    $this->addFieldMapping('uid')
-         ->description('For now, current user (anonymous user when run in drush)')
-         ->issueGroup(t('Open issues'))
-         ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
-    $this->addFieldMapping(NULL, 'creator')
-         ->description('Look for matching Drupal username')
-         ->issueGroup(t('Open issues'))
-         ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
+    $this->addFieldMapping('uid', 'creator')
+         ->description('Use matching username if any, otherwise current user');
     $arguments = MigrateTextFieldHandler::arguments(array('source_field' => 'excerpt'));
     $this->addFieldMapping('body', 'content')
          ->description('What input format?')
@@ -278,6 +272,33 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $row->comment_status = COMMENT_NODE_CLOSED;
     }
     return TRUE;
+  }
+
+  /**
+   *
+   * @param stdClass $node
+   * @param stdClass $row
+   */
+  public function prepare(stdClass $node, stdClass $row) {
+    // Match creator username to Drupal username if possible; otherwise, use
+    // current user
+    static $drupal_static_fast;
+    if (!isset($drupal_static_fast)) {
+      $drupal_static_fast['user_map'] = &drupal_static(__FUNCTION__);
+    }
+    $user_map = &$drupal_static_fast['user_map'];
+    if (!isset($user_map[$row->creator])) {
+      $user_map[$row->creator] = db_select('users', 'u')
+                                 ->fields('u', array('uid'))
+                                 ->condition('name', $row->creator)
+                                 ->execute()
+                                 ->fetchfield();
+      if (!$user_map[$row->creator]) {
+        global $user;
+        $user_map[$row->creator] = $user->uid;
+      }
+    }
+    $node->uid = $user_map[$row->creator];
   }
 }
 
