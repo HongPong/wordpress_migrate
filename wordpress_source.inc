@@ -162,7 +162,10 @@ abstract class WordPressSource extends MigrateSource {
       else {
         $success = TRUE;
       }
-      if ($success !== FALSE) {
+      if ($success === FALSE) {
+        $this->currentRow = NULL;
+      }
+      else {
         $this->numProcessed++;
         break;
       }

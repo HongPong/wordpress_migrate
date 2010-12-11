@@ -135,18 +135,12 @@ class WordPressCommentMigration extends WordPressMigration {
       return FALSE;
     }
 
+    // Ignore pingbacks
+    if ($row->comment_type == 'pingback') {
+      return FALSE;
+    }
     $row->comment_date = strtotime($row->comment_date);
 
-
     return TRUE;
-  }
-
-  public function prepare($comment, $row) {
-    // Truncate names
-    if (strlen($comment->name) > 60) {
-      $this->saveMessage(t('Comment name field longer than 60 characters, truncated: !name',
-        array('!name' => $comment->name)), MigrationBase::MESSAGE_INFORMATIONAL);
-      $comment->name = substr($comment->name, 0, 60);
-    }
   }
 }
