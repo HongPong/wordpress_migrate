@@ -57,7 +57,8 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
         array('%scheme' => $scheme, '@config' => url('admin/content/wordpress/configure')));
     }
     else {
-      $message = 'WordPress migration is not properly configured - please contact a site administrator';
+      $message = t('WordPress migration is not properly configured - please contact
+        a site administrator');
     }
     form_set_error('wxr_file', $message);
     return;
@@ -90,13 +91,33 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
       ->execute();
 
     // Instantiate each WP migration, passing the filename
+    $log_file = '/tmp/' . $_FILES['files']['name']['wxr_file'] . '.log'; //$destination . '.txt';
     foreach (WordPressMigration::migrationList() as $class_name) {
       $migration = new $class_name(array('filename' => $destination));
       $result = $migration->processImport();
       if ($result == MigrationBase::RESULT_INCOMPLETE) {
+        $drush = variable_get('wordpress_migrate_drush', '');
+        if (!$drush) {
+          if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+            $message = t('The blog was too large to import through the browser - please
+                <a href="@config">configure drush</a> so the import process may be
+                run in the background.',
+              array('@config' => url('admin/content/wordpress/configure')));
+          }
+          else {
+            $message = t('The blog was too large to import through the browser - please
+              contact a site administrator to properly configure the site for
+              background imports.');
+          }
+          form_set_error('wxr_file', $message);
+          break;
+        }
         drupal_set_message(t('The blog is too large to completely import immediately -
-          the import will be run in the background and you will receive an email
+          the rest of the import will be run in the background and you will receive an email
           when it is complete'));
+        $uri = 'http://' . $_SERVER['HTTP_HOST'];
+        $command = "$drush --uri=$uri mi --all >$log_file 2>&1 &";
+        exec($command);
         break;
       }
     }
@@ -140,6 +161,15 @@ function wordpress_migrate_configure_form($form, &$form_state) {
       not allow public downloads. '),
   );
 
+  $form['wordpress_migrate_drush'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Location of drush command on server'),
+    '#default_value' => variable_get('wordpress_migrate_drush', ''),
+    '#description' => t('Larger blogs need to be imported by spawning a drush
+      command. Please enter the full path of the drush command on the server
+      to enable this functionality.'),
+  );
+
   // TODO: Select destination node type(s)
 
   // TODO: Select default text format for bodies etc.
@@ -165,4 +195,7 @@ function wordpress_migrate_configure_form($form, &$form_state) {
  */
 function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_scheme', $form_state['values']['wordpress_migrate_scheme']);
+  // TODO: Verify file exists
+  variable_set('wordpress_migrate_drush', $form_state['values']['wordpress_migrate_drush']);
+  drupal_set_message(t('WordPress configuration changes saved.'));
 }
