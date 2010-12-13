@@ -59,10 +59,9 @@ function wordpress_migrate_menu() {
  */
 function wordpress_migrate_migrations_alter(&$migrations) {
   // The migration classes itself aren't presented as migrations in and of themselves
-  unset($migrations['WordPressCategoryMigration']);
-  unset($migrations['WordPressBlogEntryMigration']);
-  unset($migrations['WordPressPageMigration']);
-  unset($migrations['WordPressCommentMigration']);
+  foreach (WordPressMigration::migrationList() as $class_name) {
+    unset($migrations[$class_name]);
+  }
   $result = db_select('wordpress_migrate', 'wp')
             ->fields('wp', array('filename'))
             ->execute();

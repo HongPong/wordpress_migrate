@@ -92,7 +92,13 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     // Instantiate each WP migration, passing the filename
     foreach (WordPressMigration::migrationList() as $class_name) {
       $migration = new $class_name(array('filename' => $destination));
-      $migration->processImport();
+      $result = $migration->processImport();
+      if ($result == MigrationBase::RESULT_INCOMPLETE) {
+        drupal_set_message(t('The blog is too large to completely import immediately -
+          the import will be run in the background and you will receive an email
+          when it is complete'));
+        break;
+      }
     }
     drupal_set_message(t('File %filename successfully uploaded and imported',
       array('%filename' => $_FILES['files']['name']['wxr_file'])));

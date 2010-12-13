@@ -18,10 +18,10 @@ abstract class WordPressMigration extends Migration {
    */
   public static function migrationList() {
     return array(
-      'WordPressCategoryMigration',
-      'WordPressBlogEntryMigration',
-      'WordPressPageMigration',
-      'WordPressCommentMigration',
+      'WordPressCategory',
+      'WordPressBlogEntry',
+      'WordPressPage',
+      'WordPressComment',
     );
   }
 
@@ -32,7 +32,7 @@ abstract class WordPressMigration extends Migration {
    *  'filename' => WXR file managed by this migration
    */
   public function __construct(array $arguments) {
-    if (!$arguments['filename']) {
+    if (!isset($arguments['filename'])) {
       throw new Exception(t('Filename is a required parameter for WordPress migrations'));
     }
 
@@ -59,10 +59,10 @@ abstract class WordPressMigration extends Migration {
       $class = get_class($this);
     }
     // The machine name is the cleansed blog title, followed by the portion
-    // of the class name between WordPress and Migration. For example, for
-    // category migration (class WordPressCategoryMigration) of "Mike's Blog",
+    // of the class name after WordPress. For example, for
+    // category migration (class WordPressCategory) of "Mike's Blog",
     // the generated machine name will be MikesBlogCategory.
     return $title . substr($class, strlen('WordPress'),
-      strlen($class) - strlen('Migration') - strlen('WordPress'));
+      strlen($class) - strlen('WordPress'));
   }
 }

@@ -67,7 +67,7 @@ class WordPressCommentSource extends WordPressSource {
 /**
  * Implementation of WordPressMigration, for comments
  */
-class WordPressCommentMigration extends WordPressMigration {
+class WordPressComment extends WordPressMigration {
   /**
    * Set it up
    */
@@ -92,11 +92,10 @@ class WordPressCommentMigration extends WordPressMigration {
     $this->destination = new MigrateDestinationComment($arguments['post_type']);
 
     // The basic mappings
-    $node_migration = $this->generateMachineName('WordPressBlogEntryMigration');
     $this->addFieldMapping('nid', 'post_id')
-         ->sourceMigration($node_migration);
+         ->sourceMigration($this->generateMachineName('WordPressBlogEntry'));
     $this->addFieldMapping('pid', 'comment_parent')
-         ->sourceMigration($this->generateMachineName('WordPressCommentMigration'));
+         ->sourceMigration($this->generateMachineName('WordPressComment'));
     $this->addFieldMapping('uid')
          ->description('Use email to match Drupal account; if no match, default to anonymous');
     $this->addFieldMapping('subject')

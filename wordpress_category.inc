@@ -52,7 +52,7 @@ class WordPressCategorySource extends WordPressSource {
 /**
  * Implementation of WordPressMigration, for categories
  */
-class WordPressCategoryMigration extends WordPressMigration {
+class WordPressCategory extends WordPressMigration {
   /**
    * Set it up
    */

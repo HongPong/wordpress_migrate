@@ -314,7 +314,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
 /**
  * Implementation of WordPressMigration, for blog entries
  */
-class WordPressBlogEntryMigration extends WordPressItemMigration {
+class WordPressBlogEntry extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
     $arguments['post_type'] = 'post';
     $arguments['node_type'] = 'blog';
@@ -328,7 +328,7 @@ class WordPressBlogEntryMigration extends WordPressItemMigration {
 /**
  * Implementation of WordPressMigration, for pages
  */
-class WordPressPageMigration extends WordPressItemMigration {
+class WordPressPage extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
     $arguments['post_type'] = 'page';
     $arguments['node_type'] = 'page';
