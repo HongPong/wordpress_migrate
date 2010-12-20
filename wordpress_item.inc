@@ -129,6 +129,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
 
+    $this->dependencies = array($this->generateMachineName('WordPressCategory'));
+
     // WordPress post type
     $post_type = $arguments['post_type'];
     // Drupal content type

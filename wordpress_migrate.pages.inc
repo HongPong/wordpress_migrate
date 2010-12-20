@@ -93,7 +93,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     // Instantiate each WP migration, passing the filename
     $log_file = '/tmp/' . $_FILES['files']['name']['wxr_file'] . '.log'; //$destination . '.txt';
     foreach (WordPressMigration::migrationList() as $class_name) {
-      $migration = new $class_name(array('filename' => $destination));
+      $machine_name = machineFromTitle($class_name, $title);
+      MigrationBase::registerMigration($class_name, $machine_name, array('filename' => $destination));
+      $migration = MigrationBase::getInstance($machine_name);
       $result = $migration->processImport();
       if ($result == MigrationBase::RESULT_INCOMPLETE) {
         $drush = variable_get('wordpress_migrate_drush', '');
@@ -143,9 +145,6 @@ function wordpress_migrate_configure() {
 function wordpress_migrate_configure_form($form, &$form_state) {
   // Get writable streams
   $streams = file_get_stream_wrappers(STREAM_WRAPPERS_WRITE);
-
-  // We know customthemes is not appropriate
-  unset($streams['customthemes']);
 
   $options = array();
   foreach ($streams as $scheme => $info) {

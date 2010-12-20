@@ -5,7 +5,7 @@
  * @file
  * Implementation of migration from WordPress into Drupal
  */
-abstract class WordPressMigration extends Migration {
+abstract class WordPressMigration extends DynamicMigration {
   /**
    * The filespec of the WXR file this migration is based on.
    *
@@ -44,25 +44,27 @@ abstract class WordPressMigration extends Migration {
 
   /**
    * Construct the machine name from the blog title
-   *
-   * @param string $class
-   *  Class name to use in constructing the machine name. Defaults to the current
-   *  class name.
    */
-  protected function generateMachineName($class = NULL) {
+  protected function generateMachineName($class_name = NULL) {
     $title = db_select('wordpress_migrate', 'wm')
              ->fields('wm', array('title'))
              ->condition('filename', $this->wxrFile)
              ->execute()
              ->fetchField();
-    if (!$class) {
-      $class = get_class($this);
+    if (!$class_name) {
+      $class_name = get_class($this);
     }
+
     // The machine name is the cleansed blog title, followed by the portion
     // of the class name after WordPress. For example, for
     // category migration (class WordPressCategory) of "Mike's Blog",
     // the generated machine name will be MikesBlogCategory.
-    return $title . substr($class, strlen('WordPress'),
-      strlen($class) - strlen('WordPress'));
+    return self::machineFromTitle($class_name, $title);
+  }
+
+  protected static function machineFromTitle($class_name, $title) {
+    $machine_name = $title . substr($class_name, strlen('WordPress'),
+      strlen($class_name) - strlen('WordPress'));
+    return $machine_name;
   }
 }

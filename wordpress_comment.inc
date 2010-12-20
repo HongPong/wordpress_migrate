@@ -74,6 +74,8 @@ class WordPressComment extends WordPressMigration {
   public function __construct(array $arguments = array()) {
     $arguments['post_type'] = 'comment_node_blog';
     parent::__construct($arguments);
+    $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'));
+    $this->softDependencies = array($this->generateMachineName('WordPressPage'));
 
     // comment_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,

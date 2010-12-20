@@ -51,24 +51,17 @@ function wordpress_migrate_menu() {
   return $items;
 }
 
-/**
- * Remove the WordPress*Migration class names from the migration list, replacing
- * with the actual instances
- *
- * @param $migrations
+/*
+ * Implementation of hook_migrate_api().
  */
-function wordpress_migrate_migrations_alter(&$migrations) {
-  // The migration classes itself aren't presented as migrations in and of themselves
-  foreach (WordPressMigration::migrationList() as $class_name) {
-    unset($migrations[$class_name]);
-  }
-  $result = db_select('wordpress_migrate', 'wp')
-            ->fields('wp', array('filename'))
-            ->execute();
-  foreach ($result as $row) {
-    foreach (WordPressMigration::migrationList() as $class_name) {
-      $migration = new $class_name(array('filename' => $row->filename));
-      $migrations[$migration->getMachineName()] = $migration;
-    }
-  }
+function wordpress_migrate_migrate_api() {
+  $api = array(
+    'api' => 2,
+  );
+  return $api;
+}
+
+function machineFromTitle($class_name, $title) {
+  return $title . substr($class_name, strlen('WordPress'),
+    strlen($class) - strlen('WordPress'));
 }
