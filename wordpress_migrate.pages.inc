@@ -92,8 +92,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
 
     // Instantiate each WP migration, passing the filename
     $log_file = '/tmp/' . $_FILES['files']['name']['wxr_file'] . '.log'; //$destination . '.txt';
-    foreach (WordPressMigration::migrationList() as $class_name) {
-      $machine_name = machineFromTitle($class_name, $title);
+    $migration_classes = WordPressMigration::migrationList();
+    foreach ($migration_classes as $class_name) {
+      $machine_name = _wordpress_machine_from_title($class_name, $title);
       MigrationBase::registerMigration($class_name, $machine_name, array('filename' => $destination));
       $migration = MigrationBase::getInstance($machine_name);
       $result = $migration->processImport();

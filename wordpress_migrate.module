@@ -61,7 +61,7 @@ function wordpress_migrate_migrate_api() {
   return $api;
 }
 
-function machineFromTitle($class_name, $title) {
+function _wordpress_machine_from_title($class_name, $title) {
   return $title . substr($class_name, strlen('WordPress'),
-    strlen($class) - strlen('WordPress'));
+    strlen($class_name) - strlen('WordPress'));
 }
