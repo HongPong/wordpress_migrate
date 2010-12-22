@@ -21,6 +21,7 @@ abstract class WordPressMigration extends DynamicMigration {
       'WordPressCategory',
       'WordPressBlogEntry',
       'WordPressPage',
+      'WordPressAttachment',
       'WordPressComment',
     );
   }

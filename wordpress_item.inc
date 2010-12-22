@@ -133,8 +133,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
 
     // WordPress post type
     $post_type = $arguments['post_type'];
-    // Drupal content type
-    $node_type = $arguments['node_type'];
+    // Drupal content type (bundle)
+    $bundle = $arguments['bundle'];
 
     // post_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
@@ -149,9 +149,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
       MigrateDestinationNode::getKeySchema()
     );
 
-    // Construct the source and destination objects.
+    // Construct the source objects.
     $this->source = new WordPressItemSource($this->wxrFile, $post_type);
-    $this->destination = new MigrateDestinationNode($node_type);
+    $this->destination = new MigrateDestinationNode($bundle);
 
     // Default mappings, applying to most or all migrations
     $this->addFieldMapping('title', 'title');
@@ -161,11 +161,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
          ->description('Empty dates handled in prepare()');
     $this->addFieldMapping('uid', 'creator')
          ->description('Use matching username if any, otherwise current user');
-    $arguments = MigrateTextFieldHandler::arguments(array('source_field' => 'excerpt'));
+    $arguments = array('source_field' => 'excerpt', 'format' => 'safe_html');
     $this->addFieldMapping('body', 'content')
-         ->description('What input format?')
-         ->issueGroup(t('Open issues'))
-         ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM)
          ->arguments($arguments);
     $this->addFieldMapping(NULL, 'excerpt');
     $this->addFieldMapping('comment', 'comment_status')
@@ -319,7 +316,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
 class WordPressBlogEntry extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
     $arguments['post_type'] = 'post';
-    $arguments['node_type'] = 'blog';
+    $arguments['bundle'] = 'blog';
     parent::__construct($arguments);
 
     // Blog-specific mappings
@@ -333,7 +330,7 @@ class WordPressBlogEntry extends WordPressItemMigration {
 class WordPressPage extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
     $arguments['post_type'] = 'page';
-    $arguments['node_type'] = 'page';
+    $arguments['bundle'] = 'page';
     parent::__construct($arguments);
 
     // Page-specific mappings
@@ -342,7 +339,3 @@ class WordPressPage extends WordPressItemMigration {
          ->issueGroup(t('DNM'));
   }
 }
-
-/**
- * TODO: Implementation of WordPressMigration, for attachments
- */
