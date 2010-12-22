@@ -93,35 +93,38 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     // Instantiate each WP migration, passing the filename
     $log_file = '/tmp/' . $_FILES['files']['name']['wxr_file'] . '.log'; //$destination . '.txt';
     $migration_classes = WordPressMigration::migrationList();
+    $perform_import = TRUE;
     foreach ($migration_classes as $class_name) {
       $machine_name = _wordpress_machine_from_title($class_name, $title);
       MigrationBase::registerMigration($class_name, $machine_name, array('filename' => $destination));
-      $migration = MigrationBase::getInstance($machine_name);
-      $result = $migration->processImport();
-      if ($result == MigrationBase::RESULT_INCOMPLETE) {
-        $drush = variable_get('wordpress_migrate_drush', '');
-        if (!$drush) {
-          if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-            $message = t('The blog was too large to import through the browser - please
-                <a href="@config">configure drush</a> so the import process may be
-                run in the background.',
-              array('@config' => url('admin/content/wordpress/configure')));
+      if ($perform_import) {
+        $migration = MigrationBase::getInstance($machine_name);
+        $result = $migration->processImport();
+        if ($result == MigrationBase::RESULT_INCOMPLETE) {
+          $drush = variable_get('wordpress_migrate_drush', '');
+          if (!$drush) {
+            if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+              $message = t('The blog was too large to import through the browser - please
+                  <a href="@config">configure drush</a> so the import process may be
+                  run in the background.',
+                array('@config' => url('admin/content/wordpress/configure')));
+            }
+            else {
+              $message = t('The blog was too large to import through the browser - please
+                contact a site administrator to properly configure the site for
+                background imports.');
+            }
+            form_set_error('wxr_file', $message);
+            break;
           }
-          else {
-            $message = t('The blog was too large to import through the browser - please
-              contact a site administrator to properly configure the site for
-              background imports.');
-          }
-          form_set_error('wxr_file', $message);
-          break;
+          drupal_set_message(t('The blog is too large to completely import immediately -
+            the rest of the import will be run in the background and you will receive an email
+            when it is complete'));
+          $uri = 'http://' . $_SERVER['HTTP_HOST'];
+          $command = "$drush --uri=$uri mi --all >$log_file 2>&1 &";
+          exec($command);
+          $perform_import = FALSE;
         }
-        drupal_set_message(t('The blog is too large to completely import immediately -
-          the rest of the import will be run in the background and you will receive an email
-          when it is complete'));
-        $uri = 'http://' . $_SERVER['HTTP_HOST'];
-        $command = "$drush --uri=$uri mi --all >$log_file 2>&1 &";
-        exec($command);
-        break;
       }
     }
     drupal_set_message(t('File %filename successfully uploaded and imported',
