@@ -33,6 +33,15 @@ function wordpress_migrate_import_form($form, &$form_state) {
   );
 
   // TODO: Alternatively accept credentials to pull directly
+  global $user;
+  $form['notify'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email address for notification'),
+    '#default_value' => $user->mail,
+    '#description' => t('If the blog is too large to be completely imported
+      immediately, the import will be run in the background and the specified
+      email address will notified when it is complete.'),
+  );
 
   $form['submit'] = array(
     '#type' => 'submit',
@@ -115,13 +124,15 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
                 background imports.');
             }
             form_set_error('wxr_file', $message);
-            break;
+            $perform_import = FALSE;
           }
           drupal_set_message(t('The blog is too large to completely import immediately -
             the rest of the import will be run in the background and you will receive an email
             when it is complete'));
           $uri = 'http://' . $_SERVER['HTTP_HOST'];
-          $command = "$drush --uri=$uri mi --all >$log_file 2>&1 &";
+          $notify = $form_state['values']['notify'];
+          $command = "$drush --uri=$uri wordpress-migrate-import $destination"
+            . " >$log_file 2>&1 &";
           exec($command);
           $perform_import = FALSE;
         }

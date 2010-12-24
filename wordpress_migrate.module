@@ -65,3 +65,24 @@ function _wordpress_machine_from_title($class_name, $title) {
   return $title . substr($class_name, strlen('WordPress'),
     strlen($class_name) - strlen('WordPress'));
 }
+
+/**
+ * Implementation of hook_mail().
+ *
+ * @param $key
+ * @param $message
+ * @param $params
+ */
+function wordpress_migrate_mail($key, &$message, $params) {
+  $data['user'] = $params['account'];
+  $options['language'] = $message['language'];
+  user_mail_tokens($variables, $data, $options);
+  switch ($key) {
+    case 'import_complete':
+      $langcode = $message['language']->language;
+      $message['subject'] = t('Notification from !site', $variables, array('langcode' => $langcode));
+      $message['body'][] = t('Your WordPress import is complete.', $variables,
+        array('langcode' => $langcode));
+      break;
+  }
+}
