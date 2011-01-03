@@ -54,12 +54,24 @@ abstract class WordPressSource extends MigrateSource {
   protected $numProcessed = 0;
 
   /**
+   * The domain name of this blog
+   *
+   * @var string
+   */
+  protected $baseBlogUrl;
+  public function getBaseBlogUrl() {
+    return $this->baseBlogUrl;
+  }
+
+  /**
    * Simple initialization.
    */
   public function __construct($filename) {
     parent::__construct();
     $this->filename = $filename;
     $this->xml = simplexml_load_file($this->filename);
+    $base_blog_url = $this->xml->xpath('//channel/wp:base_blog_url');
+    $this->baseBlogUrl = (string)$base_blog_url[0];
   }
 
   /**

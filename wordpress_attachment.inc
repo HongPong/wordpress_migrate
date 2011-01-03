@@ -174,9 +174,58 @@ class WordPressAttachment extends WordPressMigration {
   }
 
   /**
-   * When done importing attachments, scan nodes for references to clean up.
+   * Called after file object is saved - maintain a mapping from the URL on the
+   * original WordPress blog to the URI in Drupal.
+   *
+   * @param stdClass $file
+   * @param stdClass $row
+   */
+  public function complete(stdClass $file, stdClass $row) {
+    db_insert('wordpress_migrate_attachment')
+      ->fields(array(
+        'filename' => $this->wxrFile,
+        'original_url' => $row->attachment_url,
+        'new_uri' => parse_url(file_create_url($file->uri), PHP_URL_PATH),
+      ))
+      ->execute();
+  }
+
+  /**
+   * Called after all attachments are imported - fix up references to the imported
+   * attachments in node bodies.
    */
   public function postImport() {
     parent::postImport();
+    migrate_instrument_start('WordPressAttachment postImport');
+    $source_migrations = array($this->generateMachineName('WordPressBlogEntry'),
+      $this->generateMachineName('WordPressPage'));
+    foreach ($source_migrations as $source_migration) {
+      $migration = MigrationBase::getInstance($source_migration);
+      $map = $migration->getMap();
+      foreach ($map as $map_row) {
+        $nid = $map_row->destid1;
+        $node = node_load($nid);
+        $body = $node->body[LANGUAGE_NONE][0]['value'];
+        $result = db_select('wordpress_migrate_attachment', 'a')
+                  ->fields('a', array('original_url', 'new_uri'))
+                  ->condition('filename', $this->wxrFile)
+                  ->execute();
+        foreach ($result as $row) {
+          $body = str_replace($row->original_url, $row->new_uri, $body);
+        }
+        $node->body[LANGUAGE_NONE][0]['value'] = $body;
+        node_save($node);
+      }
+    }
+    migrate_instrument_stop('WordPressAttachment postImport');
+  }
+
+  /**
+   * Remove all attachment records
+   */
+  public function postRollback() {
+    db_delete('wordpress_migrate_attachment')
+    ->condition('filename', $this->wxrFile)
+    ->execute();
   }
 }
