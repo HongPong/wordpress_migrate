@@ -45,7 +45,7 @@ function wordpress_migrate_menu() {
     'page callback' => 'wordpress_migrate_configure',
     'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_CONFIGURE),
     'file' => 'wordpress_migrate.pages.inc',
-    'type' => MENU_LOCAL_TASK,
+    'type' => MENU_CALLBACK,
   );
 
   return $items;

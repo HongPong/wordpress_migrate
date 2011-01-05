@@ -19,6 +19,31 @@ function wordpress_migrate_import() {
  * Form for specifying where to obtain the WordPress content.
  */
 function wordpress_migrate_import_form($form, &$form_state) {
+  $scheme = variable_get('wordpress_migrate_scheme', '');
+  if (!$scheme) {
+    if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+      $message = t('Wordpress migration must be <a href="@config">configured</a> before use',
+        array('@config' => url('admin/content/wordpress/configure')));
+    }
+    else {
+      $message = t('WordPress migration is not properly configured - please contact
+        a site administrator');
+    }
+    $form['unconfigured'] = array(
+      '#prefix' => '<div>',
+      '#markup' => $message,
+      '#suffix' => '</div>',
+    );
+  }
+  elseif (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+    $form['configure'] = array(
+      '#prefix' => '<div>',
+      '#markup' => t('<a href="@config">Configuration</a>',
+        array('@config' => url('admin/content/wordpress/configure'))),
+      '#suffix' => '</div>',
+    );
+  }
+
   $form['overview'] = array(
     '#prefix' => '<div>',
     '#markup' => "TBD: Describe the migration process. Make note of size restrictions
@@ -40,7 +65,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#default_value' => $user->mail,
     '#description' => t('If the blog is too large to be completely imported
       immediately, the import will be run in the background and the specified
-      email address will notified when it is complete.'),
+      email address will be notified when it is complete.'),
   );
 
   $form['submit'] = array(
