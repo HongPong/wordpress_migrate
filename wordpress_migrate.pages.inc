@@ -221,6 +221,7 @@ function wordpress_migrate_configure_form($form, &$form_state) {
   // TODO: Select user to own blog
 
   // Select vocabularies for categories and tags
+  // TODO: Get only those attached to destination content types
   $vocabs = taxonomy_vocabulary_get_names();
   $options = array('' => t('Do not import'));
   foreach ($vocabs as $machine_name => $vocab) {
@@ -260,8 +261,10 @@ function wordpress_migrate_configure_form($form, &$form_state) {
  */
 function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_scheme', $form_state['values']['wordpress_migrate_scheme']);
+
   // TODO: Verify file exists
   variable_set('wordpress_migrate_drush', $form_state['values']['wordpress_migrate_drush']);
+
   variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
   variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
   drupal_set_message(t('WordPress configuration changes saved.'));

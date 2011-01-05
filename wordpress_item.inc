@@ -46,6 +46,7 @@ class WordPressItemSource extends WordPressSource {
     'post_password' => '?',
     'is_sticky' => 'Equivalent to Drupal sticky flag',
     'category' => 'Categories (as nicename) assigned to this item',
+    'tag' => 'Tags (as nicename) assigned to this item',
   );
 
   /**
@@ -106,9 +107,17 @@ class WordPressItemSource extends WordPressSource {
     // The category field is now the descriptive name, we want the nicename
     $this->currentRow->category = array();
     foreach ($item->category as $cat) {
-      foreach ($cat->attributes() as $name => $attribute) {
-        if ($name == 'nicename') {
-          $this->currentRow->category[] = (string)$attribute;
+      $attributes = $cat->attributes();
+      $domain = $attributes->domain;
+      $nicename = $attributes->nicename;
+      if ($nicename) {
+        if ($domain == 'category') {
+          drush_print("category=$nicename");
+          $this->currentRow->category[] = $nicename;
+        }
+        if ($domain == 'tag') {
+          drush_print("tag=$nicename");
+          $this->currentRow->tag[] = $nicename;
         }
       }
     }
@@ -320,7 +329,9 @@ class WordPressBlogEntry extends WordPressItemMigration {
     parent::__construct($arguments);
 
     // Blog-specific mappings
-    $this->addFieldMapping('field_tags', 'category');
+    // TODO: Determine appropriate field name based on configured destination vocabs
+    $this->addFieldMapping('field_tags', 'tag');
+    $this->addFieldMapping('field_category', 'category');
   }
 }
 
@@ -334,6 +345,9 @@ class WordPressPage extends WordPressItemMigration {
     parent::__construct($arguments);
 
     // Page-specific mappings
+    $this->addFieldMapping(NULL, 'tag')
+         ->description('WP pages do have tags, but we don\'t have a vocabulary in Drupal')
+         ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'category')
          ->description('WP pages do have categories, but we don\'t have a vocabulary in Drupal')
          ->issueGroup(t('DNM'));
