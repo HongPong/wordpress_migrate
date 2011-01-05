@@ -129,6 +129,11 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     $migration_classes = WordPressMigration::migrationList();
     $perform_import = TRUE;
     foreach ($migration_classes as $class_name) {
+      // Skip tags/categories if there's no destination vocabulary
+      if ($class_name == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
+          $class_name == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
+        continue;
+      }
       $machine_name = _wordpress_machine_from_title($class_name, $title);
       MigrationBase::registerMigration($class_name, $machine_name, array('filename' => $destination));
       if ($perform_import) {
@@ -215,7 +220,28 @@ function wordpress_migrate_configure_form($form, &$form_state) {
 
   // TODO: Select user to own blog
 
-  // TODO: Select vocabulary for categories
+  // Select vocabularies for categories and tags
+  $vocabs = taxonomy_vocabulary_get_names();
+  $options = array('' => t('Do not import'));
+  foreach ($vocabs as $machine_name => $vocab) {
+    $options[$machine_name] = $vocab->name;
+  }
+
+  $form['wordpress_migrate_tag_vocabulary'] = array(
+    '#type' => 'select',
+    '#title' => t('Vocabulary for WordPress tags'),
+    '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', ''),
+    '#options' => $options,
+    '#description' => t('Choose the vocabulary to hold WordPress tags.'),
+  );
+
+  $form['wordpress_migrate_category_vocabulary'] = array(
+    '#type' => 'select',
+    '#title' => t('Vocabulary for WordPress categories'),
+    '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
+    '#options' => $options,
+    '#description' => t('Choose the vocabulary to hold WordPress categories.'),
+  );
 
   // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
 
@@ -236,5 +262,7 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_scheme', $form_state['values']['wordpress_migrate_scheme']);
   // TODO: Verify file exists
   variable_set('wordpress_migrate_drush', $form_state['values']['wordpress_migrate_drush']);
+  variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
+  variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
   drupal_set_message(t('WordPress configuration changes saved.'));
 }

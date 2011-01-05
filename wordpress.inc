@@ -19,6 +19,7 @@ abstract class WordPressMigration extends DynamicMigration {
   public static function migrationList() {
     return array(
       'WordPressCategory',
+      'WordPressTag',
       'WordPressBlogEntry',
       'WordPressPage',
       'WordPressAttachment',
