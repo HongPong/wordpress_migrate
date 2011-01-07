@@ -161,8 +161,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
             when it is complete'));
           $uri = 'http://' . $_SERVER['HTTP_HOST'];
           $notify = $form_state['values']['notify'];
-          $command = "$drush --uri=$uri wordpress-migrate-import $destination"
+          $command = "$drush --uri=$uri wordpress-migrate-import $destination --notify=$notify"
             . " >$log_file 2>&1 &";
+          drupal_set_message($command);
           exec($command);
           $perform_import = FALSE;
         }
@@ -268,4 +269,5 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
   variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
   drupal_set_message(t('WordPress configuration changes saved.'));
+  $form_state['redirect'] = 'admin/content/wordpress';
 }

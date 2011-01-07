@@ -95,7 +95,7 @@ class WordPressComment extends WordPressMigration {
 
     // The basic mappings
     $this->addFieldMapping('nid', 'post_id')
-         ->sourceMigration($this->generateMachineName('WordPressBlogEntry'));
+         ->sourceMigration(array($this->generateMachineName('WordPressBlogEntry'), $this->generateMachineName('WordPressPage')));
     $this->addFieldMapping('pid', 'comment_parent')
          ->sourceMigration($this->generateMachineName('WordPressComment'));
     $this->addFieldMapping('uid')
