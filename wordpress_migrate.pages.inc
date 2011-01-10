@@ -163,7 +163,6 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
           $notify = $form_state['values']['notify'];
           $command = "$drush --uri=$uri wordpress-migrate-import $destination --notify=$notify"
             . " >$log_file 2>&1 &";
-          drupal_set_message($command);
           exec($command);
           $perform_import = FALSE;
         }
@@ -250,14 +249,16 @@ function wordpress_migrate_configure_form($form, &$form_state) {
   $form['wordpress_migrate_notification_subject'] = array(
     '#type' => 'textfield',
     '#title' => t('Subject for email notifications'),
-    '#default_value' => variable_get('wordpress_migrate_notification_subject', ''),
+    '#default_value' => variable_get('wordpress_migrate_notification_subject',
+      t('Wordpress import status')),
     '#description' => t(''),
   );
 
   $form['wordpress_migrate_notification_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body for email notifications'),
-    '#default_value' => variable_get('wordpress_migrate_notification_body', ''),
+    '#default_value' => variable_get('wordpress_migrate_notification_body',
+      t('Your WordPress import is complete!')),
   );
 
   // TODO: For most of the above, indicate whether they can be overridden per import

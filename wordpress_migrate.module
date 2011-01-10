@@ -76,10 +76,11 @@ function _wordpress_machine_from_title($class_name, $title) {
 function wordpress_migrate_mail($key, &$message, $params) {
   $data['user'] = $params['account'];
   $options['language'] = $message['language'];
+  $variables = array();
   user_mail_tokens($variables, $data, $options);
+  $langcode = $message['language']->language;
   switch ($key) {
     case 'import_complete':
-      $langcode = $message['language']->language;
       $subject = variable_get('wordpress_migrate_notification_subject', '');
       $body = variable_get('wordpress_migrate_notification_body', '');
       $message['subject'] = t($subject, $variables, array('langcode' => $langcode));
