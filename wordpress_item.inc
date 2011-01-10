@@ -193,6 +193,42 @@ abstract class WordPressItemMigration extends WordPressMigration {
       }
     }
 
+    // Map the source fields to the configured vocabularies
+    $vocabs = array(
+      'tag' => variable_get('wordpress_migrate_tag_vocabulary', ''),
+      'category' => variable_get('wordpress_migrate_category_vocabulary', ''),
+    );
+
+    // Look through this content type's fields for term references
+    foreach ($this->destination->fields() as $machine_name => $description) {
+      if (preg_match('/\(taxonomy_term_reference\)$/', $description)) {
+        $field_info = field_info_field($machine_name);
+        // Check this field against each of the configured vocabularies - if
+        // a match is found, make the mapping
+        foreach ($vocabs as $source_field => $vocab_name) {
+          if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
+            $this->addFieldMapping($machine_name, $source_field);
+            unset($vocabs[$source_field]);
+          }
+        }
+      }
+    }
+
+    // If we didn't map one or both of the tag/category fields, indicate so with
+    // a DNM mapping.
+    foreach ($vocabs as $source_field => $vocab_name) {
+      if ($vocab_name) {
+        $message = t('!vocab_name vocabulary is not assigned to node type !bundle',
+          array('!vocab_name' => $vocab_name, '!bundle' => $bundle));
+      }
+      else {
+        $message = t('No vocabulary assigned for this field');
+      }
+      $this->addFieldMapping(NULL, $source_field)
+           ->description($message)
+           ->issueGroup(t('DNM'));
+    }
+
     // Unmapped destination fields
     $this->addFieldMapping('is_new')
          ->issueGroup(t('DNM'));
@@ -325,11 +361,6 @@ class WordPressBlogEntry extends WordPressItemMigration {
     $arguments['post_type'] = 'post';
     $arguments['bundle'] = 'blog';
     parent::__construct($arguments);
-
-    // Blog-specific mappings
-    // TODO: Determine appropriate field name based on configured destination vocabs
-    $this->addFieldMapping('field_tags', 'tag');
-    $this->addFieldMapping('field_categories', 'category');
   }
 }
 
@@ -341,13 +372,5 @@ class WordPressPage extends WordPressItemMigration {
     $arguments['post_type'] = 'page';
     $arguments['bundle'] = 'page';
     parent::__construct($arguments);
-
-    // Page-specific mappings
-    $this->addFieldMapping(NULL, 'tag')
-         ->description('WP pages do have tags, but we don\'t have a vocabulary in Drupal')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'category')
-         ->description('WP pages do have categories, but we don\'t have a vocabulary in Drupal')
-         ->issueGroup(t('DNM'));
   }
 }
