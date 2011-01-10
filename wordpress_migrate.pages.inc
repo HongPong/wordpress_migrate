@@ -247,6 +247,19 @@ function wordpress_migrate_configure_form($form, &$form_state) {
 
   // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
 
+  $form['wordpress_migrate_notification_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Subject for email notifications'),
+    '#default_value' => variable_get('wordpress_migrate_notification_subject', ''),
+    '#description' => t(''),
+  );
+
+  $form['wordpress_migrate_notification_body'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Body for email notifications'),
+    '#default_value' => variable_get('wordpress_migrate_notification_body', ''),
+  );
+
   // TODO: For most of the above, indicate whether they can be overridden per import
 
   $form['submit'] = array(
@@ -268,6 +281,8 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
 
   variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
   variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
+  variable_set('wordpress_migrate_notification_subject', $form_state['values']['wordpress_migrate_notification_subject']);
+  variable_set('wordpress_migrate_notification_body', $form_state['values']['wordpress_migrate_notification_body']);
   drupal_set_message(t('WordPress configuration changes saved.'));
   $form_state['redirect'] = 'admin/content/wordpress';
 }

@@ -80,9 +80,10 @@ function wordpress_migrate_mail($key, &$message, $params) {
   switch ($key) {
     case 'import_complete':
       $langcode = $message['language']->language;
-      $message['subject'] = t('Notification from !site', $variables, array('langcode' => $langcode));
-      $message['body'][] = t('Your WordPress import is complete.', $variables,
-        array('langcode' => $langcode));
+      $subject = variable_get('wordpress_migrate_notification_subject', '');
+      $body = variable_get('wordpress_migrate_notification_body', '');
+      $message['subject'] = t($subject, $variables, array('langcode' => $langcode));
+      $message['body'][] = t($body, $variables, array('langcode' => $langcode));
       break;
   }
 }
