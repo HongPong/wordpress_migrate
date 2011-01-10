@@ -313,6 +313,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
     else {
       $row->comment_status = COMMENT_NODE_CLOSED;
     }
+
+    // Strip [caption] tags
+    $row->content = preg_replace('|\[/?caption[^\]]*\]|', '', $row->content);
     return TRUE;
   }
 
