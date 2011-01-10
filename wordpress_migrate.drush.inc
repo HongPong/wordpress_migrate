@@ -45,18 +45,22 @@ function drush_wordpress_migrate_import($filename) {
   if ($row) {
     global $user;
     $user = user_load($row->uid);
+    $mail_key = 'import_complete';
     $migration_classes = WordPressMigration::migrationList();
     foreach ($migration_classes as $class_name) {
       $machine_name = _wordpress_machine_from_title($class_name, $row->title);
       $migration = MigrationBase::getInstance($machine_name);
       $result = $migration->processImport();
-      // TODO: Validate result
+      if ($result != MigrationBase::RESULT_COMPLETED) {
+        $mail_key = 'import_failure';
+        break;
+      }
     }
     // Notify user
     $notify = drush_get_option('notify');
     if ($notify) {
       $params['account'] = $user;
-      drupal_mail('wordpress_migrate', 'import_complete', $notify,
+      drupal_mail('wordpress_migrate', $mail_key, $notify,
         user_preferred_language($user), $params);
     }
   }

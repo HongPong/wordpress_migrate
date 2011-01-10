@@ -256,9 +256,16 @@ function wordpress_migrate_configure_form($form, &$form_state) {
 
   $form['wordpress_migrate_notification_body'] = array(
     '#type' => 'textarea',
-    '#title' => t('Body for email notifications'),
+    '#title' => t('Body for email notifications of import success'),
     '#default_value' => variable_get('wordpress_migrate_notification_body',
       t('Your WordPress import is complete!')),
+  );
+
+  $form['wordpress_migrate_notification_failure_body'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Body for email notifications of import failure'),
+    '#default_value' => variable_get('wordpress_migrate_notification_failure_body',
+      t('Your WordPress import failed.')),
   );
 
   // TODO: For most of the above, indicate whether they can be overridden per import
@@ -284,6 +291,7 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
   variable_set('wordpress_migrate_notification_subject', $form_state['values']['wordpress_migrate_notification_subject']);
   variable_set('wordpress_migrate_notification_body', $form_state['values']['wordpress_migrate_notification_body']);
+  variable_set('wordpress_migrate_notification_failure_body', $form_state['values']['wordpress_migrate_notification_failure_body']);
   drupal_set_message(t('WordPress configuration changes saved.'));
   $form_state['redirect'] = 'admin/content/wordpress';
 }

@@ -79,12 +79,15 @@ function wordpress_migrate_mail($key, &$message, $params) {
   $variables = array();
   user_mail_tokens($variables, $data, $options);
   $langcode = $message['language']->language;
+  $subject = variable_get('wordpress_migrate_notification_subject', '');
+  $message['subject'] = t($subject, $variables, array('langcode' => $langcode));
   switch ($key) {
     case 'import_complete':
-      $subject = variable_get('wordpress_migrate_notification_subject', '');
       $body = variable_get('wordpress_migrate_notification_body', '');
-      $message['subject'] = t($subject, $variables, array('langcode' => $langcode));
-      $message['body'][] = t($body, $variables, array('langcode' => $langcode));
+      break;
+    case 'import_failure':
+      $body = variable_get('wordpress_migrate_notification_failure_body', '');
       break;
   }
+  $message['body'][] = t($body, $variables, array('langcode' => $langcode));
 }
