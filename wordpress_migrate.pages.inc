@@ -214,7 +214,42 @@ function wordpress_migrate_configure_form($form, &$form_state) {
       to enable this functionality.'),
   );
 
-  // TODO: Select destination node type(s)
+  // Select destination node type(s)
+  $node_types = node_type_get_types();
+  $options = array();
+  foreach ($node_types as $node_type => $info) {
+    $options[$node_type] = $info->name;
+  }
+
+  if (isset($options['blog'])) {
+    $default = 'blog';
+  }
+  else {
+    $default = '';
+  }
+
+  $form['wordpress_migrate_post_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Type of node to hold WordPress posts'),
+    '#default_value' => variable_get('wordpress_migrate_post_type', $default),
+    '#options' => $options,
+    '#description' => t(''),
+  );
+
+  if (isset($options['page'])) {
+    $default = 'page';
+  }
+  else {
+    $default = '';
+  }
+
+  $form['wordpress_migrate_page_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Type of node to hold WordPress pages'),
+    '#default_value' => variable_get('wordpress_migrate_page_type', $default),
+    '#options' => $options,
+    '#description' => t(''),
+  );
 
   // TODO: Select default text format for bodies etc.
 
@@ -287,6 +322,8 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
   // TODO: Verify file exists
   variable_set('wordpress_migrate_drush', $form_state['values']['wordpress_migrate_drush']);
 
+  variable_set('wordpress_migrate_post_type', $form_state['values']['wordpress_migrate_post_type']);
+  variable_set('wordpress_migrate_page_type', $form_state['values']['wordpress_migrate_page_type']);
   variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
   variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
   variable_set('wordpress_migrate_notification_subject', $form_state['values']['wordpress_migrate_notification_subject']);

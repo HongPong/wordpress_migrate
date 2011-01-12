@@ -362,7 +362,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
 class WordPressBlogEntry extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
     $arguments['post_type'] = 'post';
-    $arguments['bundle'] = 'blog';
+    $arguments['bundle'] = variable_get('wordpress_migrate_post_type', '');
     parent::__construct($arguments);
   }
 }
@@ -373,7 +373,7 @@ class WordPressBlogEntry extends WordPressItemMigration {
 class WordPressPage extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
     $arguments['post_type'] = 'page';
-    $arguments['bundle'] = 'page';
+    $arguments['bundle'] = variable_get('wordpress_migrate_page_type', '');
     parent::__construct($arguments);
   }
 }
