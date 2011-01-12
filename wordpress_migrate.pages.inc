@@ -34,6 +34,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
       '#markup' => $message,
       '#suffix' => '</div>',
     );
+    return $form;
   }
   elseif (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
     $form['configure'] = array(
@@ -46,18 +47,52 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['overview'] = array(
     '#prefix' => '<div>',
-    '#markup' => "TBD: Describe the migration process. Make note of size restrictions
-      for selecting local file (query PHP max values for guidance).",
+    '#markup' => t('WordPress blogs can be imported into Drupal using this form.
+      You may either provide the necessary credentials for Drupal to retrieve
+      your WordPress blog data directly, or you may export the blog yourself
+      and upload the exported WXR file.'),
     '#suffix' => '</div>',
+  );
+
+  $form['credentials'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('WordPress blog credentials'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['credentials']['description'] = array(
+    '#prefix' => '<div>',
+    '#markup' => t('To import your blog directly from WordPress, enter your credentials here.'),
+    '#suffix' => '</div>',
+  );
+
+  $form['credentials']['domain'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Domain of your blog'),
+    '#description' => t('Enter the domain of the blog to import (e.g., example.wordpress.com)'),
+  );
+
+  $form['credentials']['username'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Username of your WordPress account'),
+    '#description' => t(''),
+  );
+
+  $form['credentials']['password'] = array(
+    '#type' => 'password',
+    '#title' => t('Password to your WordPress account'),
+    '#description' => t(''),
   );
 
   $form['#attributes'] = array('enctype' => 'multipart/form-data');
   $form['wxr_file'] = array(
     '#type' => 'file',
     '#title' => t('WordPress exported (WXR) file to import into Drupal'),
+    '#description' => t('If you have exported your WordPress blog to your local filesystem,
+      choose the downloaded file here.')
   );
 
-  // TODO: Alternatively accept credentials to pull directly
   global $user;
   $form['notify'] = array(
     '#type' => 'textfield',
@@ -98,16 +133,77 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     return;
   }
 
-  $tmpfile = $_FILES['files']['tmp_name']['wxr_file'];
   $directory = $scheme . '://wordpress';
   if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
     form_set_error('wxr_file', t('Could not prepare directory %directory',
       array('%directory' => $directory)));
     return;
   }
-  $destination = $directory . '/' . $_FILES['files']['name']['wxr_file'];
-  $moved = file_unmanaged_move($tmpfile, $destination, FILE_EXISTS_REPLACE);
-  if ($moved) {
+
+  $tmpfile = $_FILES['files']['tmp_name']['wxr_file'];
+  if ($tmpfile) {
+    // Handle uploaded file
+    $filename = $_FILES['files']['name']['wxr_file'];
+    $destination = $directory . '/' . $filename;
+    $saved = file_unmanaged_move($tmpfile, $destination, FILE_EXISTS_REPLACE);
+    if (!$saved) {
+      drupal_set_message(t('Failed to save file to %filename', array('%filename' => $destination)));
+    }
+  }
+  else {
+    // Export the WordPress blog directly
+    $domain = $form_state['values']['domain'];
+
+    // Login to the WordPress site
+    $login_url = 'http://' . $domain . '/wp-login.php';
+    $username = $form_state['values']['username'];
+    $password = $form_state['values']['password'];
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $login_url);
+    curl_setopt($ch, CURLOPT_HEADER, 1);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Importer');
+    curl_setopt($ch, CURLOPT_COOKIESESSION, 1);
+    curl_setopt($ch, CURLOPT_COOKIEJAR, 'cookie.txt');
+    curl_setopt($ch, CURLOPT_COOKIEFILE, 'cookie.txt');
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, "log=$username&pwd=$password");
+    $login_result = curl_exec($ch);
+    curl_close($ch);
+
+    // Login successful? Grab the export
+    if (strpos($login_result, 'Set-Cookie: wordpress_logged_in_')) {
+      $filename = $domain . '.xml';
+      $destination = $directory . '/' . $filename;
+      $export_url = 'http://' . $domain  . '/wp-admin/export.php?mm_start=all&mm_end=all&author=all' .
+        '&export_taxonomy[category]=0&export_taxonomy[post_tag]=0&export_post_type=all' .
+        '&export_post_status=all&download=true';
+      $fp = fopen($destination, 'w');
+      if ($fp) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, 'cookie.txt');
+        curl_setopt($ch, CURLOPT_URL, $export_url);
+        curl_exec($ch);
+        curl_close($ch);
+        fclose($fp);
+        $saved = TRUE;
+      }
+      else {
+        form_set_error('credentials][domain', t('Could not create destination file !filename',
+          array('!filename' => $destination)));
+        $saved = FALSE;
+      }
+    }
+    else {
+      form_set_error('credentials][domain', t('Could not login at !login_url',
+        array('!login_url' => $login_url)));
+      $saved = FALSE;
+    }
+  }
+
+  if ($saved) {
     // Extract the blog title, which will be used to construct migration machine names
     $xml = simplexml_load_file($destination);
     $title = (string)$xml->channel->title;
@@ -125,7 +221,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
       ->execute();
 
     // Instantiate each WP migration, passing the filename
-    $log_file = '/tmp/' . $_FILES['files']['name']['wxr_file'] . '.log'; //$destination . '.txt';
+    $log_file = '/tmp/' . $filename . '.log';
     $migration_classes = WordPressMigration::migrationList();
     $perform_import = TRUE;
     foreach ($migration_classes as $class_name) {
@@ -168,11 +264,10 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
         }
       }
     }
-    drupal_set_message(t('File %filename successfully uploaded and imported',
-      array('%filename' => $_FILES['files']['name']['wxr_file'])));
-  }
-  else {
-    drupal_set_message(t('Failed to move file to %filename', array('%filename' => $destination)));
+    if ($perform_import) {
+      drupal_set_message(t('File %filename successfully uploaded and imported',
+        array('%filename' => $filename)));
+    }
   }
 }
 
