@@ -390,6 +390,7 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
                ->execute()
                ->fetchField();
       $migration_classes = array_reverse(WordPressMigration::migrationList());
+      $success = TRUE;
       foreach ($migration_classes as $class_name) {
         $machine_name = _wordpress_machine_from_title($class_name, $title);
         try {
@@ -401,7 +402,9 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
               Migration::deregisterMigration($machine_name);
             }
             else {
-              // TODO: Handle INCOMPLETE etc.
+              drupal_set_message(t('Failed to complete rollback'));
+              $success = FALSE;
+              break;
             }
           }
         }
@@ -410,17 +413,21 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
         }
       }
 
-      // Clear wordpress_migrate table entry
-      db_delete('wordpress_migrate')
-        ->condition('filename', $filename)
-        ->execute();
+      if ($success) {
+        // Clear wordpress_migrate table entry
+        db_delete('wordpress_migrate')
+          ->condition('filename', $filename)
+          ->execute();
 
-      // Delete WXR file
-      file_unmanaged_delete($filename);
+        // Delete WXR file
+        file_unmanaged_delete($filename);
+      }
     }
-    $count = count($form_state['values']['domains']);
-    watchdog('content', 'Deleted @count WordPress blogs.', array('@count' => $count));
-    drupal_set_message(format_plural($count, 'Deleted 1 blog.', 'Deleted @count blogs.'));
+    if ($success) {
+      $count = count($form_state['values']['domains']);
+      watchdog('content', 'Deleted @count WordPress blogs.', array('@count' => $count));
+      drupal_set_message(format_plural($count, 'Deleted 1 blog.', 'Deleted @count blogs.'));
+    }
   }
   $form_state['redirect'] = 'admin/content/wordpress/review';
 }
