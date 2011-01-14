@@ -69,4 +69,10 @@ abstract class WordPressMigration extends DynamicMigration {
       strlen($class_name) - strlen('WordPress'));
     return $machine_name;
   }
+
+  /**
+   * Suppress normal migrate module output.
+   */
+  public function showMessage($message, $level = MigrationBase::MESSAGE_ERROR) {
+  }
 }
