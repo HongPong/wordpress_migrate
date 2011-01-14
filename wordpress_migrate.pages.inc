@@ -36,14 +36,6 @@ function wordpress_migrate_import_form($form, &$form_state) {
     );
     return $form;
   }
-  elseif (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-    $form['configure'] = array(
-      '#prefix' => '<div>',
-      '#markup' => t('<a href="@config">Configuration</a>',
-        array('@config' => url('admin/content/wordpress/configure'))),
-      '#suffix' => '</div>',
-    );
-  }
 
   $form['overview'] = array(
     '#prefix' => '<div>',
@@ -272,6 +264,168 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
 }
 
 /**
+ * Menu callback: Returns a page for reviewing WordPress migrations.
+ */
+function wordpress_migrate_review() {
+  drupal_set_title(t('WordPress migrations'));
+  return drupal_get_form('wordpress_migrate_review_form');
+}
+
+/**
+ * Form for reviewing WordPress migrations.
+ */
+function wordpress_migrate_review_form($form, &$form_state) {
+  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'rollback') {
+    return wordpress_migrate_rollback_confirm($form, $form_state, array_filter($form_state['values']['domains']));
+  }
+  $form['overview'] = array(
+    '#prefix' => '<div>',
+    '#markup' => t('WordPress blogs that you have imported into Drupal are listed
+      below. '),
+    '#suffix' => '</div>',
+  );
+
+  // Build the 'Update options' form.
+  $form['options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Update options'),
+    '#attributes' => array('class' => array('container-inline')),
+  );
+  $options = array(
+    'rollback' => t('Remove imported content'),
+  );
+  $form['options']['operation'] = array(
+    '#type' => 'select',
+    '#title' => t('Operation'),
+    '#title_display' => 'invisible',
+    '#options' => $options,
+  );
+  $form['options']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Update'),
+    '#validate' => array('wordpress_migrate_review_validate'),
+    '#submit' => array('wordpress_migrate_review_submit'),
+  );
+
+  $header = array(
+    'domain' => array('data' => t('Blog domain')),
+  );
+  $rows = array();
+  $blogs = db_select('wordpress_migrate', 'wm')
+           ->fields('wm', array('filename'))
+           ->execute()
+           ->fetchCol();
+  foreach ($blogs as $filename) {
+    // Parse the domain from the filename (scheme://wordpress/example.wordpress.com.xml)
+    $domain = _wordpress_migrate_parse_domain($filename);
+    if ($domain) {
+      $row['domain'] = $domain;
+      $rows[$filename] = $row;
+    }
+    else {
+      drupal_set_message(t('Could not identify the domain in !filename',
+        array('!filename' => $filename)));
+    }
+  }
+
+  $form['domains'] = array(
+    '#type' => 'tableselect',
+    '#header' => $header,
+    '#options' => $rows,
+    '#empty' => t('No WordPress blogs have been migrated into your Drupal site'),
+  );
+
+  return $form;
+}
+
+/**
+ * Validate callback for the WordPress review form.
+ */
+function wordpress_migrate_review_validate($form, &$form_state) {
+  // Error if there are no items to select.
+  if (!is_array($form_state['values']['domains']) || !count(array_filter($form_state['values']['domains']))) {
+    form_set_error('', t('No items selected.'));
+  }
+}
+
+/**
+ * Submit callback for the WordPress review form.
+ */
+function wordpress_migrate_review_submit($form, &$form_state) {
+  // We need to rebuild the form to go to a second step (confirm blog rollback)
+  $form_state['rebuild'] = TRUE;
+}
+
+function wordpress_migrate_rollback_confirm($form, &$form_state, $domains) {
+  $form['domains'] = array('#prefix' => '<ul>', '#suffix' => '</ul>', '#tree' => TRUE);
+  // array_filter returns only elements with TRUE values
+  foreach ($domains as $filename) {
+    $form['domains'][$filename] = array(
+      '#type' => 'hidden',
+      '#value' => $filename,
+      '#prefix' => '<li>',
+      '#suffix' => check_plain(_wordpress_migrate_parse_domain($filename)) . "</li>\n",
+    );
+  }
+  $form['operation'] = array('#type' => 'hidden', '#value' => 'rollback');
+  $form['#submit'][] = 'wordpress_migrate_rollback_confirm_submit';
+  $confirm_question = format_plural(count($domains),
+                                  'Are you sure you want to remove all imported content for this blog?',
+                                  'Are you sure you want to remove all imported content for these blogs?');
+  return confirm_form($form,
+                    $confirm_question,
+                    'admin/content/wordpress/review', t('This action cannot be undone.'),
+                    t('Delete'), t('Cancel'));
+}
+
+function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
+  if ($form_state['values']['confirm']) {
+    $domains = array_keys($form_state['values']['domains']);
+    foreach ($domains as $filename) {
+      // TODO: Batch API
+      // Rollback migrations for this domain
+      $title = db_select('wordpress_migrate', 'wp')
+               ->fields('wp', array('title'))
+               ->condition('filename', $filename)
+               ->execute()
+               ->fetchField();
+      $migration_classes = array_reverse(WordPressMigration::migrationList());
+      foreach ($migration_classes as $class_name) {
+        $machine_name = _wordpress_machine_from_title($class_name, $title);
+        try {
+          $migration = MigrationBase::getInstance($machine_name);
+          if ($migration) {
+            $result = $migration->processRollback();
+            if ($result == MigrationBase::RESULT_COMPLETED) {
+              // Remove map/message tables, and migrate_status table entry
+              Migration::deregisterMigration($machine_name);
+            }
+            else {
+              // TODO: Handle INCOMPLETE etc.
+            }
+          }
+        }
+        catch (Exception $e) {
+          // If migration does not exist, ignore
+        }
+      }
+
+      // Clear wordpress_migrate table entry
+      db_delete('wordpress_migrate')
+        ->condition('filename', $filename)
+        ->execute();
+
+      // Delete WXR file
+      file_unmanaged_delete($filename);
+    }
+    $count = count($form_state['values']['domains']);
+    watchdog('content', 'Deleted @count WordPress blogs.', array('@count' => $count));
+    drupal_set_message(format_plural($count, 'Deleted 1 blog.', 'Deleted @count blogs.'));
+  }
+  $form_state['redirect'] = 'admin/content/wordpress/review';
+}
+
+/**
  * Menu callback: Returns a page for configuring WordPress migrations.
  */
 function wordpress_migrate_configure() {
@@ -425,5 +579,15 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_notification_body', $form_state['values']['wordpress_migrate_notification_body']);
   variable_set('wordpress_migrate_notification_failure_body', $form_state['values']['wordpress_migrate_notification_failure_body']);
   drupal_set_message(t('WordPress configuration changes saved.'));
-  $form_state['redirect'] = 'admin/content/wordpress';
+}
+
+// Utility functions
+
+function _wordpress_migrate_parse_domain($filename) {
+  if (preg_match('|://wordpress/(.*)\.xml|', $filename, $matches)) {
+    return $matches[1];
+  }
+  else {
+    return NULL;
+  }
 }

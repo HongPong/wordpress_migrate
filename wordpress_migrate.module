@@ -32,20 +32,34 @@ function wordpress_migrate_menu() {
 
   $items['admin/content/wordpress'] = array(
     'title' => 'WordPress migration',
+    'type' => MENU_LOCAL_TASK | MENU_NORMAL_ITEM,
     'description' => 'Migrate WordPress content into Drupal',
     'page callback' => 'wordpress_migrate_import',
     'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_MIGRATE),
     'file' => 'wordpress_migrate.pages.inc',
-    'type' => MENU_LOCAL_TASK,
   );
-
+  $items['admin/content/wordpress/import'] = array(
+    'title' => 'Import',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items['admin/content/wordpress/review'] = array(
+    'title' => 'Review',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Review and manage WordPress migrations',
+    'page callback' => 'wordpress_migrate_review',
+    'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_MIGRATE),
+    'file' => 'wordpress_migrate.pages.inc',
+    'weight' => 0,
+  );
   $items['admin/content/wordpress/configure'] = array(
-    'title' => 'WordPress migration configuration',
+    'title' => 'Configure',
+    'type' => MENU_LOCAL_TASK,
     'description' => 'Configure WordPress migration into Drupal',
     'page callback' => 'wordpress_migrate_configure',
     'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_CONFIGURE),
     'file' => 'wordpress_migrate.pages.inc',
-    'type' => MENU_CALLBACK,
+    'weight' => 10,
   );
 
   return $items;
