@@ -168,7 +168,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
          ->description('Empty dates handled in prepare()');
     $this->addFieldMapping('uid', 'creator')
          ->description('Use matching username if any, otherwise current user');
-    $arguments = array('source_field' => 'excerpt', 'format' => 'safe_html');
+    $text_format = variable_get('wordpress_migrate_text_format', 'filtered_html');
+    $arguments = array('source_field' => 'excerpt', 'format' => $text_format);
     $this->addFieldMapping('body', 'content')
          ->arguments($arguments);
     $this->addFieldMapping(NULL, 'excerpt');

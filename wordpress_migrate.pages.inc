@@ -517,7 +517,18 @@ function wordpress_migrate_configure_form($form, &$form_state) {
     '#description' => t(''),
   );
 
-  // TODO: Select default text format for bodies etc.
+  // Select default text format for bodies etc.
+  $options = array();
+  foreach (filter_formats() as $format_id => $format) {
+    $options[$format_id] = $format->name;
+  }
+  $form['wordpress_migrate_text_format'] = array(
+    '#type' => 'select',
+    '#title' => t('Format for text fields'),
+    '#default_value' => variable_get('wordpress_migrate_text_format', 'filtered_html'),
+    '#options' => $options,
+    '#description' => t(''),
+  );
 
   // TODO: Select user to own blog
 
@@ -585,10 +596,11 @@ function wordpress_migrate_configure_form($form, &$form_state) {
 function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_scheme', $form_state['values']['wordpress_migrate_scheme']);
 
-  // TODO: Verify file exists
+  // TODO: Verify drush command file exists
   variable_set('wordpress_migrate_drush', $form_state['values']['wordpress_migrate_drush']);
 
   variable_set('wordpress_migrate_post_type', $form_state['values']['wordpress_migrate_post_type']);
+  variable_set('wordpress_migrate_text_format', $form_state['values']['wordpress_migrate_text_format']);
   variable_set('wordpress_migrate_page_type', $form_state['values']['wordpress_migrate_page_type']);
   variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
   variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
