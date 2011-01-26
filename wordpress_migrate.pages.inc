@@ -196,8 +196,18 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
 
   if ($saved) {
+    // Suppress errors during parsing, so we can pick them up after
+    libxml_use_internal_errors(TRUE);
     // Extract the blog title, which will be used to construct migration machine names
     $xml = simplexml_load_file($destination);
+    if (!$xml) {
+      drupal_set_message(t('Could not load WXR file due to:'));
+      foreach (libxml_get_errors() as $error) {
+        drupal_set_message($error->message);
+      }
+      return;
+    }
+
     $title = (string)$xml->channel->title;
     // Keep only alphabetic characters
     // TODO: Use filename if nothing's left

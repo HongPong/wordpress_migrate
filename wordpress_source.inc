@@ -69,9 +69,20 @@ abstract class WordPressSource extends MigrateSource {
   public function __construct($filename) {
     parent::__construct();
     $this->filename = $filename;
+    // Suppress errors during parsing, so we can pick them up after
+    libxml_use_internal_errors(TRUE);
     $this->xml = simplexml_load_file($this->filename);
-    $base_blog_url = $this->xml->xpath('//channel/wp:base_blog_url');
-    $this->baseBlogUrl = (string)$base_blog_url[0];
+    if ($this->xml) {
+      $base_blog_url = $this->xml->xpath('//channel/wp:base_blog_url');
+      $this->baseBlogUrl = (string)$base_blog_url[0];
+    }
+    else {
+      $message = '';
+      foreach (libxml_get_errors() as $error) {
+        $message .= $error->message . "\n";
+      }
+      throw new Exception($message);
+    }
   }
 
   /**
