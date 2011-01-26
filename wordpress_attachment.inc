@@ -201,6 +201,33 @@ class WordPressAttachment extends WordPressMigration {
         'new_uri' => parse_url(file_create_url($file->uri), PHP_URL_PATH),
       ))
       ->execute();
+
+    // If media_gallery is enabled, add this image to the user's gallery.
+    // Lazy-create the gallery node if it doesn't already exist
+    // TODO: Needs generalization, takes for granted blog module
+    // TODO: Cache fids to add, do them all at once
+    if (module_exists('media_gallery')) {
+      global $user;
+      $blog_title = t("@name's blog", array('@name' => format_username($user)));
+      $gallery_nid = db_select('node', 'n')
+                     ->fields('n', array('nid'))
+                     ->condition('type', 'media_gallery')
+                     ->condition('title', $blog_title)
+                     ->execute()
+                     ->fetchField();
+      if ($gallery_nid) {
+        $gallery_node = node_load($gallery_nid);
+      }
+      else {
+        $gallery_node = new stdClass;
+        $gallery_node->type = 'media_gallery';
+        $gallery_node->title = $blog_title;
+        $gallery_node->uid = $user->uid;
+      }
+      $gallery_node->media_gallery_media[LANGUAGE_NONE][] = array('fid' => $file->fid);
+      node_save($gallery_node);
+    }
+
   }
 
   /**
