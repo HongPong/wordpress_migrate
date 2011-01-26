@@ -71,8 +71,11 @@ abstract class WordPressMigration extends DynamicMigration {
   }
 
   /**
-   * Suppress normal migrate module output.
+   * Suppress normal migrate module output in the browser.
    */
   public function showMessage($message, $level = MigrationBase::MESSAGE_ERROR) {
+    if (function_exists('drush_log')) {
+      parent::showMessage($message, $level);
+    }
   }
 }

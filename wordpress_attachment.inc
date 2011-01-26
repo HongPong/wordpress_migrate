@@ -38,6 +38,25 @@ class WordPressAttachment extends WordPressMigration {
     $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'),
       $this->generateMachineName('WordPressPage'));
 
+    $dest_options = array('copy_file' => TRUE, 'source_migrations' => $this->dependencies);
+    // Make use of the media module if present
+    if (module_exists('media')) {
+      $this->destination = new MigrateDestinationMedia('image', $dest_options);
+      $keySchema = MigrateDestinationMedia::getKeySchema();
+      $this->addFieldMapping('media_title', 'title');
+      $this->addFieldMapping('media_description', 'content');
+      $this->addFieldMapping('file')
+           ->issueGroup(t('DNM'));
+    }
+    else {
+      $this->destination = new MigrateDestinationFile($dest_options);
+      $keySchema = MigrateDestinationFile::getKeySchema();
+      $this->addFieldMapping(NULL, 'title')
+           ->issueGroup(t('DNM'));
+      $this->addFieldMapping(NULL, 'content')
+           ->issueGroup(t('DNM'));
+    }
+
     // post_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
       array(
@@ -48,13 +67,11 @@ class WordPressAttachment extends WordPressMigration {
           'description' => 'WordPress post ID',
         )
       ),
-      MigrateDestinationMedia::getKeySchema()
+      $keySchema
     );
 
-    // Construct the source objects.
+    // Construct the source object.
     $this->source = new WordPressAttachmentSource($this->wxrFile);
-    $options = array('copy_file' => TRUE, 'source_migrations' => $this->dependencies);
-    $this->destination = new MigrateDestinationMedia($options);
 
     $this->addFieldMapping('fid')
          ->issueGroup(t('DNM'));
@@ -78,15 +95,11 @@ class WordPressAttachment extends WordPressMigration {
          ->issueGroup(t('DNM'));
 
     // Unmapped source fields
-    $this->addFieldMapping(NULL, 'title')
-         ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'link')
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'guid')
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'description')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'content')
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'excerpt')
          ->issueGroup(t('DNM'));
