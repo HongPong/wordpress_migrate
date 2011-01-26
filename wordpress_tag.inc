@@ -19,6 +19,7 @@ class WordPressTagSource extends WordPressSource {
   protected $fields = array(
     'tag_slug' => 'Unique "machine name" of the tag',
     'tag_name' => 'User-friendly tag name',
+    'tag_description' => 'Description of tag',
   );
 
   /**
@@ -79,8 +80,7 @@ class WordPressTag extends WordPressMigration {
 
     // The basic mappings
     $this->addFieldMapping('name', 'tag_name');
-    $this->addFieldMapping('description')
-         ->issueGroup('DNM');
+    $this->addFieldMapping('description', 'tag_description');
     $this->addFieldMapping('parent_name')
          ->issueGroup('DNM');
 

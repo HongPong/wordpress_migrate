@@ -111,6 +111,7 @@ class WordPressItemSource extends WordPressSource {
       $domain = $attributes->domain;
       $nicename = $attributes->nicename;
       if ($nicename) {
+        $nicename = (string)$nicename[0];
         if ($domain == 'category') {
           $this->currentRow->category[] = $nicename;
         }
@@ -136,7 +137,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
 
-    $this->dependencies = array($this->generateMachineName('WordPressCategory'));
+    $this->dependencies = array($this->generateMachineName('WordPressCategory'),
+      $this->generateMachineName('WordPressTag'));
 
     // WordPress post type
     $post_type = $arguments['post_type'];
@@ -208,7 +210,15 @@ abstract class WordPressItemMigration extends WordPressMigration {
         // a match is found, make the mapping
         foreach ($vocabs as $source_field => $vocab_name) {
           if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
-            $this->addFieldMapping($machine_name, $source_field);
+            if ($source_field == 'tag') {
+              $sourceMigration = $this->generateMachineName('WordPressTag');
+            }
+            else {
+              $sourceMigration = $this->generateMachineName('WordPressCategory');
+            }
+            $this->addFieldMapping($machine_name, $source_field)
+                 ->arguments(array('source_type' => 'tid'))
+                 ->sourceMigration($sourceMigration);
             unset($vocabs[$source_field]);
           }
         }
@@ -238,6 +248,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping('language')
          ->issueGroup(t('DNM'));
     $this->addFieldMapping('promote')
+         ->issueGroup(t('DNM'));
+    $this->addFieldMapping('revision_uid')
          ->issueGroup(t('DNM'));
 
     // Unmapped source fields
