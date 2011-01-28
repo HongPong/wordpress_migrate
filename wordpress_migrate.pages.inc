@@ -208,6 +208,13 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
       return;
     }
 
+    // Validate that it really is a WXR file
+    $wxr_version = $xml->xpath('//channel/wp:wxr_version');
+    if (!$wxr_version) {
+      form_set_error('wxr_file', t('The uploaded file is not a valid WordPress export'));
+      return;
+    }
+
     $title = (string)$xml->channel->title;
     // Keep only alphabetic characters
     // TODO: Use filename if nothing's left
@@ -431,6 +438,8 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
 
         // Delete WXR file
         file_unmanaged_delete($filename);
+
+        // TODO: Delete photo gallery
       }
     }
     if ($success) {
