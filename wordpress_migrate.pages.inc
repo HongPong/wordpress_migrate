@@ -19,8 +19,8 @@ function wordpress_migrate_import() {
  * Form for specifying where to obtain the WordPress content.
  */
 function wordpress_migrate_import_form($form, &$form_state) {
-  $scheme = variable_get('wordpress_migrate_scheme', '');
-  if (!$scheme) {
+  $post_type = variable_get('wordpress_migrate_post_type', '');
+  if (!$post_type) {
     if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
       $message = t('Wordpress migration must be <a href="@config">configured</a> before use',
         array('@config' => url('admin/content/wordpress/configure')));
@@ -107,25 +107,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
  * Submit callback for the WordPress import form.
  */
 function wordpress_migrate_import_form_submit($form, &$form_state) {
-  // Get the scheme for saving the WXR file. Note that we default to private, but
-  // that might not be available, so check - if the scheme is not available, punt.
-  $scheme = variable_get('wordpress_migrate_scheme', 'private');
-  $streams = file_get_stream_wrappers(STREAM_WRAPPERS_WRITE);
-  if (!isset($streams[$scheme])) {
-    if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-      $message = t('Scheme %scheme not available - please <a href="@config">configure
-          an appropriate scheme</a> for saving the WordPress WXR file.',
-        array('%scheme' => $scheme, '@config' => url('admin/content/wordpress/configure')));
-    }
-    else {
-      $message = t('WordPress migration is not properly configured - please contact
-        a site administrator');
-    }
-    form_set_error('wxr_file', $message);
-    return;
-  }
-
-  $directory = $scheme . '://wordpress';
+  $directory = 'wordpress://';
   if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
     form_set_error('wxr_file', t('Could not prepare directory %directory',
       array('%directory' => $directory)));
@@ -136,7 +118,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   if ($tmpfile) {
     // Handle uploaded file
     $filename = $_FILES['files']['name']['wxr_file'];
-    $destination = $directory . '/' . $filename;
+    $destination = $directory . $filename;
     $saved = file_unmanaged_move($tmpfile, $destination, FILE_EXISTS_REPLACE);
     if (!$saved) {
       drupal_set_message(t('Failed to save file to %filename', array('%filename' => $destination)));
@@ -216,6 +198,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     }
 
     $title = (string)$xml->channel->title;
+    $blog_url = $xml->xpath('//channel/wp:base_blog_url');
+    $blog_url = (string)$blog_url[0];
+
     // Keep only alphabetic characters
     // TODO: Use filename if nothing's left
     $title = preg_replace('/[^A-Za-z]/', '', $title);
@@ -226,6 +211,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     db_merge('wordpress_migrate')
       ->key(array('filename' => $destination))
       ->fields(array('title' => $title))
+      ->fields(array('blog_url' => $blog_url))
       ->fields(array('uid' => $user->uid))
       ->execute();
 
@@ -293,12 +279,11 @@ function wordpress_migrate_review() {
  */
 function wordpress_migrate_review_form($form, &$form_state) {
   if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'rollback') {
-    return wordpress_migrate_rollback_confirm($form, $form_state, array_filter($form_state['values']['domains']));
+    return wordpress_migrate_rollback_confirm($form, $form_state, array_filter($form_state['values']['blogs']));
   }
   $form['overview'] = array(
     '#prefix' => '<div>',
-    '#markup' => t('WordPress blogs that you have imported into Drupal are listed
-      below. '),
+    '#markup' => t('WordPress blogs that you have imported into Drupal are listed below. '),
     '#suffix' => '</div>',
   );
 
@@ -325,27 +310,19 @@ function wordpress_migrate_review_form($form, &$form_state) {
   );
 
   $header = array(
-    'domain' => array('data' => t('Blog domain')),
+    'blog_url' => array('data' => t('Original Blog URL')),
   );
   $rows = array();
   $blogs = db_select('wordpress_migrate', 'wm')
-           ->fields('wm', array('filename'))
+           ->fields('wm', array('blog_url'))
            ->execute()
            ->fetchCol();
-  foreach ($blogs as $filename) {
-    // Parse the domain from the filename (scheme://wordpress/example.wordpress.com.xml)
-    $domain = _wordpress_migrate_parse_domain($filename);
-    if ($domain) {
-      $row['domain'] = $domain;
-      $rows[$filename] = $row;
-    }
-    else {
-      drupal_set_message(t('Could not identify the domain in !filename',
-        array('!filename' => $filename)));
-    }
+  foreach ($blogs as $blog_url) {
+    $row['blog_url'] = $blog_url;
+    $rows[$blog_url] = $row;
   }
 
-  $form['domains'] = array(
+  $form['blogs'] = array(
     '#type' => 'tableselect',
     '#header' => $header,
     '#options' => $rows,
@@ -360,7 +337,7 @@ function wordpress_migrate_review_form($form, &$form_state) {
  */
 function wordpress_migrate_review_validate($form, &$form_state) {
   // Error if there are no items to select.
-  if (!is_array($form_state['values']['domains']) || !count(array_filter($form_state['values']['domains']))) {
+  if (!is_array($form_state['values']['blogs']) || !count(array_filter($form_state['values']['blogs']))) {
     form_set_error('', t('No items selected.'));
   }
 }
@@ -373,20 +350,20 @@ function wordpress_migrate_review_submit($form, &$form_state) {
   $form_state['rebuild'] = TRUE;
 }
 
-function wordpress_migrate_rollback_confirm($form, &$form_state, $domains) {
-  $form['domains'] = array('#prefix' => '<ul>', '#suffix' => '</ul>', '#tree' => TRUE);
+function wordpress_migrate_rollback_confirm($form, &$form_state, $blogs) {
+  $form['blogs'] = array('#prefix' => '<ul>', '#suffix' => '</ul>', '#tree' => TRUE);
   // array_filter returns only elements with TRUE values
-  foreach ($domains as $filename) {
-    $form['domains'][$filename] = array(
+  foreach ($blogs as $blog_url) {
+    $form['blogs'][$blog_url] = array(
       '#type' => 'hidden',
-      '#value' => $filename,
+      '#value' => $blog_url,
       '#prefix' => '<li>',
-      '#suffix' => check_plain(_wordpress_migrate_parse_domain($filename)) . "</li>\n",
+      '#suffix' => check_plain($blog_url) . "</li>\n",
     );
   }
   $form['operation'] = array('#type' => 'hidden', '#value' => 'rollback');
   $form['#submit'][] = 'wordpress_migrate_rollback_confirm_submit';
-  $confirm_question = format_plural(count($domains),
+  $confirm_question = format_plural(count($blogs),
                                   'Are you sure you want to remove all imported content for this blog?',
                                   'Are you sure you want to remove all imported content for these blogs?');
   return confirm_form($form,
@@ -397,19 +374,19 @@ function wordpress_migrate_rollback_confirm($form, &$form_state, $domains) {
 
 function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
-    $domains = array_keys($form_state['values']['domains']);
-    foreach ($domains as $filename) {
+    $blogs = array_keys($form_state['values']['blogs']);
+    foreach ($blogs as $blog_url) {
       // TODO: Batch API
       // Rollback migrations for this domain
-      $title = db_select('wordpress_migrate', 'wp')
-               ->fields('wp', array('title'))
-               ->condition('filename', $filename)
+      $blog = db_select('wordpress_migrate', 'wp')
+               ->fields('wp', array('title', 'filename'))
+               ->condition('blog_url', $blog_url)
                ->execute()
-               ->fetchField();
+               ->fetchObject();
       $migration_classes = array_reverse(WordPressMigration::migrationList());
       $success = TRUE;
       foreach ($migration_classes as $class_name) {
-        $machine_name = _wordpress_machine_from_title($class_name, $title);
+        $machine_name = _wordpress_machine_from_title($class_name, $blog->title);
         try {
           $migration = MigrationBase::getInstance($machine_name);
           if ($migration) {
@@ -433,17 +410,17 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
       if ($success) {
         // Clear wordpress_migrate table entry
         db_delete('wordpress_migrate')
-          ->condition('filename', $filename)
+          ->condition('blog_url', $blog_url)
           ->execute();
 
         // Delete WXR file
-        file_unmanaged_delete($filename);
+        file_unmanaged_delete($blog->filename);
 
         // TODO: Delete photo gallery
       }
     }
     if ($success) {
-      $count = count($form_state['values']['domains']);
+      $count = count($form_state['values']['blogs']);
       watchdog('content', 'Deleted @count WordPress blogs.', array('@count' => $count));
       drupal_set_message(format_plural($count, 'Deleted 1 blog.', 'Deleted @count blogs.'));
     }
@@ -463,23 +440,6 @@ function wordpress_migrate_configure() {
  * Form for configuring WordPress migrations.
  */
 function wordpress_migrate_configure_form($form, &$form_state) {
-  // Get writable streams
-  $streams = file_get_stream_wrappers(STREAM_WRAPPERS_WRITE);
-
-  $options = array();
-  foreach ($streams as $scheme => $info) {
-    $options[$scheme] = $info['name'];
-  }
-
-  $form['wordpress_migrate_scheme'] = array(
-    '#type' => 'select',
-    '#title' => t('Scheme for saving WordPress WXR dumps'),
-    '#default_value' => variable_get('wordpress_migrate_scheme', 'private'),
-    '#options' => $options,
-    '#description' => t('It is recommended that you choose a scheme which does
-      not allow public downloads. '),
-  );
-
   $form['wordpress_migrate_drush'] = array(
     '#type' => 'textfield',
     '#title' => t('Location of drush command on server'),
@@ -603,8 +563,6 @@ function wordpress_migrate_configure_form($form, &$form_state) {
  * Submit callback for the WordPress configure form.
  */
 function wordpress_migrate_configure_form_submit($form, &$form_state) {
-  variable_set('wordpress_migrate_scheme', $form_state['values']['wordpress_migrate_scheme']);
-
   // TODO: Verify drush command file exists
   variable_set('wordpress_migrate_drush', $form_state['values']['wordpress_migrate_drush']);
 
@@ -617,15 +575,4 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_notification_body', $form_state['values']['wordpress_migrate_notification_body']);
   variable_set('wordpress_migrate_notification_failure_body', $form_state['values']['wordpress_migrate_notification_failure_body']);
   drupal_set_message(t('WordPress configuration changes saved.'));
-}
-
-// Utility functions
-
-function _wordpress_migrate_parse_domain($filename) {
-  if (preg_match('|://wordpress/(.*)\.xml|', $filename, $matches)) {
-    return $matches[1];
-  }
-  else {
-    return NULL;
-  }
 }

@@ -81,6 +81,22 @@ function _wordpress_machine_from_title($class_name, $title) {
 }
 
 /**
+ * Implements hook_stream_wrappers().
+ */
+function wordpress_migrate_stream_wrappers() {
+  $wrappers = array(
+    'wordpress' => array(
+      'name' => t('Uploaded wordpress files'),
+      'class' => 'WordpressMigrateStreamWrapper',
+      'description' => t('Uploaded WordPress WXR dumps for import - not to be seen by the world.'),
+      'type' => STREAM_WRAPPERS_LOCAL_HIDDEN,
+    )
+  );
+
+  return $wrappers;
+}
+
+/**
  * Implementation of hook_mail().
  *
  * @param $key

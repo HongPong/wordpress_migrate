@@ -14,4 +14,4 @@ files[] = wordpress_category.inc
 files[] = wordpress_comment.inc
 files[] = wordpress_item.inc
 files[] = wordpress_tag.inc
-
+files[] = wordpress_wrapper.inc
