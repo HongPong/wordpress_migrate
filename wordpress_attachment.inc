@@ -38,9 +38,10 @@ class WordPressAttachment extends WordPressMigration {
     $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'),
       $this->generateMachineName('WordPressPage'));
 
-    $dest_options = array('copy_file' => TRUE, 'source_migrations' => $this->dependencies);
+    $dest_options = array('copy_file' => TRUE);
     // Make use of the media module if present
     if (module_exists('media')) {
+      $dest_options['source_migrations'] = $this->dependencies;
       $this->destination = new MigrateDestinationMedia('image', $dest_options);
       $keySchema = MigrateDestinationMedia::getKeySchema();
       $this->addFieldMapping('media_title', 'title');

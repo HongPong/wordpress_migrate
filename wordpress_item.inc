@@ -328,8 +328,91 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // Strip [caption] tags
+    // TODO: Interpret the [caption] tags
     $row->content = preg_replace('|\[/?caption[^\]]*\]|', '', $row->content);
+
+    // Rewrite embedded video references to media tags (TODO: YouTube only for now)
+    if (module_exists('media_youtube')) {
+      $row->content = preg_replace_callback('|<object [^>]*>.*?(<embed [^>]*>).*?</object>|i', array($this, 'replaceCallback'),
+        $row->content);
+    }
     return TRUE;
+  }
+
+  /**
+   * If we have a YouTube reference, replace it with media tags.
+   *
+   * @param array $matches
+   */
+  protected function replaceCallback(array $matches) {
+    $embed_matches = array();
+    // Default to the original <object> tag
+    $result = $matches[0];
+
+    // If an <embed> tag is present, parse it
+    if ($matches[1]) {
+      if (preg_match('|src=[\'"](.*?)[\'"]|i', $matches[1], $src_matches)) {
+        $src = $src_matches[1];
+      }
+      else {
+        return $result;
+      }
+      // We support YouTube only
+      if (preg_match('|^https?://www.youtube.com/|', $src)) {
+        $src = preg_replace('|^https?://www.youtube.com/|', 'youtube://', $src);
+      }
+      else {
+        return $result;
+      }
+      if (preg_match('|width=[\'"](.*?)[\'"]|i', $matches[1], $width_matches)) {
+        $width = $width_matches[1];
+      }
+      else {
+        return $result;
+      }
+      if (preg_match('|height=[\'"](.*?)[\'"]|i', $matches[1], $height_matches)) {
+        $height = $height_matches[1];
+      }
+      else {
+        return $result;
+      }
+      // OK, at this point we have all the info we need - construct a file_managed table
+      // entry (if one doesn't already exist)
+      $fid = db_select('file_managed', 'f')
+             ->fields('f', array('fid'))
+             ->condition('uri', $src)
+             ->execute()
+             ->fetchField();
+      if (!$fid) {
+        global $user;
+        $file = new stdClass();
+        $file->uri = $src;
+        $file->filename = basename($src);
+        $file->filemime = 'video/youtube';
+        $file->type = 'video';
+        $file->uid = $user->uid;
+        $file->status = 1;
+        file_save($file);
+        media_save($file);
+        $fid = $file->fid;
+      }
+      // Build the media tag
+      $video_info = array(
+        'type' => 'media',
+        'view_mode' => 'media_large',
+        'fid' => $fid,
+        'attributes' => array(
+          'class' => 'media-image',
+          'typeof' => 'foaf:Image',
+          'height' => $height,
+          'width' => $width,
+          'style' => '',
+        ),
+      );
+      $result = '[[' . drupal_json_encode($video_info) . ']]';
+    }
+
+    return $result;
   }
 
   /**
