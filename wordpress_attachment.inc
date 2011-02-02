@@ -228,7 +228,6 @@ class WordPressAttachment extends WordPressMigration {
       $gallery_node->media_gallery_media[LANGUAGE_NONE][] = array('fid' => $file->fid);
       node_save($gallery_node);
     }
-
   }
 
   /**

@@ -85,16 +85,6 @@ function wordpress_migrate_import_form($form, &$form_state) {
       choose the downloaded file here.')
   );
 
-  global $user;
-  $form['notify'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Email address for notification'),
-    '#default_value' => $user->mail,
-    '#description' => t('If the blog is too large to be completely imported
-      immediately, the import will be run in the background and the specified
-      email address will be notified when it is complete.'),
-  );
-
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Import WordPress blog'),
@@ -121,7 +111,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     $destination = $directory . $filename;
     $saved = file_unmanaged_move($tmpfile, $destination, FILE_EXISTS_REPLACE);
     if (!$saved) {
-      drupal_set_message(t('Failed to save file to %filename', array('%filename' => $destination)));
+      form_set_error('wxr_file', t('Failed to save file to %filename', array('%filename' => $destination)));
     }
   }
   else {
@@ -178,88 +168,47 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
 
   if ($saved) {
-    // Suppress errors during parsing, so we can pick them up after
-    libxml_use_internal_errors(TRUE);
-    // Extract the blog title, which will be used to construct migration machine names
-    $xml = simplexml_load_file($destination);
-    if (!$xml) {
-      drupal_set_message(t('Could not load WXR file due to:'));
-      foreach (libxml_get_errors() as $error) {
-        drupal_set_message($error->message);
-      }
+    try {
+      $blog = new WordPressBlog($destination);
+    }
+    catch (Exception $e) {
+      form_set_error('wxr_file', $e->getMessage());
       return;
     }
 
-    // Validate that it really is a WXR file
-    $wxr_version = $xml->xpath('//channel/wp:wxr_version');
-    if (!$wxr_version) {
-      form_set_error('wxr_file', t('The uploaded file is not a valid WordPress export'));
-      return;
-    }
-
-    $title = (string)$xml->channel->title;
-    $blog_url = $xml->xpath('//channel/wp:base_blog_url');
-    $blog_url = (string)$blog_url[0];
-
-    // Keep only alphabetic characters
-    // TODO: Use filename if nothing's left
-    $title = preg_replace('/[^A-Za-z]/', '', $title);
-
-    // Save info on this blog (including UID of the account performing import)
-    // TODO: What to do if this has previously been imported?
-    global $user;
-    db_merge('wordpress_migrate')
-      ->key(array('filename' => $destination))
-      ->fields(array('title' => $title))
-      ->fields(array('blog_url' => $blog_url))
-      ->fields(array('uid' => $user->uid))
-      ->execute();
-
-    // Instantiate each WP migration, passing the filename
-    $log_file = '/tmp/' . $filename . '.log';
-    $migration_classes = WordPressMigration::migrationList();
-    $perform_import = TRUE;
-    foreach ($migration_classes as $class_name) {
-      // Skip tags/categories if there's no destination vocabulary
-      if ($class_name == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
-          $class_name == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
-        continue;
-      }
-      $machine_name = _wordpress_machine_from_title($class_name, $title);
-      MigrationBase::registerMigration($class_name, $machine_name, array('filename' => $destination));
-      if ($perform_import) {
-        $migration = MigrationBase::getInstance($machine_name);
-        $result = $migration->processImport();
-        if ($result == MigrationBase::RESULT_INCOMPLETE) {
-          $drush = variable_get('wordpress_migrate_drush', '');
-          if (!$drush) {
-            if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-              $message = t('The blog was too large to import through the browser - please
-                  <a href="@config">configure drush</a> so the import process may be
-                  run in the background.',
-                array('@config' => url('admin/content/wordpress/configure')));
-            }
-            else {
-              $message = t('The blog was too large to import through the browser - please
-                contact a site administrator to properly configure the site for
-                background imports.');
-            }
-            form_set_error('wxr_file', $message);
-            $perform_import = FALSE;
+    // Import each migration in order, until done or time is running out
+    $spawned = FALSE;
+    foreach ($blog->migrations() as $migration) {
+      $result = $migration->processImport();
+      if ($result == MigrationBase::RESULT_INCOMPLETE) {
+        $drush = variable_get('wordpress_migrate_drush', '');
+        if (!$drush) {
+          if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+            $message = t('The blog was too large to import through the browser - please
+                <a href="@config">configure drush</a> so the import process may be
+                run in the background.',
+              array('@config' => url('admin/content/wordpress/configure')));
           }
-          drupal_set_message(t('The blog is too large to completely import immediately -
-            the rest of the import will be run in the background and you will receive an email
-            when it is complete'));
-          $uri = 'http://' . $_SERVER['HTTP_HOST'];
-          $notify = $form_state['values']['notify'];
-          $command = "$drush --uri=$uri wordpress-migrate-import $destination --notify=$notify"
-            . " >$log_file 2>&1 &";
-          exec($command);
-          $perform_import = FALSE;
+          else {
+            $message = t('The blog was too large to import through the browser - please
+              contact a site administrator to properly configure the site for
+              background imports.');
+          }
+          form_set_error('wxr_file', $message);
+          break;
         }
+        drupal_set_message(t('The blog is too large to completely import immediately -
+          the rest of the import will be run in the background and you will receive an email
+          when it is complete'));
+        $uri = 'http://' . $_SERVER['HTTP_HOST'];
+        $log_file = '/tmp/' . $filename . '.import.log';
+        $command = "$drush --uri=$uri wordpress-migrate-import $destination >$log_file 2>&1 &";
+        exec($command);
+        $spawned = TRUE;
+        break;
       }
     }
-    if ($perform_import) {
+    if (!$spawned) {
       drupal_set_message(t('File %filename successfully uploaded and imported',
         array('%filename' => $filename)));
     }
@@ -313,13 +262,10 @@ function wordpress_migrate_review_form($form, &$form_state) {
     'blog_url' => array('data' => t('Original Blog URL')),
   );
   $rows = array();
-  $blogs = db_select('wordpress_migrate', 'wm')
-           ->fields('wm', array('blog_url'))
-           ->execute()
-           ->fetchCol();
-  foreach ($blogs as $blog_url) {
-    $row['blog_url'] = $blog_url;
-    $rows[$blog_url] = $row;
+  $blogs = WordPressBlog::blogs();
+  foreach ($blogs as $blog) {
+    $row['blog_url'] = $blog->getBlogUrl();
+    $rows[$blog->getBlogUrl()] = $row;
   }
 
   $form['blogs'] = array(
@@ -378,32 +324,66 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
     foreach ($blogs as $blog_url) {
       // TODO: Batch API
       // Rollback migrations for this domain
-      $blog = db_select('wordpress_migrate', 'wp')
-               ->fields('wp', array('title', 'filename'))
-               ->condition('blog_url', $blog_url)
-               ->execute()
-               ->fetchObject();
-      $migration_classes = array_reverse(WordPressMigration::migrationList());
+      $filename = db_select('wordpress_migrate', 'wp')
+                   ->fields('wp', array('filename'))
+                   ->condition('blog_url', $blog_url)
+                   ->execute()
+                   ->fetchField();
+      $blog = new WordPressBlog($filename);
+      $migrations = array_reverse($blog->migrations());
       $success = TRUE;
-      foreach ($migration_classes as $class_name) {
-        $machine_name = _wordpress_machine_from_title($class_name, $blog->title);
-        try {
-          $migration = MigrationBase::getInstance($machine_name);
-          if ($migration) {
-            $result = $migration->processRollback();
-            if ($result == MigrationBase::RESULT_COMPLETED) {
-              // Remove map/message tables, and migrate_status table entry
-              Migration::deregisterMigration($machine_name);
-            }
-            else {
-              drupal_set_message(t('Failed to complete rollback'));
-              $success = FALSE;
-              break;
-            }
+      foreach ($migrations as $migration) {
+        // If not currently idle, stop it before attempting rollback
+        if ($migration->getStatus() != MigrationBase::STATUS_IDLE) {
+          $migration->stopProcess();
+          // Give it a little time to react to the stop request
+          $count = 5;
+          while ($count && $migration->getStatus() == MigrationBase::STATUS_STOPPING) {
+            sleep(2);
+            $count--;
+          }
+          if ($migration->getStatus() == MigrationBase::STATUS_STOPPING) {
+            // At this point, assume it's stuck and reset the status so we can continue
+            $migration->resetStatus();
           }
         }
-        catch (Exception $e) {
-          // If migration does not exist, ignore
+        $result = $migration->processRollback();
+        if ($result == MigrationBase::RESULT_INCOMPLETE) {
+          $drush = variable_get('wordpress_migrate_drush', '');
+          if (!$drush) {
+            if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+              $message = t('The blog was too large to delete through the browser - please
+                    <a href="@config">configure drush</a> so the deletion process may be
+                    run in the background.',
+              array('@config' => url('admin/content/wordpress/configure')));
+            }
+            else {
+              $message = t('The blog was too large to delete through the browser - please
+                  contact a site administrator to properly configure the site for
+                  background deletion.');
+            }
+            drupal_set_message($message);
+            break;
+          }
+          drupal_set_message(t('The blog is too large to completely delete immediately -
+              the rest of the deletion will be run in the background.'));
+          $uri = 'http://' . $_SERVER['HTTP_HOST'];
+          $log_file = '/tmp/' . basename($blog->getFilename()) . '.rollback.log';
+          $destination = $blog->getFilename();
+          $command = "$drush --uri=$uri wordpress-migrate-rollback $destination >$log_file 2>&1 &";
+          exec($command);
+          $success = FALSE;
+          break;
+        }
+        elseif ($result == MigrationBase::RESULT_COMPLETED) {
+          // Remove map/message tables, and migrate_status table entry
+          Migration::deregisterMigration($migration->getMachineName());
+        }
+        else {
+          drupal_set_message(t('Failed to complete rollback, status=!status',
+            array('!status' => $result)));
+          $success = FALSE;
+          break;
         }
       }
 
@@ -414,9 +394,22 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
           ->execute();
 
         // Delete WXR file
-        file_unmanaged_delete($blog->filename);
+        file_unmanaged_delete($filename);
 
-        // TODO: Delete photo gallery
+        // Delete photo gallery
+        if (module_exists('media_gallery')) {
+          global $user;
+          $blog_title = t("@name's blog", array('@name' => format_username($user)));
+          $gallery_nid = db_select('node', 'n')
+            ->fields('n', array('nid'))
+            ->condition('type', 'media_gallery')
+            ->condition('title', $blog_title)
+            ->execute()
+            ->fetchField();
+          if ($gallery_nid) {
+            node_delete($gallery_nid);
+          }
+        }
       }
     }
     if ($success) {

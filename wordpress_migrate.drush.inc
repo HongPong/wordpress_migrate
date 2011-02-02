@@ -13,6 +13,8 @@ function wordpress_migrate_drush_help($section) {
   switch ($section) {
     case 'drush:wordpress-migrate-import':
       return dt('Import a WordPress blog');
+    case 'drush:wordpress-migrate-rollback':
+      return dt('Rollback a WordPress blog');
   }
 }
 
@@ -33,23 +35,25 @@ function wordpress_migrate_drush_command() {
     ),
     'drupal dependencies' => array('migrate'),
   );
+  $items['wordpress-migrate-rollback'] = array(
+    'description' => 'Rollback a WordPress blog',
+    'arguments' => array(
+      'filename' => 'Filename of blog export to rollback',
+    ),
+    'examples' => array(
+      'wordpress-migrate-rollback public://wordpress/blog.xml' => 'Rollback blog data',
+    ),
+    'drupal dependencies' => array('migrate'),
+  );
   return $items;
 }
 
 function drush_wordpress_migrate_import($filename) {
-  $row = db_select('wordpress_migrate', 'wm')
-         ->fields('wm', array('title', 'uid'))
-         ->condition('filename', $filename)
-         ->execute()
-         ->fetchObject();
-  if ($row) {
-    global $user;
-    $user = user_load($row->uid);
+  try {
+    $blog = new WordPressBlog($filename);
     $mail_key = 'import_complete';
-    $migration_classes = WordPressMigration::migrationList();
-    foreach ($migration_classes as $class_name) {
-      $machine_name = _wordpress_machine_from_title($class_name, $row->title);
-      $migration = MigrationBase::getInstance($machine_name);
+    $migrations = $blog->migrations();
+    foreach ($migrations as $migration) {
       $result = $migration->processImport();
       if ($result != MigrationBase::RESULT_COMPLETED) {
         $mail_key = 'import_failure';
@@ -57,16 +61,58 @@ function drush_wordpress_migrate_import($filename) {
       }
     }
     // Notify user
-    $notify = drush_get_option('notify');
-    if ($notify) {
-      $params['account'] = $user;
-      drupal_mail('wordpress_migrate', $mail_key, $notify,
-        user_preferred_language($user), $params);
+    $account = user_load($blog->getUid());
+    $params['account'] = $account;
+    drupal_mail('wordpress_migrate', $mail_key, $account->mail,
+      user_preferred_language($account), $params);
+  }
+  catch (Exception $e) {
+    drush_log($e->getMessage(), 'error');
+  }
+}
+
+function drush_wordpress_migrate_rollback($filename) {
+  try {
+    $blog = new WordPressBlog($filename);
+    $migrations = array_reverse($blog->migrations());
+    $incomplete = FALSE;
+    foreach ($migrations as $migration) {
+      $result = $migration->processRollback();
+      if ($result != MigrationBase::RESULT_COMPLETED) {
+        $incomplete = TRUE;
+        drush_log(dt('!title rollback failed to complete', array('!title' => $blog->getTitle())));
+        break;
+      }
+      // Remove map/message tables, and migrate_status table entry
+      Migration::deregisterMigration($migration->getMachineName());
+    }
+
+    if (!$incomplete) {
+      // Clear wordpress_migrate table entry
+      db_delete('wordpress_migrate')
+        ->condition('filename', $filename)
+        ->execute();
+
+      // Delete WXR file
+      file_unmanaged_delete($filename);
+
+      // Delete photo gallery
+      if (module_exists('media_gallery')) {
+        $account = user_load($blog->getUid());
+        $blog_title = t("@name's blog", array('@name' => format_username($account)));
+        $gallery_nid = db_select('node', 'n')
+          ->fields('n', array('nid'))
+          ->condition('type', 'media_gallery')
+          ->condition('title', $blog->getTitle())
+          ->execute()
+          ->fetchField();
+        if ($gallery_nid) {
+          node_delete($gallery_nid);
+        }
+      }
     }
   }
-  else {
-    // TODO: setup new migration from the URL
-    drush_log(dt('No WordPress migration defined for !filename',
-      array('!filename' => $filename)), 'error');
+  catch (Exception $e) {
+    drush_log($e, 'error');
   }
 }

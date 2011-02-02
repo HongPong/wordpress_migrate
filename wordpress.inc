@@ -13,19 +13,7 @@ abstract class WordPressMigration extends DynamicMigration {
    */
   protected $wxrFile;
 
-  /**
-   * The implemented WordPress migrations, in the order they should be run.
-   */
-  public static function migrationList() {
-    return array(
-      'WordPressCategory',
-      'WordPressTag',
-      'WordPressBlogEntry',
-      'WordPressPage',
-      'WordPressAttachment',
-      'WordPressComment',
-    );
-  }
+  protected $blog;
 
   /**
    * Constructor - general setup for WordPress migrations.
@@ -40,7 +28,9 @@ abstract class WordPressMigration extends DynamicMigration {
 
     // Must be set before calling the parent constructor, which will call
     // generateMachineName() below.
-    $this->wxrFile = $arguments['filename'];
+    $filename = $arguments['filename'];
+    $this->wxrFile = $filename;
+    $this->blog = new WordPressBlog($filename);
     parent::__construct($arguments);
   }
 
@@ -48,11 +38,6 @@ abstract class WordPressMigration extends DynamicMigration {
    * Construct the machine name from the blog title
    */
   protected function generateMachineName($class_name = NULL) {
-    $title = db_select('wordpress_migrate', 'wm')
-             ->fields('wm', array('title'))
-             ->condition('filename', $this->wxrFile)
-             ->execute()
-             ->fetchField();
     if (!$class_name) {
       $class_name = get_class($this);
     }
@@ -61,13 +46,7 @@ abstract class WordPressMigration extends DynamicMigration {
     // of the class name after WordPress. For example, for
     // category migration (class WordPressCategory) of "Mike's Blog",
     // the generated machine name will be MikesBlogCategory.
-    return self::machineFromTitle($class_name, $title);
-  }
-
-  protected static function machineFromTitle($class_name, $title) {
-    $machine_name = $title . substr($class_name, strlen('WordPress'),
-      strlen($class_name) - strlen('WordPress'));
-    return $machine_name;
+    return $this->blog->machineName($class_name);
   }
 
   /**
@@ -77,5 +56,127 @@ abstract class WordPressMigration extends DynamicMigration {
     if (function_exists('drush_log')) {
       parent::showMessage($message, $level);
     }
+  }
+}
+
+class WordPressBlog {
+  protected $filename;
+  public function getFilename() {
+    return $this->filename;
+  }
+  protected $title;
+  public function getTitle() {
+    return $this->title;
+  }
+  protected $blog_url;
+  public function getBlogUrl() {
+    return $this->blog_url;
+  }
+  protected $uid;
+  public function getUid() {
+    return $this->uid;
+  }
+
+  /**
+   * The implemented WordPress migrations, in the order they should be run.
+   */
+  protected static $migrationClasses = array(
+    'WordPressCategory',
+    'WordPressTag',
+    'WordPressBlogEntry',
+    'WordPressPage',
+    'WordPressAttachment',
+    'WordPressComment',
+  );
+
+  protected $migrations = array();
+
+  public function __construct($filename) {
+    $this->filename = $filename;
+    $row = db_select('wordpress_migrate', 'wm')
+           ->fields('wm', array('filename', 'title', 'blog_url', 'uid'))
+           ->condition('filename', $filename)
+           ->execute()
+           ->fetchObject();
+    if ($row) {
+      $this->title = $row->title;
+      $this->blog_url = $row->blog_url;
+      $this->uid = $row->uid;
+    }
+    else {
+      // Suppress errors during parsing, so we can pick them up after
+      libxml_use_internal_errors(TRUE);
+      // Extract the blog url and title
+      $xml = simplexml_load_file($this->filename);
+      if (!$xml) {
+        $message = t('Could not load WXR file - problems reported:');
+        foreach (libxml_get_errors() as $error) {
+          $message .= $error->message;
+        }
+        throw new Exception($message);
+      }
+
+      // Validate that it really is a WXR file
+      $wxr_version = $xml->xpath('//channel/wp:wxr_version');
+      if (!$wxr_version) {
+        throw new Exception(t('The uploaded file is not a valid WordPress export'));
+      }
+
+      $title = (string)$xml->channel->title;
+      $blog_url = $xml->xpath('//channel/wp:base_blog_url');
+      $this->blog_url = (string)$blog_url[0];
+
+      // Keep only alphabetic characters
+      $this->title = preg_replace('/[^A-Za-z]/', '', $title);
+      if (!$this->title) {
+        $this->title = preg_replace('/[^A-Za-z]/', '', $blog_url);
+      }
+
+      global $user;
+      $this->uid = $user->uid;
+      db_insert('wordpress_migrate')
+        ->fields(array(
+          'filename' => $filename,
+          'title' => $this->title,
+          'blog_url' => $this->blog_url,
+          'uid' => $this->uid,
+        ))
+        ->execute();
+      foreach (self::$migrationClasses as $class) {
+        Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
+      }
+    }
+  }
+
+  public function machineName($class_name) {
+    return $this->title . substr($class_name, strlen('WordPress'),
+      strlen($class_name) - strlen('WordPress'));
+  }
+
+  public function migrations() {
+    if (empty($this->migrations)) {
+      $this->migrations = array();
+      foreach (self::$migrationClasses as $class) {
+        // Skip tags/categories if there's no destination vocabulary
+        if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
+            $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
+          continue;
+        }
+        $this->migrations[] = MigrationBase::getInstance($this->machineName($class), $class,
+          array('filename' => $this->filename));
+      }
+    }
+    return $this->migrations;
+  }
+
+  static public function blogs() {
+    $blogs = array();
+    $result = db_select('wordpress_migrate', 'wm')
+               ->fields('wm', array('filename'))
+               ->execute();
+    foreach ($result as $row) {
+      $blogs[] = new WordPressBlog($row->filename);
+    }
+    return $blogs;
   }
 }
