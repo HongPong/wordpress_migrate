@@ -232,7 +232,8 @@ function wordpress_migrate_review_form($form, &$form_state) {
   }
   $form['overview'] = array(
     '#prefix' => '<div>',
-    '#markup' => t('WordPress blogs that you have imported into Drupal are listed below. '),
+    '#markup' => t('WordPress blogs that you have imported into Drupal are listed below.
+      For each component of the blog, the number of imported items is displayed.'),
     '#suffix' => '</div>',
   );
 
@@ -259,12 +260,31 @@ function wordpress_migrate_review_form($form, &$form_state) {
   );
 
   $header = array(
-    'blog_url' => array('data' => t('Original Blog URL')),
+    'blog_url' => array('data' => t('Blog URL')),
+    'status' => array('data' => t('Status')),
+    'WordPressCategory' => array('data' => t('Categories')),
+    'WordPressTag' => array('data' => t('Tags')),
+    'WordPressBlogEntry' => array('data' => t('Posts')),
+    'WordPressPage' => array('data' => t('Pages')),
+    'WordPressAttachment' => array('data' => t('Attachments')),
+    'WordPressComment' => array('data' => t('Comments')),
   );
   $rows = array();
   $blogs = WordPressBlog::blogs();
   foreach ($blogs as $blog) {
     $row['blog_url'] = $blog->getBlogUrl();
+    $row['status'] = t('Complete');
+    foreach ($blog->migrations() as $migration) {
+      $class = get_class($migration);
+      $row[$class] = $migration->importedCount();
+      $status = $migration->getStatus();
+      if ($status == MigrationBase::STATUS_IMPORTING) {
+        $row['status'] = t('Importing');
+      }
+      elseif ($status == MigrationBase::STATUS_ROLLING_BACK) {
+        $row['status'] = t('Deleting');
+      }
+    }
     $rows[$blog->getBlogUrl()] = $row;
   }
 
