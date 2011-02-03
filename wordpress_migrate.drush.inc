@@ -50,7 +50,7 @@ function wordpress_migrate_drush_command() {
 
 function drush_wordpress_migrate_import($filename) {
   try {
-    $blog = new WordPressBlog($filename);
+    $blog = wordpress_migrate_blog($filename);
     $mail_key = 'import_complete';
     $migrations = $blog->migrations();
     foreach ($migrations as $migration) {
@@ -73,7 +73,7 @@ function drush_wordpress_migrate_import($filename) {
 
 function drush_wordpress_migrate_rollback($filename) {
   try {
-    $blog = new WordPressBlog($filename);
+    $blog = wordpress_migrate_blog($filename);
     $migrations = array_reverse($blog->migrations());
     $incomplete = FALSE;
     foreach ($migrations as $migration) {

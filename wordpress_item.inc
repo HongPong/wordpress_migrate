@@ -327,16 +327,58 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $row->comment_status = COMMENT_NODE_CLOSED;
     }
 
-    // Strip [caption] tags
-    // TODO: Interpret the [caption] tags
-    $row->content = preg_replace('|\[/?caption[^\]]*\]|', '', $row->content);
+    // Interpret the [caption] tags
+    $row->content = preg_replace_callback('|(\[caption.*?\])(.*?)(\[/caption\])|i',
+      array($this, 'replaceCaptions'), $row->content);
 
     // Rewrite embedded video references to media tags (TODO: YouTube only for now)
     if (module_exists('media_youtube')) {
-      $row->content = preg_replace_callback('|<object [^>]*>.*?(<embed [^>]*>).*?</object>|i', array($this, 'replaceCallback'),
-        $row->content);
+      $row->content = preg_replace_callback('|<object [^>]*>.*?(<embed [^>]*>).*?</object>|i',
+        array($this, 'replaceEmbeds'), $row->content);
     }
     return TRUE;
+  }
+
+  /**
+   * Rewrite [caption] tags into HTML representing a caption. [caption] itself
+   * ($matches[1]) will become an opening <div>, the content within the tag
+   * ($matches[2]) will be passed through unchanged, and the closing [/caption]
+   * ($matches[3]) will become a <p> containing the caption followed by a closing </div>.
+   *
+   * @param array $matches
+   */
+  protected function replaceCaptions(array $matches) {
+    $caption_open = $matches[1];
+    $content = $matches[2];
+    $caption_close = $matches[3];
+
+    preg_match('|width="(.*?)"|i', $caption_open, $matches);
+    $width = (int)$matches[1] + 10;
+    $style = "width: {$width}px;";
+
+    preg_match('|align="(.*?)"|i', $caption_open, $matches);
+    $align = $matches[1];
+    switch ($align) {
+      case 'aligncenter':
+        $style .= "display:block;margin:0 auto;";
+        break;
+      case 'alignleft':
+        $style .= "float:left;";
+        break;
+      case 'alignright':
+        $style .= "float:right;";
+        break;
+      default:
+        break;
+    }
+    preg_match('|caption="(.*?)"|i', $caption_open, $matches);
+    $caption = $matches[1];
+
+    $result = '<div style="' . $style . '">';
+    $result .= $content;
+    $result .= "<p>$caption</p></div>";
+
+    return $result;
   }
 
   /**
@@ -344,7 +386,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
    *
    * @param array $matches
    */
-  protected function replaceCallback(array $matches) {
+  protected function replaceEmbeds(array $matches) {
     $embed_matches = array();
     // Default to the original <object> tag
     $result = $matches[0];

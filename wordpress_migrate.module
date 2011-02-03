@@ -116,3 +116,12 @@ function wordpress_migrate_mail($key, &$message, $params) {
   }
   $message['body'][] = t($body, $variables, array('langcode' => $langcode));
 }
+
+function wordpress_migrate_blog_class() {
+  return variable_get('wordpress_migrate_blog_class', 'WordPressBlog');
+}
+
+function wordpress_migrate_blog($filename) {
+  $blog_class = wordpress_migrate_blog_class();
+  return new $blog_class($filename);
+}

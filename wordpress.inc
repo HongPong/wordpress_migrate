@@ -30,7 +30,7 @@ abstract class WordPressMigration extends DynamicMigration {
     // generateMachineName() below.
     $filename = $arguments['filename'];
     $this->wxrFile = $filename;
-    $this->blog = new WordPressBlog($filename);
+    $this->blog = wordpress_migrate_blog($filename);
     parent::__construct($arguments);
   }
 
@@ -76,18 +76,6 @@ class WordPressBlog {
   public function getUid() {
     return $this->uid;
   }
-
-  /**
-   * The implemented WordPress migrations, in the order they should be run.
-   */
-  protected static $migrationClasses = array(
-    'WordPressCategory',
-    'WordPressTag',
-    'WordPressBlogEntry',
-    'WordPressPage',
-    'WordPressAttachment',
-    'WordPressComment',
-  );
 
   protected $migrations = array();
 
@@ -142,21 +130,43 @@ class WordPressBlog {
           'uid' => $this->uid,
         ))
         ->execute();
-      foreach (self::$migrationClasses as $class) {
+      foreach ($this->migrationClasses() as $class) {
         Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
       }
     }
   }
 
   public function machineName($class_name) {
+    // If the default classes have been overridden, $class_name might be either
+    // the default class name, or the name of the overridden class. Check first
+    // for the former case, then the latter
+    $classes = $this->migrationClasses();
+    if (!isset($classes[$class_name])) {
+      $flipped = array_flip($classes);
+      $class_name = $flipped[$class_name];
+    }
     return $this->title . substr($class_name, strlen('WordPress'),
       strlen($class_name) - strlen('WordPress'));
+  }
+
+  /**
+   * The implemented WordPress migrations, in the order they should be run.
+   */
+  public function migrationClasses() {
+    return array(
+      'WordPressCategory' => 'WordPressCategory',
+      'WordPressTag' => 'WordPressTag',
+      'WordPressBlogEntry' => 'WordPressBlogEntry',
+      'WordPressPage' => 'WordPressPage',
+      'WordPressAttachment' => 'WordPressAttachment',
+      'WordPressComment' => 'WordPressComment',
+    );
   }
 
   public function migrations() {
     if (empty($this->migrations)) {
       $this->migrations = array();
-      foreach (self::$migrationClasses as $class) {
+      foreach ($this->migrationClasses() as $class) {
         // Skip tags/categories if there's no destination vocabulary
         if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
             $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
@@ -175,7 +185,7 @@ class WordPressBlog {
                ->fields('wm', array('filename'))
                ->execute();
     foreach ($result as $row) {
-      $blogs[] = new WordPressBlog($row->filename);
+      $blogs[] = wordpress_migrate_blog($row->filename);
     }
     return $blogs;
   }

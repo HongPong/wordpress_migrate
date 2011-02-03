@@ -169,7 +169,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
 
   if ($saved) {
     try {
-      $blog = new WordPressBlog($destination);
+      $blog = wordpress_migrate_blog($destination);
     }
     catch (Exception $e) {
       form_set_error('wxr_file', $e->getMessage());
@@ -270,12 +270,13 @@ function wordpress_migrate_review_form($form, &$form_state) {
     'WordPressComment' => array('data' => t('Comments')),
   );
   $rows = array();
-  $blogs = WordPressBlog::blogs();
+  $blogs = call_user_func(array(wordpress_migrate_blog_class(), 'blogs'));
   foreach ($blogs as $blog) {
+    $classes = array_flip($blog->migrationClasses());
     $row['blog_url'] = $blog->getBlogUrl();
     $row['status'] = t('Complete');
     foreach ($blog->migrations() as $migration) {
-      $class = get_class($migration);
+      $class = $classes[get_class($migration)];
       $row[$class] = $migration->importedCount();
       $status = $migration->getStatus();
       if ($status == MigrationBase::STATUS_IMPORTING) {
@@ -349,7 +350,7 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
                    ->condition('blog_url', $blog_url)
                    ->execute()
                    ->fetchField();
-      $blog = new WordPressBlog($filename);
+      $blog = wordpress_migrate_blog($filename);
       $migrations = array_reverse($blog->migrations());
       $success = TRUE;
       foreach ($migrations as $migration) {
