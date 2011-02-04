@@ -227,36 +227,16 @@ function wordpress_migrate_review() {
  * Form for reviewing WordPress migrations.
  */
 function wordpress_migrate_review_form($form, &$form_state) {
-  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'rollback') {
+  if (isset($form_state['values']['operation']) &&
+      ($form_state['values']['operation'] == 'rollback' || $form_state['values']['operation'] == 'clear')) {
     return wordpress_migrate_rollback_confirm($form, $form_state, array_filter($form_state['values']['blogs']));
   }
   $form['overview'] = array(
-    '#prefix' => '<div>',
-    '#markup' => t('WordPress blogs that you have imported into Drupal are listed below.
-      For each component of the blog, the number of imported items is displayed.'),
-    '#suffix' => '</div>',
-  );
-
-  // Build the 'Update options' form.
-  $form['options'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Update options'),
-    '#attributes' => array('class' => array('container-inline')),
-  );
-  $options = array(
-    'rollback' => t('Remove imported content'),
-  );
-  $form['options']['operation'] = array(
-    '#type' => 'select',
-    '#title' => t('Operation'),
-    '#title_display' => 'invisible',
-    '#options' => $options,
-  );
-  $form['options']['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Update'),
-    '#validate' => array('wordpress_migrate_review_validate'),
-    '#submit' => array('wordpress_migrate_review_submit'),
+    '#prefix' => '<p>',
+    '#markup' => t('These are the WordPress blogs which you have imported into your
+      Drupal site. For each component of the blog, the number of imported items is
+      displayed.'),
+    '#suffix' => '</p>',
   );
 
   $header = array(
@@ -296,6 +276,43 @@ function wordpress_migrate_review_form($form, &$form_state) {
     '#empty' => t('No WordPress blogs have been migrated into your Drupal site'),
   );
 
+  // Build the 'Update options' form.
+  $form['options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Update options'),
+    '#attributes' => array('class' => array('container-inline')),
+  );
+  $options = array(
+    'rollback' => t('Remove imported content'),
+    'clear' => t('Remove migration bookkeeping'),
+  );
+  $form['options']['description'] = array(
+    '#prefix' => '<div>',
+    '#markup' => t('The WordPress migration process does considerable bookkeeping,
+      tracking how the original WordPress content maps to the imported Drupal content.
+      This bookkeeping allows you to easily back out the migration, restoring your
+      Drupal site to its initial state; once you are satisfied with the imported
+      content, you may remove the bookkeeping overhead.
+      <ul><li><strong>Remove imported content</strong> will restore
+      your Drupal site to its state before the selected WordPress blogs were
+      imported, deleting all imported content as well as the bookkeeping overhead.</li>
+      <li><strong>Remove bookkeeping only</strong> will remove the bookkeeping
+      overhead, retaining all imported content.</li></ul>'),
+    '#postfix' => '</div>',
+  );
+  $form['options']['operation'] = array(
+    '#type' => 'select',
+    '#title' => t('Operation'),
+    '#title_display' => 'invisible',
+    '#options' => $options,
+  );
+  $form['options']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Update'),
+    '#validate' => array('wordpress_migrate_review_validate'),
+    '#submit' => array('wordpress_migrate_review_submit'),
+  );
+
   return $form;
 }
 
@@ -318,6 +335,8 @@ function wordpress_migrate_review_submit($form, &$form_state) {
 }
 
 function wordpress_migrate_rollback_confirm($form, &$form_state, $blogs) {
+  $operation = $form_state['values']['operation'];
+
   $form['blogs'] = array('#prefix' => '<ul>', '#suffix' => '</ul>', '#tree' => TRUE);
   // array_filter returns only elements with TRUE values
   foreach ($blogs as $blog_url) {
@@ -328,11 +347,18 @@ function wordpress_migrate_rollback_confirm($form, &$form_state, $blogs) {
       '#suffix' => check_plain($blog_url) . "</li>\n",
     );
   }
-  $form['operation'] = array('#type' => 'hidden', '#value' => 'rollback');
+  $form['operation'] = array('#type' => 'hidden', '#value' => $operation);
   $form['#submit'][] = 'wordpress_migrate_rollback_confirm_submit';
-  $confirm_question = format_plural(count($blogs),
-                                  'Are you sure you want to remove all imported content for this blog?',
-                                  'Are you sure you want to remove all imported content for these blogs?');
+  if ($operation == 'rollback') {
+    $confirm_question = format_plural(count($blogs),
+                                    'Are you sure you want to remove all imported content for this blog?',
+                                    'Are you sure you want to remove all imported content for these blogs?');
+  }
+  else {
+    $confirm_question = format_plural(count($blogs),
+                                    'Are you sure you want to remove all migration bookkeeping for this blog?',
+                                    'Are you sure you want to remove all migration bookkeeping for these blogs?');
+  }
   return confirm_form($form,
                     $confirm_question,
                     'admin/content/wordpress/review', t('This action cannot be undone.'),
@@ -354,57 +380,65 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
       $migrations = array_reverse($blog->migrations());
       $success = TRUE;
       foreach ($migrations as $migration) {
-        // If not currently idle, stop it before attempting rollback
-        if ($migration->getStatus() != MigrationBase::STATUS_IDLE) {
-          $migration->stopProcess();
-          // Give it a little time to react to the stop request
-          $count = 5;
-          while ($count && $migration->getStatus() == MigrationBase::STATUS_STOPPING) {
-            sleep(2);
-            $count--;
-          }
-          if ($migration->getStatus() == MigrationBase::STATUS_STOPPING) {
-            // At this point, assume it's stuck and reset the status so we can continue
-            $migration->resetStatus();
-          }
-        }
-        $result = $migration->processRollback();
-        if ($result == MigrationBase::RESULT_INCOMPLETE) {
-          $drush = variable_get('wordpress_migrate_drush', '');
-          if (!$drush) {
-            if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-              $message = t('The blog was too large to delete through the browser - please
-                    <a href="@config">configure drush</a> so the deletion process may be
-                    run in the background.',
-              array('@config' => url('admin/content/wordpress/configure')));
-            }
-            else {
-              $message = t('The blog was too large to delete through the browser - please
-                  contact a site administrator to properly configure the site for
-                  background deletion.');
-            }
-            drupal_set_message($message);
-            break;
-          }
-          drupal_set_message(t('The blog is too large to completely delete immediately -
-              the rest of the deletion will be run in the background.'));
-          $uri = 'http://' . $_SERVER['HTTP_HOST'];
-          $log_file = '/tmp/' . basename($blog->getFilename()) . '.rollback.log';
-          $destination = $blog->getFilename();
-          $command = "$drush --uri=$uri wordpress-migrate-rollback $destination >$log_file 2>&1 &";
-          exec($command);
-          $success = FALSE;
-          break;
-        }
-        elseif ($result == MigrationBase::RESULT_COMPLETED) {
+        // Only rollback content for the rollback operation
+        if ($form_state['values']['operation'] == 'clear') {
           // Remove map/message tables, and migrate_status table entry
           Migration::deregisterMigration($migration->getMachineName());
+          $success = TRUE;
         }
         else {
-          drupal_set_message(t('Failed to complete rollback, status=!status',
-            array('!status' => $result)));
-          $success = FALSE;
-          break;
+          // If not currently idle, stop it before attempting rollback
+          if ($migration->getStatus() != MigrationBase::STATUS_IDLE) {
+            $migration->stopProcess();
+            // Give it a little time to react to the stop request
+            $count = 5;
+            while ($count && $migration->getStatus() == MigrationBase::STATUS_STOPPING) {
+              sleep(2);
+              $count--;
+            }
+            if ($migration->getStatus() == MigrationBase::STATUS_STOPPING) {
+              // At this point, assume it's stuck and reset the status so we can continue
+              $migration->resetStatus();
+            }
+          }
+          $result = $migration->processRollback();
+          if ($result == MigrationBase::RESULT_INCOMPLETE) {
+            $drush = variable_get('wordpress_migrate_drush', '');
+            if (!$drush) {
+              if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+                $message = t('The blog was too large to delete through the browser - please
+                      <a href="@config">configure drush</a> so the deletion process may be
+                      run in the background.',
+                array('@config' => url('admin/content/wordpress/configure')));
+              }
+              else {
+                $message = t('The blog was too large to delete through the browser - please
+                    contact a site administrator to properly configure the site for
+                    background deletion.');
+              }
+              drupal_set_message($message);
+              break;
+            }
+            drupal_set_message(t('The blog is too large to completely delete immediately -
+                the rest of the deletion will be run in the background.'));
+            $uri = 'http://' . $_SERVER['HTTP_HOST'];
+            $log_file = '/tmp/' . basename($blog->getFilename()) . '.rollback.log';
+            $destination = $blog->getFilename();
+            $command = "$drush --uri=$uri wordpress-migrate-rollback $destination >$log_file 2>&1 &";
+            exec($command);
+            $success = FALSE;
+            break;
+          }
+          elseif ($result == MigrationBase::RESULT_COMPLETED) {
+            // Remove map/message tables, and migrate_status table entry
+            Migration::deregisterMigration($migration->getMachineName());
+          }
+          else {
+            drupal_set_message(t('Failed to complete rollback, status=!status',
+              array('!status' => $result)));
+            $success = FALSE;
+            break;
+          }
         }
       }
 
@@ -436,7 +470,8 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
     if ($success) {
       $count = count($form_state['values']['blogs']);
       watchdog('content', 'Deleted @count WordPress blogs.', array('@count' => $count));
-      drupal_set_message(format_plural($count, 'Deleted 1 blog.', 'Deleted @count blogs.'));
+      drupal_set_message(format_plural($count, 'Deleted 1 WordPress blog.',
+        'Deleted @count WordPress blogs.'));
     }
   }
   $form_state['redirect'] = 'admin/content/wordpress/review';
