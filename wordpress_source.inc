@@ -18,6 +18,9 @@ abstract class WordPressSource extends MigrateSource {
    * @var SimpleXMLElement
    */
   protected $xml;
+  public function getXml() {
+    return $this->xml;
+  }
 
   /**
    * Array of XML elements we're traversing for this source.

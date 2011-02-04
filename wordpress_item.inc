@@ -4,7 +4,7 @@
 /**
  * @file
  *
- * Support for migrating items from a WordPress blog into Drupal.
+ * Support for migrating posts and pages from a WordPress blog into Drupal.
  */
 
 /**
@@ -131,6 +131,21 @@ class WordPressItemSource extends WordPressSource {
  * types (post_type) of items.
  */
 abstract class WordPressItemMigration extends WordPressMigration {
+  /**
+   * Indicates to the complete() method that the nid of this item needs to be
+   * saved in linksToFix for later processing.
+   *
+   * @var boolean
+   */
+  protected $linksNeedFixing = FALSE;
+
+  /**
+   * List of nids which have links needing fixing.
+   *
+   * @var array
+   */
+  static protected $linksToFix = array();
+
   /**
    * Set it up
    */
@@ -285,7 +300,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
   }
 
   /**
-   * Data manipulations to be performed before migrate module applies mappings.
+   * Data manipulations to be performed before the migrate module applies mappings.
    *
    * @param stdClass $row
    * @return string
@@ -336,14 +351,20 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $row->content = preg_replace_callback('|<object [^>]*>.*?(<embed [^>]*>).*?</object>|i',
         array($this, 'replaceEmbeds'), $row->content);
     }
+
+    // Rewrite (or remember to rewrite) links of the form
+    // http://example.wordpress.com/?p=19 to local links of the form /node/35
+    $row->content = $this->fixLocalLinks($row->content);
+
     return TRUE;
   }
 
   /**
-   * Rewrite [caption] tags into HTML representing a caption. [caption] itself
-   * ($matches[1]) will become an opening <div>, the content within the tag
-   * ($matches[2]) will be passed through unchanged, and the closing [/caption]
-   * ($matches[3]) will become a <p> containing the caption followed by a closing </div>.
+   * Rewrite [caption] tags into HTML representing a caption.
+   * [caption] itself ($matches[1]) will become an opening <div>,
+   * the content within the tag ($matches[2]) will be passed through unchanged,
+   * and the closing [/caption] ($matches[3]) will become a <p> containing the
+   * caption followed by a closing </div>.
    *
    * @param array $matches
    */
@@ -435,7 +456,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
         $file->uid = $user->uid;
         $file->status = 1;
         file_save($file);
-        media_save($file);
+        if (module_exists('media')) {
+          media_save($file);
+        }
         $fid = $file->fid;
       }
       // Build the media tag
@@ -455,6 +478,61 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     return $result;
+  }
+
+  /**
+   * Replace any hrefs to links of the form http://example.wordpress.com/?=23
+   * to local links to a node.
+   *
+   * @param string $body
+   */
+  protected function fixLocalLinks($body) {
+    $this->linksNeedFixing = FALSE;
+    $site_url = reset($this->source->getXml()->xpath('//channel/link'));
+    $pattern = '|href="' . $site_url . '/\?p=([0-9]+)"|i';
+    $body = preg_replace_callback($pattern, array($this, 'replaceLinks'), $body);
+    return $body;
+  }
+
+  /**
+   * If we have a local link of the form ?p=34, translate the WordPress ID into
+   * a Drupal nid, and rewrite the link.
+   *
+   * @param array $matches
+   */
+  protected function replaceLinks(array $matches) {
+    // Default to the existing string
+    $return = $matches[0];
+
+    $wordpress_id = (int)$matches[1];
+
+    // Check the blog entry and page maps to see if we can map this to a nid
+    static $maps = array();
+    if (empty($maps)) {
+      $machines = array($this->generateMachineName('WordPressBlogEntry'),
+        $this->generateMachineName('WordPressPage'));
+      foreach ($machines as $machine) {
+        $maps[] = MigrationBase::getInstance($machine)->getMap();
+      }
+    }
+
+    foreach ($maps as $map) {
+      $destination_id = $map->lookupDestinationID(array($wordpress_id), $this);
+      if (!empty($destination_id)) {
+        // Got a hit! Stop looking...
+        $destination_id = reset($destination_id);
+        break;
+      }
+    }
+
+    // Remember if we didn't get a hit, complete() will set up for later review
+    if (empty($destination_id)) {
+      $this->linksNeedFixing = TRUE;
+    }
+    else {
+      $return = 'href="/node/' . $destination_id . '"';
+    }
+    return $return;
   }
 
   /**
@@ -492,6 +570,21 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
     $node->uid = $user_map[$row->creator];
   }
+
+  /**
+   * Complete node - called just after node_save().
+   *
+   * @param stdClass $node
+   * @param stdClass $row
+   */
+  public function complete(stdClass $node, stdClass $row) {
+    // Remember the nid of any node where we weren't able to resolve ?p=23
+    // links yet - by the time the page migration's postImport() is called, we
+    // should have resolved all references.
+    if ($this->linksNeedFixing) {
+      self::$linksToFix[] = $node->nid;
+    }
+  }
 }
 
 /**
@@ -513,5 +606,19 @@ class WordPressPage extends WordPressItemMigration {
     $arguments['post_type'] = 'page';
     $arguments['bundle'] = variable_get('wordpress_migrate_page_type', '');
     parent::__construct($arguments);
+    $this->dependencies += array($this->generateMachineName('WordPressBlogEntry'));
+  }
+
+  /**
+   * Called after completion of the page migration. We review any nodes with links
+   * that couldn't be resolved at migration time (presumably because they refer to
+   * nodes not yet migrated) and see if we can resolve them now.
+   */
+  public function postImport() {
+    foreach (self::$linksToFix as $nid) {
+      $node = node_load($nid);
+      $node->body[LANGUAGE_NONE][0]['value'] = $this->fixLocalLinks($node->body[LANGUAGE_NONE][0]['value']);
+      node_save($node);
+    }
   }
 }
