@@ -29,7 +29,6 @@ function wordpress_migrate_drush_command() {
     'arguments' => array(
       'filename' => 'Filename of blog export to import',
     ),
-    'options' => array('--notify' => 'Email address to notify upon completion'),
     'examples' => array(
       'wordpress-migrate-import public://wordpress/blog.xml' => 'Import blog data',
     ),
@@ -49,6 +48,8 @@ function wordpress_migrate_drush_command() {
 }
 
 function drush_wordpress_migrate_import($filename) {
+  // Capture non-informational output for mailing
+  ob_start();
   try {
     $blog = wordpress_migrate_blog($filename);
     $mail_key = 'import_complete';
@@ -60,15 +61,19 @@ function drush_wordpress_migrate_import($filename) {
         break;
       }
     }
-    // Notify user
-    $account = user_load($blog->getUid());
-    $params['account'] = $account;
-    drupal_mail('wordpress_migrate', $mail_key, $account->mail,
-      user_preferred_language($account), $params);
   }
   catch (Exception $e) {
     drush_log($e->getMessage(), 'error');
+    $mail_key = 'import_failure';
   }
+
+  // Notify user
+  $account = user_load($blog->getUid());
+  $params['account'] = $account;
+  $params['output'] = ob_get_contents();
+  ob_end_flush();
+  drupal_mail('wordpress_migrate', $mail_key, $account->mail,
+    user_preferred_language($account), $params);
 }
 
 function drush_wordpress_migrate_rollback($filename) {

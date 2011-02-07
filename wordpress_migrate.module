@@ -103,6 +103,7 @@ function wordpress_migrate_mail($key, &$message, $params) {
   $options['language'] = $message['language'];
   $variables = array();
   user_mail_tokens($variables, $data, $options);
+  $variables['!output'] = $params['output'];
   $langcode = $message['language']->language;
   $subject = variable_get('wordpress_migrate_notification_subject', '');
   $message['subject'] = t($subject, $variables, array('langcode' => $langcode));

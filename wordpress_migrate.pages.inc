@@ -588,14 +588,14 @@ function wordpress_migrate_configure_form($form, &$form_state) {
     '#type' => 'textarea',
     '#title' => t('Body for email notifications of import success'),
     '#default_value' => variable_get('wordpress_migrate_notification_body',
-      t('Your WordPress import is complete!')),
+      t("Your WordPress import is complete! Any messages generated are below.\n\n!output")),
   );
 
   $form['wordpress_migrate_notification_failure_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body for email notifications of import failure'),
     '#default_value' => variable_get('wordpress_migrate_notification_failure_body',
-      t('Your WordPress import failed.')),
+      t('Your WordPress import failed. Any messages generated are below.\n\n!output')),
   );
 
   // TODO: For most of the above, indicate whether they can be overridden per import
