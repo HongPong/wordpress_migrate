@@ -205,9 +205,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
       if (module_exists('pathauto')) {
         $this->addFieldMapping('pathauto_perform_alias')
              ->defaultValue(0)
-             ->description('Disable pathauto, we set the alias from the WP link - not working, why?')
-             ->issueGroup(t('Open issues'))
-             ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
+             ->description('Disable pathauto, we set the alias from the WP link');
       }
     }
 
@@ -328,6 +326,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $matches = array();
       if (preg_match('|http://[^/]+/(.*)|', $row->link, $matches)) {
         $row->link = $matches[1];
+        // Strip the last slash off of the URL (the Path module can't handle this)
+        $row->link = rtrim($row->link, '/');
       }
       else {
         unset($row->link);
