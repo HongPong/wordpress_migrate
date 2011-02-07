@@ -119,7 +119,18 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     $domain = $form_state['values']['domain'];
 
     // Login to the WordPress site
+    $wordpress_version = 3;
     $login_url = 'http://' . $domain . '/wp-login.php';
+    if (!($handle = fopen($login_url, 'r'))) {
+      $wordpress_version = 2;
+      $login_url = 'http://' . $domain . '/blog/wp-login.php';
+      $handle = fopen($login_url, 'r');
+    }
+    if (!$handle) {
+      form_set_error('credentials][domain', t('Could not find login page for !domain',
+          array('!domain' => $domain)));
+    }
+    fclose($handle);
     $username = $form_state['values']['username'];
     $password = $form_state['values']['password'];
     $ch = curl_init();
@@ -131,15 +142,19 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     curl_setopt($ch, CURLOPT_COOKIEJAR, 'cookie.txt');
     curl_setopt($ch, CURLOPT_COOKIEFILE, 'cookie.txt');
     curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, "log=$username&pwd=$password");
+    curl_setopt($ch, CURLOPT_POSTFIELDS, "log=$username&pwd=$password&testcookie=1");
     $login_result = curl_exec($ch);
     curl_close($ch);
 
     // Login successful? Grab the export
-    if (strpos($login_result, 'Set-Cookie: wordpress_logged_in_')) {
+    if (strpos($login_result, 'Set-Cookie: wordpress_logged_in')) {
       $filename = $domain . '.xml';
       $destination = $directory . '/' . $filename;
-      $export_url = 'http://' . $domain  . '/wp-admin/export.php?mm_start=all&mm_end=all&author=all' .
+      $export_url = 'http://' . $domain;
+      if ($wordpress_version == 2) {
+        $export_url .= '/blog';
+      }
+      $export_url .= '/wp-admin/export.php?mm_start=all&mm_end=all&author=all' .
         '&export_taxonomy[category]=0&export_taxonomy[post_tag]=0&export_post_type=all' .
         '&export_post_status=all&download=true';
       $fp = fopen($destination, 'w');
@@ -168,11 +183,23 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
 
   if ($saved) {
+    // The excerpt namespace is sometimes omitted, stuff it in if necessary
+    $wxr_string = file_get_contents($destination);
+    $excerpt_ns = 'xmlns:excerpt="http://wordpress.org/export/1.0/excerpt/"';
+    if (!strpos($wxr_string, $excerpt_ns)) {
+      $content_ns = 'xmlns:content="http://purl.org/rss/1.0/modules/content/"';
+      $wxr_string = str_replace($content_ns, $excerpt_ns . "\n\t" . $content_ns, $wxr_string);
+    }
+    // Fix unencoded ampersands
+    $wxr_string = str_replace('&amp;', '&', $wxr_string);
+    $wxr_string = str_replace('&', '&amp;', $wxr_string);
+    file_put_contents($destination, $wxr_string);
     try {
       $blog = wordpress_migrate_blog($destination);
     }
     catch (Exception $e) {
       form_set_error('wxr_file', $e->getMessage());
+      file_unmanaged_delete($destination);
       return;
     }
 

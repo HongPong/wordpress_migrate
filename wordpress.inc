@@ -98,9 +98,9 @@ class WordPressBlog {
       // Extract the blog url and title
       $xml = simplexml_load_file($this->filename);
       if (!$xml) {
-        $message = t('Could not load WXR file - problems reported:');
+        $message = t('Could not load WXR file - problems reported: ');
         foreach (libxml_get_errors() as $error) {
-          $message .= $error->message;
+          $message .= $error->message . t(" at line !line\n", array('!line' => $error->line));
         }
         throw new Exception($message);
       }
