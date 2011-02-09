@@ -72,7 +72,7 @@ class WordPressComment extends WordPressMigration {
    * Set it up
    */
   public function __construct(array $arguments = array()) {
-    $arguments['post_type'] = 'comment_node_blog';
+    $arguments['post_type'] = 'comment_node_' . variable_get('wordpress_migrate_post_type', 'blog');
     parent::__construct($arguments);
     $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'));
     $this->softDependencies = array($this->generateMachineName('WordPressPage'));
