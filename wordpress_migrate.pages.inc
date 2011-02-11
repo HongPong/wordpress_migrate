@@ -82,7 +82,8 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#type' => 'file',
     '#title' => t('WordPress exported (WXR) file to import into Drupal'),
     '#description' => t('If you have exported your WordPress blog to your local filesystem,
-      choose the downloaded file here.')
+      choose the downloaded file here. The largest file size you can import is !size',
+      array('!size' => format_size(file_upload_max_size()))),
   );
 
   $form['submit'] = array(
