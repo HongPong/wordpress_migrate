@@ -37,6 +37,7 @@ function wordpress_migrate_menu() {
     'page callback' => 'wordpress_migrate_import',
     'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_MIGRATE),
     'file' => 'wordpress_migrate.pages.inc',
+    'weight' => 10,
   );
   $items['admin/content/wordpress/import'] = array(
     'title' => 'Import',
