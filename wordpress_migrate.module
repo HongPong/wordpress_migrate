@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 define('WORDPRESS_MIGRATE_ACCESS_MIGRATE', 'migrate wordpress blogs');
 define('WORDPRESS_MIGRATE_ACCESS_CONFIGURE', 'configure wordpress migration');

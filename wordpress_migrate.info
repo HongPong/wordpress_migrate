@@ -1,4 +1,3 @@
-; $Id$
 name = "Migration from WordPress"
 description = "Support for migrating WordPress blogs into Drupal"
 package = "Development"
