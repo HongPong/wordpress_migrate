@@ -116,7 +116,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
   else {
     // Export the WordPress blog directly
-    $domain = $form_state['values']['domain'];
+    $domain = preg_replace('/http[s]?\:\/\//', '', $form_state['values']['domain']);
 
     // Login to the WordPress site
     $wordpress_version = 3;
