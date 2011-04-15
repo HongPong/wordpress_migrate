@@ -126,7 +126,10 @@ class WordPressComment extends WordPressMigration {
     $this->addFieldMapping(NULL, 'comment_type')
          ->description('Always empty?')
          ->issueGroup('DNM');
-    $this->addFieldMapping('comment_body', 'comment_content');
+    $text_format = variable_get('wordpress_migrate_text_format', 'filtered_html');
+    $arguments = array('format' => $text_format);
+    $this->addFieldMapping('comment_body', 'comment_content')
+         ->arguments($arguments);
   }
 
   public function prepareRow($row) {
