@@ -45,6 +45,18 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#suffix' => '</div>',
   );
 
+  if (module_exists('media') && !module_exists('migrate_extras')) {
+    $form['need_extras'] = array(
+      '#prefix' => '<div>',
+      '#markup' => t('You have the <a href="@media">Media module</a> enabled - to
+        take advantage of Media features, you need to also install and enable the
+        <a href="@extras">Migrate Extras module</a>.',
+        array('@media' => url('http://drupal.org/project/media'),
+          '@extras' => url('http://drupal.org/project/migrate_extras'))),
+      '#suffix' => '</div>',
+    );
+  }
+
   $form['credentials'] = array(
     '#type' => 'fieldset',
     '#title' => t('WordPress blog credentials'),
