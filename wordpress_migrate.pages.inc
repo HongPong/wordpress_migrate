@@ -18,6 +18,15 @@ function wordpress_migrate_import() {
  * Form for specifying where to obtain the WordPress content.
  */
 function wordpress_migrate_import_form($form, &$form_state) {
+  // If an uploaded file exceeds post_max_size, the validate and submit functions
+  // never get called (as they will if upload_max_filesize is exceeded but
+  // post_max_size isn't). We can detect this case by the presence of an error.
+  if ($error = error_get_last()) {
+    drupal_set_message(t('File upload failed: !error. Please make sure the file
+      you\'re trying to upload is not larger than !limit',
+      array('!error' => $error['message'], '!limit' => format_size(file_upload_max_size()))));
+  }
+
   $post_type = variable_get('wordpress_migrate_post_type', '');
   if (!$post_type) {
     if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
@@ -109,6 +118,12 @@ function wordpress_migrate_import_form($form, &$form_state) {
  * Submit callback for the WordPress import form.
  */
 function wordpress_migrate_import_form_submit($form, &$form_state) {
+  if ($_FILES['files']['error']['wxr_file']) {
+    form_set_error('wxr_file', t('The file could not be uploaded, most likely
+      because the file size exceeds the configured limit of !filesize',
+      array('!filesize' => format_size(file_upload_max_size()))));
+    return;
+  }
   $directory = 'wordpress://';
   if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
     form_set_error('wxr_file', t('Could not prepare directory %directory',
