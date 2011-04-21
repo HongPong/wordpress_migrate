@@ -214,8 +214,8 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     $wxr_string = file_get_contents($destination);
     $excerpt_ns = 'xmlns:excerpt="http://wordpress.org/export/1.0/excerpt/"';
     $excerpt_signature = 'xmlns:excerpt="http://wordpress.org/export/';
+    $content_ns = 'xmlns:content="http://purl.org/rss/1.0/modules/content/"';
     if (!strpos($wxr_string, $excerpt_signature)) {
-      $content_ns = 'xmlns:content="http://purl.org/rss/1.0/modules/content/"';
       $wxr_string = str_replace($content_ns, $excerpt_ns . "\n\t" . $content_ns, $wxr_string);
     }
     // Add the Atom namespace, in case it's referenced
