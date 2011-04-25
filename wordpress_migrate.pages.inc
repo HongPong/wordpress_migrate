@@ -219,7 +219,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
       $wxr_string = str_replace($content_ns, $excerpt_ns . "\n\t" . $content_ns, $wxr_string);
     }
     // Add the Atom namespace, in case it's referenced
-    $atom_ns = 'xmlns:atom="http://www.w3.org/2005/Atom">';
+    $atom_ns = 'xmlns:atom="http://www.w3.org/2005/Atom"';
     $wxr_string = str_replace($content_ns, $atom_ns . "\n\t" . $content_ns, $wxr_string);
 
     // Fix unencoded ampersands
