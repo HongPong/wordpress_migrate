@@ -105,6 +105,18 @@ class WordPressItemSource extends WordPressSource {
 
     // The category field is now the descriptive name, we want the nicename
     $this->currentRow->category = array();
+
+    // The tag domain changed with WXR version 1.1
+    $migration = Migration::currentMigration();
+    $wxr_version = $this->xml->xpath('//channel/wp:wxr_version');
+    $wxr_version = (float)reset($wxr_version);
+    if ($wxr_version < 1.1) {
+      $tag_domain = 'tag';
+    }
+    else {
+      $tag_domain = 'post_tag';
+    }
+
     foreach ($item->category as $cat) {
       $attributes = $cat->attributes();
       $domain = $attributes->domain;
@@ -114,7 +126,7 @@ class WordPressItemSource extends WordPressSource {
         if ($domain == 'category') {
           $this->currentRow->category[] = $nicename;
         }
-        if ($domain == 'tag') {
+        if ($domain == $tag_domain) {
           $this->currentRow->tag[] = $nicename;
         }
       }
