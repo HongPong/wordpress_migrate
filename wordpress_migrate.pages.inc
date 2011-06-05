@@ -135,7 +135,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   if ($tmpfile) {
     // Handle uploaded file
     $filename = $_FILES['files']['name']['wxr_file'];
-    $destination = $directory . $filename;
+    $destination = $directory . str_replace(' ', '%20', $filename);
     $saved = file_unmanaged_move($tmpfile, $destination, FILE_EXISTS_REPLACE);
     if (!$saved) {
       form_set_error('wxr_file', t('Failed to save file to %filename', array('%filename' => $destination)));
