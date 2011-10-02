@@ -30,7 +30,7 @@ abstract class WordPressMigration extends DynamicMigration {
     $filename = $arguments['filename'];
     $this->wxrFile = $filename;
     $this->blog = wordpress_migrate_blog($filename);
-    parent::__construct($arguments);
+    parent::__construct();
   }
 
   /**
