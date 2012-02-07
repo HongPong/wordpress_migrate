@@ -118,7 +118,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
  * Submit callback for the WordPress import form.
  */
 function wordpress_migrate_import_form_submit($form, &$form_state) {
-  if ($_FILES['files']['error']['wxr_file']) {
+  if ($_FILES['files']['error']['wxr_file'] && empty($form_state['values']['domain'])) {
     form_set_error('wxr_file', t('The file could not be uploaded, most likely
       because the file size exceeds the configured limit of !filesize',
       array('!filesize' => format_size(file_upload_max_size()))));
