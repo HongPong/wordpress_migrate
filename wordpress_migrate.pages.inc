@@ -223,8 +223,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     $wxr_string = str_replace($content_ns, $atom_ns . "\n\t" . $content_ns, $wxr_string);
 
     // Fix unencoded ampersands
-    $wxr_string = str_replace('&amp;', '&', $wxr_string);
-    $wxr_string = str_replace('&', '&amp;', $wxr_string);
+    $wxr_string = preg_replace('/&(?![\w\d#]+;)/', '&amp;', $wxr_string);
     file_put_contents($destination, $wxr_string);
     try {
       $blog = wordpress_migrate_blog($destination);
