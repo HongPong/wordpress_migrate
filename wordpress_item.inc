@@ -468,7 +468,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
         $file->status = 1;
         file_save($file);
         if (module_exists('media')) {
-          media_save($file);
+          file_save($file);
         }
         $fid = $file->fid;
       }
