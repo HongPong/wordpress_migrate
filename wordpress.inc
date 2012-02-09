@@ -94,44 +94,56 @@ class WordPressBlog {
     else {
       // Suppress errors during parsing, so we can pick them up after
       libxml_use_internal_errors(TRUE);
-      // Extract the blog url and title
-      $xml = simplexml_load_file($this->filename);
-      if (!$xml) {
-        $message = t('Could not load WXR file - problems reported: ');
-        foreach (libxml_get_errors() as $error) {
-          $message .= $error->message . t(" at line !line\n", array('!line' => $error->line));
+
+      $reader = new XMLReader;
+      $status = $reader->open($this->filename);
+      if ($status) {
+        $title = $wxr_version = $this->blog_url = '';
+        while ($reader->read()) {
+          if ($reader->nodeType == XMLREADER::ELEMENT) {
+            switch ($reader->name) {
+              case 'title':
+                $title = $reader->readString();
+                break;
+              case 'wp:wxr_version':
+                $wxr_version = $reader->readString();
+                break;
+              case 'wp:base_blog_url':
+                $this->blog_url = $reader->readString();
+                break;
+            }
+          }
+          if (!empty($title) && !empty($wxr_version) && !empty($this->blog_url)) {
+            break;
+          }
         }
-        throw new Exception($message);
+        // Validate that it really is a WXR file
+        if (empty($wxr_version)) {
+          throw new Exception(t('The uploaded file is not a valid WordPress export'));
+        }
+        // Keep only alphabetic characters
+        $this->title = preg_replace('/[^A-Za-z]/', '', $title);
+        if (!$this->title) {
+          $this->title = preg_replace('/[^A-Za-z]/', '', $this->blog_url);
+        }
+
+        global $user;
+        $this->uid = $user->uid;
+        db_insert('wordpress_migrate')
+          ->fields(array(
+            'filename' => $filename,
+            'title' => $this->title,
+            'blog_url' => $this->blog_url,
+            'uid' => $this->uid,
+          ))
+          ->execute();
+        foreach ($this->migrationClasses() as $class) {
+          Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
+        }
       }
-
-      // Validate that it really is a WXR file
-      $wxr_version = $xml->xpath('//channel/wp:wxr_version');
-      if (!$wxr_version) {
-        throw new Exception(t('The uploaded file is not a valid WordPress export'));
-      }
-
-      $title = (string)$xml->channel->title;
-      $blog_url = $xml->xpath('//channel/wp:base_blog_url');
-      $this->blog_url = (string)$blog_url[0];
-
-      // Keep only alphabetic characters
-      $this->title = preg_replace('/[^A-Za-z]/', '', $title);
-      if (!$this->title) {
-        $this->title = preg_replace('/[^A-Za-z]/', '', $blog_url);
-      }
-
-      global $user;
-      $this->uid = $user->uid;
-      db_insert('wordpress_migrate')
-        ->fields(array(
-          'filename' => $filename,
-          'title' => $this->title,
-          'blog_url' => $this->blog_url,
-          'uid' => $this->uid,
-        ))
-        ->execute();
-      foreach ($this->migrationClasses() as $class) {
-        Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
+      else {
+        throw new Exception(t('Could not open XML file !url',
+                              array('!url' => $this->filename)));
       }
     }
   }
