@@ -126,8 +126,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
   $directory = 'wordpress://';
   if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
-    form_set_error('wxr_file', t('Could not prepare directory %directory',
-      array('%directory' => $directory)));
+    form_set_error('wxr_file',
+      t('Could not prepare directory %directory - make sure your Drupal files directory exists and is writable',
+        array('%directory' => $directory)));
     return;
   }
 
