@@ -87,7 +87,7 @@ class WordPressAttachment extends WordPressMigration {
          ->defaultValue(FILE_STATUS_PERMANENT);
     $this->addFieldMapping('timestamp', 'post_date');
     $this->addFieldMapping(NULL, 'post_parent')
-         ->description('For attachments, indicates item attached to')
+         ->description('TODO: find node we\'re attached to, see if it has filefield')
          ->issueGroup(t('Open issues'))
          ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
 

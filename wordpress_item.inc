@@ -159,15 +159,13 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping('status', 'status')
          ->description('Set Drupal status to 1 iff wp:status=publish');
     $this->addFieldMapping(NULL, 'post_parent')
-         ->description('For attachments, indicates item attached to')
-         ->issueGroup(t('Open issues'))
-         ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
+         ->description('Only applies to attachments');
     $this->addFieldMapping('sticky', 'is_sticky');
     if (module_exists('path')) {
       $this->addFieldMapping('path', 'link')
            ->description(t('If no ? in the link, strip the domain for the path'));
       if (module_exists('pathauto')) {
-        $this->addFieldMapping('pathauto_perform_alias')
+        $this->addFieldMapping('pathauto')
              ->defaultValue(0)
              ->description('Disable pathauto, we set the alias from the WP link');
       }
