@@ -156,8 +156,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping('body', 'content')
          ->arguments($arguments);
     $this->addFieldMapping(NULL, 'excerpt');
-    $this->addFieldMapping('comment', 'comment_status')
-         ->description('WP "open" mapped to Drupal COMMENT_NODE_OPEN');
+    if (module_exists('comment')) {
+      $this->addFieldMapping('comment', 'comment_status')
+           ->description('WP "open" mapped to Drupal COMMENT_NODE_OPEN');
+    }
     $this->addFieldMapping('status', 'status')
          ->description('Set Drupal status to 1 iff wp:status=publish');
     $this->addFieldMapping(NULL, 'post_parent')
@@ -292,11 +294,13 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // Translate WordPress comment_status to Drupal values
-    if ($row->comment_status == 'open') {
-      $row->comment_status = COMMENT_NODE_OPEN;
-    }
-    else {
-      $row->comment_status = COMMENT_NODE_CLOSED;
+    if (module_exists('comment')) {
+      if ($row->comment_status == 'open') {
+        $row->comment_status = COMMENT_NODE_OPEN;
+      }
+      else {
+        $row->comment_status = COMMENT_NODE_CLOSED;
+      }
     }
 
     // Interpret the [caption] tags

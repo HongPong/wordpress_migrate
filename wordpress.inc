@@ -206,6 +206,10 @@ class WordPressBlog {
     if (empty($this->migrations)) {
       $this->migrations = array();
       foreach ($this->migrationClasses() as $class) {
+        // Skip comments if comment module is not enabled
+        if ($class == 'WordPressComment' && !module_exists('comment')) {
+          continue;
+        }
         // Skip tags/categories if taxonomy is not enabled
         if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
           if (!module_exists('taxonomy')) {
