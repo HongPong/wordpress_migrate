@@ -53,8 +53,13 @@ class WordPressItemSource extends WordPressSourceXML {
    *
    */
   public function __construct($filename, $post_type) {
+    $source_options = array(
+      'reader_class' => 'WordPressXMLReader',
+      'cache_counts' => TRUE,
+      'cache_key' => "wordpress_migrate_$post_type",
+    );
     parent::__construct($filename, '/rss/channel/item', 'wp:post_id',
-      $this->fields, array('reader_class' => 'WordPressXMLReader'));
+      $this->fields, $source_options);
     $this->postType = $post_type;
   }
 

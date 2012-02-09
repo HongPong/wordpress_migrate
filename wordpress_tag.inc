@@ -37,8 +37,12 @@ class WordPressTag extends WordPressMigration {
     );
 
     // Construct the source and destination objects.
+    $source_options = array(
+      'reader_class' => 'WordPressXMLReader',
+      'cache_counts' => TRUE,
+    );
     $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/tag',
-      'wp:tag_slug', $fields, array('reader_class' => 'WordPressXMLReader'));
+      'wp:tag_slug', $fields, $source_options);
     $this->destination = new MigrateDestinationTerm(
       variable_get('wordpress_migrate_tag_vocabulary', ''));
 

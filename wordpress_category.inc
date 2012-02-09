@@ -38,8 +38,12 @@ class WordPressCategory extends WordPressMigration {
     );
 
     // Construct the source and destination objects.
+    $source_options = array(
+      'reader_class' => 'WordPressXMLReader',
+      'cache_counts' => TRUE,
+    );
     $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/category',
-      'wp:category_nicename', $fields, array('reader_class' => 'WordPressXMLReader'));
+      'wp:category_nicename', $fields, $source_options);
     $this->destination = new MigrateDestinationTerm(
       variable_get('wordpress_migrate_category_vocabulary', ''));
 

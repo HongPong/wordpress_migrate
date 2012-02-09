@@ -150,8 +150,12 @@ class WordPressComment extends WordPressMigration {
         'comment_user_id' => 'WordPress user ID of commenter (?)',
       );
 
+    $source_options = array(
+      'reader_class' => 'WordPressCommentXMLReader',
+      'cache_counts' => TRUE,
+    );
     $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/item/comment',
-      'wp:comment_id', $fields, array('reader_class' => 'WordPressCommentXMLReader'));
+      'wp:comment_id', $fields, $source_options);
     $this->destination = new MigrateDestinationComment($arguments['post_type']);
 
     // The basic mappings
