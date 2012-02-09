@@ -206,6 +206,12 @@ class WordPressBlog {
     if (empty($this->migrations)) {
       $this->migrations = array();
       foreach ($this->migrationClasses() as $class) {
+        // Skip tags/categories if taxonomy is not enabled
+        if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
+          if (!module_exists('taxonomy')) {
+            continue;
+          }
+        }
         // Skip tags/categories if there's no destination vocabulary
         if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
             $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {

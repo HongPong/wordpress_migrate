@@ -116,8 +116,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
 
-    $this->dependencies = array($this->generateMachineName('WordPressCategory'),
-      $this->generateMachineName('WordPressTag'));
+    if (module_exists('taxonomy')) {
+      $this->dependencies = array($this->generateMachineName('WordPressCategory'),
+        $this->generateMachineName('WordPressTag'));
+    }
 
     // WordPress post type
     $this->postType = $arguments['post_type'];
@@ -171,48 +173,50 @@ abstract class WordPressItemMigration extends WordPressMigration {
       }
     }
 
-    // Map the source fields to the configured vocabularies
-    $vocabs = array(
-      'tag' => variable_get('wordpress_migrate_tag_vocabulary', ''),
-      'category' => variable_get('wordpress_migrate_category_vocabulary', ''),
-    );
+    if (module_exists('taxonomy')) {
+      // Map the source fields to the configured vocabularies
+      $vocabs = array(
+        'tag' => variable_get('wordpress_migrate_tag_vocabulary', ''),
+        'category' => variable_get('wordpress_migrate_category_vocabulary', ''),
+      );
 
-    // Look through this content type's fields for term references
-    foreach ($this->destination->fields() as $machine_name => $description) {
-      if (preg_match('/\(taxonomy_term_reference\)$/', $description)) {
-        $field_info = field_info_field($machine_name);
-        // Check this field against each of the configured vocabularies - if
-        // a match is found, make the mapping
-        foreach ($vocabs as $source_field => $vocab_name) {
-          if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
-            if ($source_field == 'tag') {
-              $sourceMigration = $this->generateMachineName('WordPressTag');
+      // Look through this content type's fields for term references
+      foreach ($this->destination->fields() as $machine_name => $description) {
+        if (preg_match('/\(taxonomy_term_reference\)$/', $description)) {
+          $field_info = field_info_field($machine_name);
+          // Check this field against each of the configured vocabularies - if
+          // a match is found, make the mapping
+          foreach ($vocabs as $source_field => $vocab_name) {
+            if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
+              if ($source_field == 'tag') {
+                $sourceMigration = $this->generateMachineName('WordPressTag');
+              }
+              else {
+                $sourceMigration = $this->generateMachineName('WordPressCategory');
+              }
+              $this->addFieldMapping($machine_name, $source_field)
+                   ->arguments(array('source_type' => 'tid'))
+                   ->sourceMigration($sourceMigration);
+              unset($vocabs[$source_field]);
             }
-            else {
-              $sourceMigration = $this->generateMachineName('WordPressCategory');
-            }
-            $this->addFieldMapping($machine_name, $source_field)
-                 ->arguments(array('source_type' => 'tid'))
-                 ->sourceMigration($sourceMigration);
-            unset($vocabs[$source_field]);
           }
         }
       }
-    }
 
-    // If we didn't map one or both of the tag/category fields, indicate so with
-    // a DNM mapping.
-    foreach ($vocabs as $source_field => $vocab_name) {
-      if ($vocab_name) {
-        $message = t('!vocab_name vocabulary is not assigned to node type !bundle',
-          array('!vocab_name' => $vocab_name, '!bundle' => $bundle));
+      // If we didn't map one or both of the tag/category fields, indicate so with
+      // a DNM mapping.
+      foreach ($vocabs as $source_field => $vocab_name) {
+        if ($vocab_name) {
+          $message = t('!vocab_name vocabulary is not assigned to node type !bundle',
+            array('!vocab_name' => $vocab_name, '!bundle' => $bundle));
+        }
+        else {
+          $message = t('No vocabulary assigned for this field');
+        }
+        $this->addFieldMapping(NULL, $source_field)
+             ->description($message)
+             ->issueGroup(t('DNM'));
       }
-      else {
-        $message = t('No vocabulary assigned for this field');
-      }
-      $this->addFieldMapping(NULL, $source_field)
-           ->description($message)
-           ->issueGroup(t('DNM'));
     }
 
     // Unmapped destination fields

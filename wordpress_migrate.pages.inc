@@ -301,13 +301,23 @@ function wordpress_migrate_review_form($form, &$form_state) {
   $header = array(
     'blog_url' => array('data' => t('Blog URL')),
     'status' => array('data' => t('Status')),
-    'WordPressCategory' => array('data' => t('Categories')),
-    'WordPressTag' => array('data' => t('Tags')),
+  );
+  if (module_exists('taxonomy')) {
+    $header += array(
+      'WordPressCategory' => array('data' => t('Categories')),
+      'WordPressTag' => array('data' => t('Tags')),
+    );
+  }
+  $header += array(
     'WordPressBlogEntry' => array('data' => t('Posts')),
     'WordPressPage' => array('data' => t('Pages')),
     'WordPressAttachment' => array('data' => t('Attachments')),
-    'WordPressComment' => array('data' => t('Comments')),
   );
+  if (module_exists('comment')) {
+    $header += array(
+      'WordPressComment' => array('data' => t('Comments')),
+    );
+  }
   $rows = array();
   $blogs = call_user_func(array(wordpress_migrate_blog_class(), 'blogs'));
   foreach ($blogs as $blog) {
@@ -610,28 +620,30 @@ function wordpress_migrate_configure_form($form, &$form_state) {
   // TODO: Select user to own blog
 
   // Select vocabularies for categories and tags
-  // TODO: Get only those attached to destination content types
-  $vocabs = taxonomy_vocabulary_get_names();
-  $options = array('' => t('Do not import'));
-  foreach ($vocabs as $machine_name => $vocab) {
-    $options[$machine_name] = $vocab->name;
+  if (module_exists('taxonomy')) {
+    // TODO: Get only those attached to destination content types
+    $vocabs = taxonomy_vocabulary_get_names();
+    $options = array('' => t('Do not import'));
+    foreach ($vocabs as $machine_name => $vocab) {
+      $options[$machine_name] = $vocab->name;
+    }
+
+    $form['wordpress_migrate_tag_vocabulary'] = array(
+      '#type' => 'select',
+      '#title' => t('Vocabulary for WordPress tags'),
+      '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', ''),
+      '#options' => $options,
+      '#description' => t('Choose the vocabulary to hold WordPress tags.'),
+    );
+
+    $form['wordpress_migrate_category_vocabulary'] = array(
+      '#type' => 'select',
+      '#title' => t('Vocabulary for WordPress categories'),
+      '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
+      '#options' => $options,
+      '#description' => t('Choose the vocabulary to hold WordPress categories.'),
+    );
   }
-
-  $form['wordpress_migrate_tag_vocabulary'] = array(
-    '#type' => 'select',
-    '#title' => t('Vocabulary for WordPress tags'),
-    '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', ''),
-    '#options' => $options,
-    '#description' => t('Choose the vocabulary to hold WordPress tags.'),
-  );
-
-  $form['wordpress_migrate_category_vocabulary'] = array(
-    '#type' => 'select',
-    '#title' => t('Vocabulary for WordPress categories'),
-    '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
-    '#options' => $options,
-    '#description' => t('Choose the vocabulary to hold WordPress categories.'),
-  );
 
   // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
 
@@ -677,8 +689,10 @@ function wordpress_migrate_configure_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_post_type', $form_state['values']['wordpress_migrate_post_type']);
   variable_set('wordpress_migrate_text_format', $form_state['values']['wordpress_migrate_text_format']);
   variable_set('wordpress_migrate_page_type', $form_state['values']['wordpress_migrate_page_type']);
-  variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
-  variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
+  if (module_exists('taxonomy')) {
+    variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
+    variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
+  }
   variable_set('wordpress_migrate_notification_subject', $form_state['values']['wordpress_migrate_notification_subject']);
   variable_set('wordpress_migrate_notification_body', $form_state['values']['wordpress_migrate_notification_body']);
   variable_set('wordpress_migrate_notification_failure_body', $form_state['values']['wordpress_migrate_notification_failure_body']);
