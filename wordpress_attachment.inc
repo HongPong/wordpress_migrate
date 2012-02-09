@@ -144,6 +144,11 @@ class WordPressAttachment extends WordPressMigration {
    * @return string
    */
   public function prepareRow($row) {
+    // Skip any of the wrong post type
+    if ($row->post_type != 'attachment') {
+      return FALSE;
+    }
+
     // If incoming date is zero (indicates unpublished content), use the current time
     if ($row->post_date == '0000-00-00 00:00:00') {
       $row->post_date = time();
@@ -238,21 +243,23 @@ class WordPressAttachment extends WordPressMigration {
     $source_migrations = array($this->generateMachineName('WordPressBlogEntry'),
       $this->generateMachineName('WordPressPage'));
     foreach ($source_migrations as $source_migration) {
-      $migration = MigrationBase::getInstance($source_migration);
+      $migration = Migration::getInstance($source_migration);
       $map = $migration->getMap();
       foreach ($map as $map_row) {
         $nid = $map_row->destid1;
-        $node = node_load($nid);
-        $body = $node->body[LANGUAGE_NONE][0]['value'];
-        $result = db_select('wordpress_migrate_attachment', 'a')
-                  ->fields('a', array('original_url', 'new_uri'))
-                  ->condition('filename', $this->wxrFile)
-                  ->execute();
-        foreach ($result as $row) {
-          $body = str_replace($row->original_url, $row->new_uri, $body);
+        if ($nid) {
+          $node = node_load($nid);
+          $body = $node->body[LANGUAGE_NONE][0]['value'];
+          $result = db_select('wordpress_migrate_attachment', 'a')
+                    ->fields('a', array('original_url', 'new_uri'))
+                    ->condition('filename', $this->wxrFile)
+                    ->execute();
+          foreach ($result as $row) {
+            $body = str_replace($row->original_url, $row->new_uri, $body);
+          }
+          $node->body[LANGUAGE_NONE][0]['value'] = $body;
+          node_save($node);
         }
-        $node->body[LANGUAGE_NONE][0]['value'] = $body;
-        node_save($node);
       }
     }
     migrate_instrument_stop('WordPressAttachment postImport');

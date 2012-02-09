@@ -4,6 +4,7 @@
  * @file
  * Implementation of migration from WordPress into Drupal
  */
+
 abstract class WordPressMigration extends DynamicMigration {
   /**
    * The filespec of the WXR file this migration is based on.
@@ -12,6 +13,11 @@ abstract class WordPressMigration extends DynamicMigration {
    */
   protected $wxrFile;
 
+  /**
+   * The blog object representing a set of migrations.
+   *
+   * @var WordPressBlog
+   */
   protected $blog;
 
   /**
@@ -57,6 +63,17 @@ abstract class WordPressMigration extends DynamicMigration {
       drush_print($message);
     }
   }
+
+  /**
+   * Called after completion of each migration.
+   */
+  public function postImport() {
+    // Clear ignored rows from the map, so as not to confuse reporting.
+    $map_table = $this->map->getMapTable();
+    db_delete($map_table)
+      ->condition('needs_update', MigrateMap::STATUS_IGNORED)
+      ->execute();
+  }
 }
 
 class WordPressBlog {
@@ -72,6 +89,10 @@ class WordPressBlog {
   public function getBlogUrl() {
     return $this->blog_url;
   }
+  protected $link;
+  public function getLink() {
+    return $this->link;
+  }
   protected $uid;
   public function getUid() {
     return $this->uid;
@@ -82,7 +103,7 @@ class WordPressBlog {
   public function __construct($filename) {
     $this->filename = $filename;
     $row = db_select('wordpress_migrate', 'wm')
-           ->fields('wm', array('filename', 'title', 'blog_url', 'uid'))
+           ->fields('wm', array('filename', 'title', 'blog_url', 'uid', 'link'))
            ->condition('filename', $filename)
            ->execute()
            ->fetchObject();
@@ -90,6 +111,7 @@ class WordPressBlog {
       $this->title = $row->title;
       $this->blog_url = $row->blog_url;
       $this->uid = $row->uid;
+      $this->link = $row->link;
     }
     else {
       // Suppress errors during parsing, so we can pick them up after
@@ -111,9 +133,13 @@ class WordPressBlog {
               case 'wp:base_blog_url':
                 $this->blog_url = $reader->readString();
                 break;
+              case 'link':
+                $this->link = $reader->readString();
+                break;
             }
           }
-          if (!empty($title) && !empty($wxr_version) && !empty($this->blog_url)) {
+          if (!empty($title) && !empty($wxr_version) &&
+              !empty($this->blog_url) && !empty($this->link)) {
             break;
           }
         }
@@ -135,6 +161,7 @@ class WordPressBlog {
             'title' => $this->title,
             'blog_url' => $this->blog_url,
             'uid' => $this->uid,
+            'link' => $this->link,
           ))
           ->execute();
         foreach ($this->migrationClasses() as $class) {

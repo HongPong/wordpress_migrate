@@ -7,59 +7,104 @@
  */
 
 /**
- * Implementation of MigrateSource, to handle migrating comments from WordPress XML dumps.
+ * Override of MigrateXMLReader, so we can track the parent posts for
+ * comments.
  */
-class WordPressCommentSource extends WordPressSource {
+class WordPressCommentXMLReader extends MigrateXMLReader {
   /**
-   * List of available source fields.
-   *
-   * @var array
+   * The last post ID we've seen - saved so we can apply it to comments.
+   * @var int
    */
-  protected $fields = array(
-    'post_id' => 'Unique ID of the item the comment is attached to',
-    'comment_id' => 'Unique ID of the comment',
-    'comment_author' => 'Name of comment author',
-    'comment_author_email' => 'Email address of comment author',
-    'comment_author_url' => 'URL of comment author',
-    'comment_author_IP' => 'IP address from which comment was posted',
-    'comment_date' => 'Date of comment (what timezone?)',
-    'comment_date_gmt' => 'Date of comment (GMT)',
-    'comment_content' => 'Body of comment',
-    'comment_approved' => '1/0/spam - spam comments will not be imported',
-    'comment_type' => '?',
-    'comment_parent' => 'comment_id (?) of parent comment',
-    'comment_user_id' => 'WordPress user ID of commenter (?)',
-  );
+  protected $postId;
 
   /**
-   * Simple initialization.
+   * Implementation of Iterator::next(). We need to preserve the ID of
+   * the parent element.
    *
+   * @return void
    */
-  public function __construct($filename) {
-    parent::__construct($filename);
-    $this->xpath = '//channel/item/wp:comment';
-  }
+  public function next() {
+    migrate_instrument_start('WordPressCommentXMLReader::next');
+    $this->currentElement = $this->currentId = NULL;
 
-  /**
-   * Parse the values out of the wp:comment element.
-   *
-   * @param SimpleXMLElement $item
-   * @return boolean
-   */
-  protected function populateRow($item) {
-    // All the stuff we want is in the wp namespace
-    $namespaces = $item->getNameSpaces(TRUE);
-    $item_ns = $item->children($namespaces['wp']);
-    foreach ($item_ns as $name => $value) {
-      $this->currentRow->$name = (string)$value;
+    // Loop over each node in the XML file, looking for elements at a path
+    // matching the input query string (represented in $this->elementsToMatch).
+    while ($this->reader->read()) {
+      if ($this->reader->nodeType == XMLREADER::ELEMENT) {
+        $this->currentPath[$this->reader->depth] = $this->reader->localName;
+        // Save the last post_id, so comments can use it to find their parent
+        if ($this->reader->name == 'wp:post_id') {
+          $this->postId = $this->reader->readString();
+        }
+        if ($this->currentPath == $this->elementsToMatch) {
+          // We're positioned to the right element path - if filtering on an
+          // attribute, check that as well before accepting this element.
+          if (empty($this->attributeName) ||
+              ($this->reader->getAttribute($this->attributeName) == $this->attributeValue)) {
+            // We've found a matching element - get a SimpleXML object representing it.
+            // We must associate the DOMNode with a DOMDocument to be able to import
+            // it into SimpleXML.
+            // Despite appearances, this is almost twice as fast as
+            // simplexml_load_string($this->readOuterXML());
+            $node = $this->reader->expand();
+            if ($node) {
+              $dom = new DOMDocument();
+              $node = $dom->importNode($node, TRUE);
+              $dom->appendChild($node);
+              $this->currentElement = simplexml_import_dom($node);
+              if ($this->reader->name == 'wp:comment') {
+                $this->currentElement->post_id = $this->postId;
+              }
+              $idnode = $this->currentElement->xpath($this->idQuery);
+              $this->currentId = (string)reset($idnode);
+              break;
+            }
+            else {
+              foreach (libxml_get_errors() as $error) {
+                $error_string = MigrateItemsXML::parseLibXMLError($error);
+                if ($migration = Migration::currentMigration()) {
+                  $migration->saveMessage($error_string);
+                }
+                else {
+                  Migration::displayMessage($error_string);
+                }
+              }
+            }
+          }
+        }
+      }
+      elseif ($this->reader->nodeType == XMLREADER::END_ELEMENT) {
+        // Trim currentPath as we exit each element
+        unset($this->currentPath[$this->reader->depth]);
+      }
     }
 
-    // Find the containing item
-    $post_id = $this->xml->xpath("//channel/item[wp:comment/wp:comment_id='" .
-      $this->currentRow->comment_id . "']/wp:post_id");
-    $this->currentRow->post_id = (string)$post_id[0];
-    $this->currentKey = array($this->currentRow->comment_id);
-    return TRUE;
+    // Copy of code from WordPressXMLReader - turn the SimpleXML object
+    // into a flat list of fields.
+    if (is_a($this->currentElement, 'SimpleXMLElement')) {
+      $item = $this->currentElement;
+      $currentRow = new stdClass;
+      // Pull non-namespaced items
+      foreach ($item as $name => $value) {
+        $currentRow->$name = (string)$value;
+      }
+      $namespaces = $item->getNameSpaces(TRUE);
+      foreach ($namespaces as $ns => $nsuri) {
+        $item_ns = $item->children($namespaces[$ns]);
+        foreach ($item_ns as $name => $value) {
+          // Special-case content:encoded and excerpt:encoded, which otherwise
+          // would both be saved as "encoded"
+          if ($name == 'encoded') {
+            $currentRow->$ns = (string)$value;
+          }
+          else {
+            $currentRow->$name = (string)$value;
+          }
+        }
+      }
+      $this->currentElement = $currentRow;
+    }
+    migrate_instrument_stop('WordPressCommentXMLReader::next');
   }
 }
 
@@ -89,7 +134,24 @@ class WordPressComment extends WordPressMigration {
       MigrateDestinationComment::getKeySchema()
     );
 
-    $this->source = new WordPressCommentSource($this->wxrFile);
+    $fields = array(
+        'post_id' => 'Unique ID of the item the comment is attached to',
+        'comment_id' => 'Unique ID of the comment',
+        'comment_author' => 'Name of comment author',
+        'comment_author_email' => 'Email address of comment author',
+        'comment_author_url' => 'URL of comment author',
+        'comment_author_IP' => 'IP address from which comment was posted',
+        'comment_date' => 'Date of comment (what timezone?)',
+        'comment_date_gmt' => 'Date of comment (GMT)',
+        'comment_content' => 'Body of comment',
+        'comment_approved' => '1/0/spam - spam comments will not be imported',
+        'comment_type' => '?',
+        'comment_parent' => 'comment_id (?) of parent comment',
+        'comment_user_id' => 'WordPress user ID of commenter (?)',
+      );
+
+    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/item/comment',
+      'wp:comment_id', $fields, array('reader_class' => 'WordPressCommentXMLReader'));
     $this->destination = new MigrateDestinationComment($arguments['post_type']);
 
     // The basic mappings

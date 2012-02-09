@@ -9,7 +9,7 @@
 /**
  * Implementation of MigrateSource, to handle migrating items from WordPress XML dumps.
  */
-class WordPressItemSource extends WordPressSource {
+class WordPressItemSource extends WordPressSourceXML {
   /**
    * The <wp:post_type> value we're looking for in this migration
    * (post/page/attachment).
@@ -53,87 +53,27 @@ class WordPressItemSource extends WordPressSource {
    *
    */
   public function __construct($filename, $post_type) {
-    parent::__construct($filename);
+    parent::__construct($filename, '/rss/channel/item', 'wp:post_id',
+      $this->fields, array('reader_class' => 'WordPressXMLReader'));
     $this->postType = $post_type;
-    $this->xpath = '//channel/item';
   }
 
   /**
    * Return a count of all available source records.
-   *
-   * @param boolean $refresh
-   *  Not currently in use.
    */
-  public function count($refresh = FALSE) {
-    $post_types = $this->xml->xpath("//channel/item[wp:post_type='$this->postType']");
-    $count = count($post_types);
+  public function computeCount() {
+    $count = 0;
+    foreach ($this->sourceUrls as $url) {
+      $reader = new $this->readerClass($url, $this->elementQuery, $this->idQuery);
+      foreach ($reader as $element) {
+        // Only count relevant postType
+        if ($element->post_type == $this->postType) {
+          $count++;
+        }
+      }
+    }
+
     return $count;
-  }
-
-  /**
-   * Parse the values out of the item element.
-   *
-   * @param SimpleXMLElement $item
-   * @return boolean
-   */
-  protected function populateRow($item) {
-    // Pull non-namespaced items
-    foreach ($item as $name => $value) {
-      $this->currentRow->$name = (string)$value;
-    }
-    // Now check each namespace
-    $namespaces = $item->getNameSpaces(TRUE);
-
-    foreach ($namespaces as $ns => $nsuri) {
-      $item_ns = $item->children($namespaces[$ns]);
-      foreach ($item_ns as $name => $value) {
-        // Special-case content:encoded and excerpt:encoded, which otherwise
-        // would both be saved as "encoded"
-        if ($name == 'encoded') {
-          $this->currentRow->$ns = (string)$value;
-        }
-        else {
-          $this->currentRow->$name = (string)$value;
-        }
-      }
-    }
-    // Make sure this is the desired post type
-    if ($this->currentRow->post_type != $this->postType) {
-      $this->currentRow = NULL;
-      return FALSE;
-    }
-
-    // The category field is now the descriptive name, we want the nicename
-    $this->currentRow->category = array();
-
-    // The tag domain changed with WXR version 1.1
-    $migration = Migration::currentMigration();
-    $wxr_version = $this->xml->xpath('//channel/wp:wxr_version');
-    $wxr_version = (float)reset($wxr_version);
-    if ($wxr_version < 1.1) {
-      $tag_domain = 'tag';
-    }
-    else {
-      $tag_domain = 'post_tag';
-    }
-
-    foreach ($item->category as $cat) {
-      $attributes = $cat->attributes();
-      $domain = $attributes->domain;
-      $nicename = $attributes->nicename;
-      if ($nicename) {
-        $nicename = (string)$nicename[0];
-        if ($domain == 'category') {
-          $this->currentRow->category[] = $nicename;
-        }
-        if ($domain == $tag_domain) {
-          $this->currentRow->tag[] = $nicename;
-        }
-      }
-    }
-
-    $this->currentKey = array($this->currentRow->post_id);
-    return TRUE;
   }
 }
 
@@ -142,6 +82,14 @@ class WordPressItemSource extends WordPressSource {
  * types (post_type) of items.
  */
 abstract class WordPressItemMigration extends WordPressMigration {
+  /**
+   * The <wp:post_type> value we're looking for in this migration
+   * (post/page/attachment).
+   *
+   * @var string
+   */
+  protected $postType;
+
   /**
    * Indicates to the complete() method that the nid of this item needs to be
    * saved in linksToFix for later processing.
@@ -167,7 +115,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $this->generateMachineName('WordPressTag'));
 
     // WordPress post type
-    $post_type = $arguments['post_type'];
+    $this->postType = $arguments['post_type'];
     // Drupal content type (bundle)
     $bundle = $arguments['bundle'];
 
@@ -185,7 +133,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     );
 
     // Construct the source objects.
-    $this->source = new WordPressItemSource($this->wxrFile, $post_type);
+    $this->source = new WordPressItemSource($this->wxrFile, $this->postType);
     $this->destination = new MigrateDestinationNode($bundle);
 
     // Default mappings, applying to most or all migrations
@@ -265,26 +213,16 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // Unmapped destination fields
-    $this->addFieldMapping('is_new')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping('revision')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping('language')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping('promote')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping('revision_uid')
-         ->issueGroup(t('DNM'));
+    $this->addUnmigratedDestinations(array('is_new', 'revision', 'language',
+                                     'promote', 'revision_uid', 'log', 'tnid'));
 
     // Unmapped source fields
+    $this->addUnmigratedSources(array('post_id', 'menu_order', 'post_type'));
     $this->addFieldMapping(NULL, 'guid')
          ->description('same as link, plus isPermaLink attribute?')
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'description')
          ->description('Always empty?')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_id')
-         ->description(t('Primary key of source'))
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'pubDate')
          ->description('Use post_date')
@@ -299,10 +237,6 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping(NULL, 'post_name')
          ->description('Looks like last component of path')
          ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'menu_order')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_type')
-         ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'post_password')
          ->description('???')
          ->issueGroup(t('DNM'));
@@ -315,6 +249,11 @@ abstract class WordPressItemMigration extends WordPressMigration {
    * @return string
    */
   public function prepareRow($row) {
+    // Skip any of the wrong post type
+    if ($row->post_type != $this->postType) {
+      return FALSE;
+    }
+
     // Only publish those with wp:status == 'publish'
     if (isset($row->status) && $row->status == 'publish') {
       $row->status = NODE_PUBLISHED;
@@ -499,7 +438,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
    */
   protected function fixLocalLinks($body) {
     $this->linksNeedFixing = FALSE;
-    $site_url = reset($this->source->getXml()->xpath('//channel/link'));
+    $site_url = $this->blog->getLink();
     $pattern = '|href="' . $site_url . '/\?p=([0-9]+)"|i';
     $body = preg_replace_callback($pattern, array($this, 'replaceLinks'), $body);
     return $body;
@@ -626,6 +565,7 @@ class WordPressPage extends WordPressItemMigration {
    * nodes not yet migrated) and see if we can resolve them now.
    */
   public function postImport() {
+    parent::postImport();
     foreach (self::$linksToFix as $nid) {
       $node = node_load($nid);
       $node->body[LANGUAGE_NONE][0]['value'] = $this->fixLocalLinks($node->body[LANGUAGE_NONE][0]['value']);

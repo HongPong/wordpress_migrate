@@ -7,48 +7,6 @@
  */
 
 /**
- * Implementation of MigrateSource, to handle migrating tags from WordPress XML dumps.
- */
-class WordPressTagSource extends WordPressSource {
-  /**
-   * List of available source fields.
-   *
-   * @var array
-   */
-  protected $fields = array(
-    'tag_slug' => 'Unique "machine name" of the tag',
-    'tag_name' => 'User-friendly tag name',
-    'tag_description' => 'Description of tag',
-  );
-
-  /**
-   * Simple initialization.
-   */
-  public function __construct($filename) {
-    parent::__construct($filename);
-    $this->xpath = '//channel/wp:tag';
-  }
-
-  /**
-   * Parse the values out of the wp:tag element.
-   *
-   * @param SimpleXMLElement $item
-   * @return boolean
-   */
-  protected function populateRow($item) {
-    // All the stuff we want is in the wp namespace
-    $namespaces = $item->getNameSpaces(TRUE);
-    $item_ns = $item->children($namespaces['wp']);
-    foreach ($item_ns as $name => $value) {
-      $this->currentRow->$name = (string)$value;
-    }
-
-    $this->currentKey = array($this->currentRow->tag_slug);
-    return TRUE;
-  }
-}
-
-/**
  * Implementation of WordPressMigration, for tags
  */
 class WordPressTag extends WordPressMigration {
@@ -72,8 +30,15 @@ class WordPressTag extends WordPressMigration {
       MigrateDestinationTerm::getKeySchema()
     );
 
+    $fields = array(
+        'tag_slug' => 'Unique "machine name" of the tag',
+        'tag_name' => 'User-friendly tag name',
+        'tag_description' => 'Description of tag',
+    );
+
     // Construct the source and destination objects.
-    $this->source = new WordPressTagSource($this->wxrFile);
+    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/tag',
+      'wp:tag_slug', $fields, array('reader_class' => 'WordPressXMLReader'));
     $this->destination = new MigrateDestinationTerm(
       variable_get('wordpress_migrate_tag_vocabulary', ''));
 

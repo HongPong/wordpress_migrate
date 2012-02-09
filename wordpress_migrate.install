@@ -34,6 +34,12 @@ function wordpress_migrate_schema_wordpress() {
         'not null' => TRUE,
         'description' => 'Original blog URL',
       ),
+      'link' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Link value from XML',
+      ),
       'uid' => array(
         'type' => 'int',
         'not null' => TRUE,
@@ -113,5 +119,22 @@ function wordpress_migrate_update_7003() {
   );
 
   $ret[] = t('Added blog_url column to wordpress_migrate table');
+  return $ret;
+}
+
+/**
+ * Add link field to wordpress_migrate table.
+ */
+function wordpress_migrate_update_7004() {
+  $ret = array();
+  db_add_field('wordpress_migrate', 'link', array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Link value from XML',
+      )
+  );
+
+  $ret[] = t('Added link column to wordpress_migrate table');
   return $ret;
 }
