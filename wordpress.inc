@@ -165,6 +165,21 @@ class WordPressBlog {
           ))
           ->execute();
         foreach ($this->migrationClasses() as $class) {
+          // Skip comments if comment module is not enabled
+          if ($class == 'WordPressComment' && !module_exists('comment')) {
+            continue;
+          }
+          // Skip tags/categories if taxonomy is not enabled
+          if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
+            if (!module_exists('taxonomy')) {
+              continue;
+            }
+          }
+          // Skip tags/categories if there's no destination vocabulary
+          if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
+              $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
+            continue;
+          }
           Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
         }
       }
@@ -221,7 +236,7 @@ class WordPressBlog {
             $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
           continue;
         }
-        $this->migrations[] = MigrationBase::getInstance($this->machineName($class), $class,
+        $this->migrations[$class] = MigrationBase::getInstance($this->machineName($class), $class,
           array('filename' => $this->filename));
       }
     }
