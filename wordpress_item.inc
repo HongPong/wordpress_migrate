@@ -385,6 +385,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
       // Attempt to parse embedded media automatically through the media module.
       try {
         $uri = media_parse_to_uri($src);
+        // Sometimes, at least with oembed, it doesn't like the /v/ form
+        $uri = str_replace('youtube.com/v/', 'youtube.com/watch?v=', $uri);
       }
       catch (Exception $e) {
         return $result;
