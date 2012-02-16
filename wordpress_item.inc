@@ -307,8 +307,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $row->content = preg_replace_callback('|(\[caption.*?\])(.*?)(\[/caption\])|i',
       array($this, 'replaceCaptions'), $row->content);
 
-    // Rewrite embedded video references to media tags (TODO: YouTube only for now)
-    if (module_exists('media_youtube')) {
+    // Rewrite embedded video references to media tags
+    if (module_exists('media')) {
       $row->content = preg_replace_callback('|<object [^>]*>.*?(<embed [^>]*>).*?</object>|i',
         array($this, 'replaceEmbeds'), $row->content);
     }
@@ -364,16 +364,16 @@ abstract class WordPressItemMigration extends WordPressMigration {
   }
 
   /**
-   * If we have a YouTube reference, replace it with media tags.
+   * If we have a YouTube or other media reference, replace it with media tags.
    *
    * @param array $matches
    */
   protected function replaceEmbeds(array $matches) {
     $embed_matches = array();
-    // Default to the original <object> tag
+    // Default to the original <object> tag.
     $result = $matches[0];
 
-    // If an <embed> tag is present, parse it
+    // If an <embed> tag is present, atttempt to parse it.
     if ($matches[1]) {
       if (preg_match('|src=[\'"](.*?)[\'"]|i', $matches[1], $src_matches)) {
         $src = $src_matches[1];
@@ -381,13 +381,19 @@ abstract class WordPressItemMigration extends WordPressMigration {
       else {
         return $result;
       }
-      // We support YouTube only
-      if (preg_match('|^https?://www.youtube.com/|', $src)) {
-        $src = preg_replace('|^https?://www.youtube.com/|', 'youtube://', $src);
+
+      // Attempt to parse embedded media automatically through the media module.
+      try {
+        $uri = media_parse_to_uri($src);
       }
-      else {
+      catch (Exception $e) {
         return $result;
       }
+      if (!isset($uri)) {
+        return $result;
+      }
+
+      // Extract the width & height for the media tag.
       if (preg_match('|width=[\'"](.*?)[\'"]|i', $matches[1], $width_matches)) {
         $width = $width_matches[1];
       }
@@ -400,33 +406,25 @@ abstract class WordPressItemMigration extends WordPressMigration {
       else {
         return $result;
       }
-      // OK, at this point we have all the info we need - construct a file_managed table
-      // entry (if one doesn't already exist)
-      $fid = db_select('file_managed', 'f')
-             ->fields('f', array('fid'))
-             ->condition('uri', $src)
-             ->execute()
-             ->fetchField();
-      if (!$fid) {
-        global $user;
-        $file = new stdClass();
-        $file->uri = $src;
-        $file->filename = basename($src);
-        $file->filemime = 'video/youtube';
-        $file->type = 'video';
-        $file->uid = $user->uid;
-        $file->status = 1;
-        file_save($file);
-        if (module_exists('media')) {
+
+      // Build a file object suitable for saving.
+      if (function_exists('file_uri_to_object')) {
+        $file = file_uri_to_object($uri, TRUE);
+        if (!isset($file->fid)) {
+          // Save the media.
           file_save($file);
         }
-        $fid = $file->fid;
       }
+      else {
+        // We shouldn't get here. But just in case...
+        return $result;
+      }
+
       // Build the media tag
       $video_info = array(
         'type' => 'media',
         'view_mode' => 'media_large',
-        'fid' => $fid,
+        'fid' => $file->fid,
         'attributes' => array(
           'class' => 'media-image',
           'typeof' => 'foaf:Image',

@@ -138,3 +138,40 @@ function wordpress_migrate_update_7004() {
   $ret[] = t('Added link column to wordpress_migrate table');
   return $ret;
 }
+
+/**
+ * Fix any malformed YouTube embeds.
+ */
+function wordpress_migrate_update_7005() {
+  $results = db_select('file_managed', 'f')
+    ->fields('f', array('fid', 'uri'))
+    ->condition(db_or()
+      ->condition('f.uri', 'youtube://%?%', 'LIKE')
+      ->condition('f.uri', 'youtube://%&%', 'LIKE')
+    )
+    ->execute();
+  foreach ($results as $result) {
+    $original = $result->uri;
+    preg_match('@(youtube://[^\?\&]+)@i', $result->uri, $matches);
+    $result->uri = $matches[1];
+    list(,,,$result->filename) = explode('/', $result->uri);
+    $check_for_duplicates = db_select('file_managed', 'f')
+      ->fields('f', array('fid', 'uri'))
+      ->condition('f.uri', $result->uri)
+      ->execute()
+      ->fetchObject();
+    if (!$check_for_duplicates) {
+      drupal_write_record('file_managed', $result, 'fid');
+    }
+    else {
+      // The uri column is unique. Throw an error, but run through the rest first.
+      if (!isset($errors)) {
+        $errors = array($original, $result, $check_for_duplicates);
+      }
+    }
+  }
+  if (isset($errors)) {
+    throw new DrupalUpdateException(t('Unable to fix uri: @media_1 (fid: @fid_1), as it conflicts with uri: @media_2 (fid: @fid_2).', array('@media_1' => $errors[0], '@media_2' => $errors[2]->uri, '@fid_1' => $errors[1]->fid, '@fid_2' => $errors[2]->fid)));
+  }
+  return t('Fixed all malformed YouTube embeds.');
+}
