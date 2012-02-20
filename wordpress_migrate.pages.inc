@@ -645,6 +645,46 @@ function wordpress_migrate_configure_form($form, &$form_state) {
     );
   }
 
+  if (module_exists('path')) {
+    $options = array(
+      0 => t('Do not set path aliases'),
+      1 => t('Set path aliases to their original WordPress values'),
+    );
+    $attributes = array();
+    $default_value = variable_get('wordpress_migrate_path_action', 1);
+    if (module_exists('pathauto')) {
+      $options[2] = t('Have pathauto generate new aliases');
+      if (!module_exists('migrate_extras')) {
+        $form['wordpress_migrate_pathauto_message'] = array(
+          '#prefix' => '<p>',
+          '#markup' => t('<strong>If you do not have the migrate_extras module enabled, ' .
+            'pathauto will automatically generate aliases regardless of this setting.</strong>'),
+          '#suffix' => '</p>',
+        );
+        $attributes['disabled'] = TRUE;
+        $default_value = 2;
+      }
+    }
+    $form['wordpress_migrate_path_action'] = array(
+      '#type' => 'radios',
+      '#title' => t('Path alias handling'),
+      '#description' => t('Select how path aliases for imported nodes will be set.'),
+      '#options' => $options,
+      '#default_value' => $default_value,
+      '#attributes' => $attributes,
+    );
+  }
+
+  if (module_exists('redirect')) {
+    $form['wordpress_migrate_generate_redirects'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Generate redirects'),
+      '#description' => t('If this box is checked, redirects will be set up from
+        the former WordPress blog URLs to the new URLs on your Drupal site'),
+      '#default_value' => variable_get('wordpress_migrate_generate_redirects', FALSE),
+    );
+  }
+
   // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
 
   $form['wordpress_migrate_notification_subject'] = array(
@@ -680,21 +720,43 @@ function wordpress_migrate_configure_form($form, &$form_state) {
 }
 
 /**
+ * Validate callback for the WordPress configure form.
+ */
+function wordpress_migrate_configure_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+  if ($values['wordpress_migrate_path_action'] == 1
+      && $values['wordpress_migrate_generate_redirects'] == 1) {
+    form_set_error('wordpress_migrate_generate_redirects',
+      t('It is not meaningful to set redirects from the WordPress aliases '
+        . 'when they are also setting the Drupal aliases. Please either make '
+        . 'another <strong>Path alias handling</strong> choice, or turn off '
+        . '<strong>Generate redirects</strong>.'));
+  }
+}
+
+/**
  * Submit callback for the WordPress configure form.
  */
 function wordpress_migrate_configure_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
   // TODO: Verify drush command file exists
-  variable_set('wordpress_migrate_drush', $form_state['values']['wordpress_migrate_drush']);
+  variable_set('wordpress_migrate_drush', $values['wordpress_migrate_drush']);
 
-  variable_set('wordpress_migrate_post_type', $form_state['values']['wordpress_migrate_post_type']);
-  variable_set('wordpress_migrate_text_format', $form_state['values']['wordpress_migrate_text_format']);
-  variable_set('wordpress_migrate_page_type', $form_state['values']['wordpress_migrate_page_type']);
+  variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
+  variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
+  variable_set('wordpress_migrate_page_type', $values['wordpress_migrate_page_type']);
   if (module_exists('taxonomy')) {
-    variable_set('wordpress_migrate_tag_vocabulary', $form_state['values']['wordpress_migrate_tag_vocabulary']);
-    variable_set('wordpress_migrate_category_vocabulary', $form_state['values']['wordpress_migrate_category_vocabulary']);
+    variable_set('wordpress_migrate_tag_vocabulary', $values['wordpress_migrate_tag_vocabulary']);
+    variable_set('wordpress_migrate_category_vocabulary', $values['wordpress_migrate_category_vocabulary']);
   }
-  variable_set('wordpress_migrate_notification_subject', $form_state['values']['wordpress_migrate_notification_subject']);
-  variable_set('wordpress_migrate_notification_body', $form_state['values']['wordpress_migrate_notification_body']);
-  variable_set('wordpress_migrate_notification_failure_body', $form_state['values']['wordpress_migrate_notification_failure_body']);
+  if (module_exists('path')) {
+    variable_set('wordpress_migrate_path_action', $values['wordpress_migrate_path_action']);
+  }
+  if (module_exists('redirect')) {
+    variable_set('wordpress_migrate_generate_redirects', $values['wordpress_migrate_generate_redirects']);
+  }
+  variable_set('wordpress_migrate_notification_subject', $values['wordpress_migrate_notification_subject']);
+  variable_set('wordpress_migrate_notification_body', $values['wordpress_migrate_notification_body']);
+  variable_set('wordpress_migrate_notification_failure_body', $values['wordpress_migrate_notification_failure_body']);
   drupal_set_message(t('WordPress configuration changes saved.'));
 }

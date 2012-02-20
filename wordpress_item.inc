@@ -166,12 +166,47 @@ abstract class WordPressItemMigration extends WordPressMigration {
          ->description('Only applies to attachments');
     $this->addFieldMapping('sticky', 'is_sticky');
     if (module_exists('path')) {
-      $this->addFieldMapping('path', 'link')
-           ->description(t('If no ? in the link, strip the domain for the path'));
-      if (module_exists('pathauto')) {
-        $this->addFieldMapping('pathauto')
-             ->defaultValue(0)
-             ->description('Disable pathauto, we set the alias from the WP link');
+      switch (variable_get('wordpress_migrate_path_action', 1)) {
+        // Do not set path aliases
+        case 0:
+          $this->addFieldMapping('path');
+          if (!module_exists('redirect')) {
+            $this->addFieldMapping(NULL, 'link');
+          }
+          if (module_exists('pathauto')) {
+            $this->addFieldMapping('pathauto')
+                 ->defaultValue(0);
+          }
+          break;
+        // Set path aliases to their original WordPress values
+        case 1:
+          $this->addFieldMapping('path', 'link');
+          if (module_exists('pathauto')) {
+            $this->addFieldMapping('pathauto')
+                 ->defaultValue(0);
+          }
+          break;
+        // Have pathauto generate new aliases
+        case 2:
+          $this->addFieldMapping('path');
+          if (!modules_exists('redirect')) {
+            $this->addFieldMapping(NULL, 'link');
+          }
+          if (module_exists('pathauto')) {
+            $this->addFieldMapping('pathauto')
+                 ->defaultValue(1);
+          }
+          break;
+      }
+    }
+
+    if (module_exists('redirect')) {
+      if (variable_get('wordpress_migrate_generate_redirects', 0)) {
+        $this->addFieldMapping('migrate_redirects', 'link');
+      }
+      else {
+        $this->addFieldMapping('migrate_redirects');
+        $this->addFieldMapping(NULL, 'link');
       }
     }
 
