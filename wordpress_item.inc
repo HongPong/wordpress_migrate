@@ -117,8 +117,12 @@ abstract class WordPressItemMigration extends WordPressMigration {
     parent::__construct($arguments);
 
     if (module_exists('taxonomy')) {
-      $this->dependencies = array($this->generateMachineName('WordPressCategory'),
-        $this->generateMachineName('WordPressTag'));
+      if (variable_get('wordpress_migrate_category_vocabulary', '')) {
+        $this->dependencies[] = $this->generateMachineName('WordPressCategory');
+      }
+      if (variable_get('wordpress_migrate_tag_vocabulary', '')) {
+        $this->dependencies[] = $this->generateMachineName('WordPressTag');
+      }
     }
 
     // WordPress post type

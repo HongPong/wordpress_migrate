@@ -323,10 +323,16 @@ function wordpress_migrate_review_form($form, &$form_state) {
     'status' => array('data' => t('Status')),
   );
   if (module_exists('taxonomy')) {
-    $header += array(
-      'WordPressCategory' => array('data' => t('Categories')),
-      'WordPressTag' => array('data' => t('Tags')),
-    );
+    if (variable_get('wordpress_migrate_category_vocabulary', '')) {
+      $header += array(
+        'WordPressCategory' => array('data' => t('Categories')),
+      );
+    }
+    if (variable_get('wordpress_migrate_tag_vocabulary', '')) {
+      $header += array(
+        'WordPressCategory' => array('data' => t('Tags')),
+      );
+    }
   }
   $header += array(
     'WordPressBlogEntry' => array('data' => t('Posts')),
