@@ -158,6 +158,10 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
           array('!domain' => $domain)));
     }
     fclose($handle);
+
+    // Use a temp file for cookies.
+    $cookie_file = file_directory_temp() . '/wpimport-cookie.txt';
+
     $username = $form_state['values']['username'];
     $password = $form_state['values']['password'];
     $ch = curl_init();
@@ -166,8 +170,8 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_USERAGENT, 'Importer');
     curl_setopt($ch, CURLOPT_COOKIESESSION, 1);
-    curl_setopt($ch, CURLOPT_COOKIEJAR, 'cookie.txt');
-    curl_setopt($ch, CURLOPT_COOKIEFILE, 'cookie.txt');
+    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie_file);
+    curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie_file);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, "log=$username&pwd=$password&testcookie=1");
     $login_result = curl_exec($ch);
@@ -190,11 +194,12 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_FILE, $fp);
-        curl_setopt($ch, CURLOPT_COOKIEFILE, 'cookie.txt');
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie_file);
         curl_setopt($ch, CURLOPT_URL, $export_url);
         curl_exec($ch);
         curl_close($ch);
         fclose($fp);
+        unlink($cookie_file);
       }
       else {
         form_set_error('credentials][domain', t('Could not create destination file !filename',
