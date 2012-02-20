@@ -189,7 +189,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
         // Have pathauto generate new aliases
         case 2:
           $this->addFieldMapping('path');
-          if (!modules_exists('redirect')) {
+          if (!module_exists('redirect')) {
             $this->addFieldMapping(NULL, 'link');
           }
           if (module_exists('pathauto')) {

@@ -133,14 +133,13 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
 
   $tmpfile = $_FILES['files']['tmp_name']['wxr_file'];
+  // Note that for either path we take here, $tmpfile will be the name of
+  // the uploaded/retrieved file, and $destination will be the name of the
+  // desired final destination.
   if ($tmpfile) {
     // Handle uploaded file
     $filename = $_FILES['files']['name']['wxr_file'];
     $destination = $directory . str_replace(' ', '%20', $filename);
-    $saved = file_unmanaged_move($tmpfile, $destination, FILE_EXISTS_REPLACE);
-    if (!$saved) {
-      form_set_error('wxr_file', t('Failed to save file to %filename', array('%filename' => $destination)));
-    }
   }
   else {
     // Export the WordPress blog directly
@@ -178,6 +177,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     if (strpos($login_result, 'Set-Cookie: wordpress_logged_in')) {
       $filename = $domain . '.xml';
       $destination = $directory . '/' . $filename;
+      $tmpfile = tempnam(sys_get_temp_dir(), 'wp_');
       $export_url = 'http://' . $domain;
       if ($wordpress_version == 2) {
         $export_url .= '/blog';
@@ -185,7 +185,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
       $export_url .= '/wp-admin/export.php?mm_start=all&mm_end=all&author=all' .
         '&export_taxonomy[category]=0&export_taxonomy[post_tag]=0&export_post_type=all' .
         '&export_post_status=all&download=true';
-      $fp = fopen($destination, 'w');
+      $fp = fopen($tmpfile, 'w');
       if ($fp) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -195,82 +195,102 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
         curl_exec($ch);
         curl_close($ch);
         fclose($fp);
-        $saved = TRUE;
       }
       else {
         form_set_error('credentials][domain', t('Could not create destination file !filename',
-          array('!filename' => $destination)));
-        $saved = FALSE;
+          array('!filename' => $tmpfile)));
+        return;
       }
     }
     else {
       form_set_error('credentials][domain', t('Could not login at !login_url',
         array('!login_url' => $login_url)));
-      $saved = FALSE;
+      return;
     }
   }
 
-  if ($saved) {
-    // The excerpt namespace is sometimes omitted, stuff it in if necessary
-    $wxr_string = file_get_contents($destination);
-    $excerpt_ns = 'xmlns:excerpt="http://wordpress.org/export/1.0/excerpt/"';
-    $excerpt_signature = 'xmlns:excerpt="http://wordpress.org/export/';
-    $content_ns = 'xmlns:content="http://purl.org/rss/1.0/modules/content/"';
-    if (!strpos($wxr_string, $excerpt_signature)) {
-      $wxr_string = str_replace($content_ns, $excerpt_ns . "\n\t" . $content_ns, $wxr_string);
-    }
-    // Add the Atom namespace, in case it's referenced
-    $atom_ns = 'xmlns:atom="http://www.w3.org/2005/Atom"';
-    $wxr_string = str_replace($content_ns, $atom_ns . "\n\t" . $content_ns, $wxr_string);
+  // Cleanup some stuff in the process of moving the file to its final
+  // destination
+  $temp_handle = fopen($tmpfile, 'r');
+  $dest_handle = fopen($destination, 'w');
 
-    // Fix unencoded ampersands
-    $wxr_string = preg_replace('/&(?![\w\d#]+;)/', '&amp;', $wxr_string);
-    file_put_contents($destination, $wxr_string);
-    try {
-      $blog = wordpress_migrate_blog($destination);
+  // First, get the header (everything before the <channel> element) to
+  // rewrite the namespaces
+  $header = '';
+  while ($line = fgets($temp_handle)) {
+    $header .= $line;
+    if (strpos($line, '<channel>') !== FALSE) {
+      break;
     }
-    catch (Exception $e) {
-      form_set_error('wxr_file', $e->getMessage());
-      file_unmanaged_delete($destination);
-      return;
-    }
+  }
 
-    // Import each migration in order, until done or time is running out
-    $spawned = FALSE;
-    foreach ($blog->migrations() as $migration) {
-      $result = $migration->processImport();
-      if ($result == MigrationBase::RESULT_INCOMPLETE) {
-        $drush = variable_get('wordpress_migrate_drush', '');
-        if (!$drush) {
-          if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-            $message = t('The blog was too large to import through the browser - please
-                <a href="@config">configure drush</a> so the import process may be
-                run in the background.',
-              array('@config' => url('admin/content/wordpress/configure')));
-          }
-          else {
-            $message = t('The blog was too large to import through the browser - please
-              contact a site administrator to properly configure the site for
-              background imports.');
-          }
-          form_set_error('wxr_file', $message);
-          break;
+  // The excerpt namespace is sometimes omitted, stuff it in if necessary
+  $excerpt_ns = 'xmlns:excerpt="http://wordpress.org/export/1.0/excerpt/"';
+  $excerpt_signature = 'xmlns:excerpt="http://wordpress.org/export/';
+  $content_ns = 'xmlns:content="http://purl.org/rss/1.0/modules/content/"';
+  if (!strpos($header, $excerpt_signature)) {
+    $header = str_replace($content_ns, $excerpt_ns . "\n\t" . $content_ns, $header);
+  }
+  // Add the Atom namespace, in case it's referenced
+  $atom_ns = 'xmlns:atom="http://www.w3.org/2005/Atom"';
+  $header = str_replace($content_ns, $atom_ns . "\n\t" . $content_ns, $header);
+
+  fputs($dest_handle, $header);
+
+  // Now, fix unencoded ampersands on a line-by-line basis
+  while ($line = fgets($temp_handle)) {
+    $line = preg_replace('/&(?![\w\d#]+;)/', '&amp;', $line);
+    fputs($dest_handle, $line);
+  }
+
+  fclose($dest_handle);
+  fclose($temp_handle);
+  unlink($tmpfile);
+
+  try {
+    $blog = wordpress_migrate_blog($destination);
+  }
+  catch (Exception $e) {
+    form_set_error('wxr_file', $e->getMessage());
+    file_unmanaged_delete($destination);
+    return;
+  }
+
+  // Import each migration in order, until done or time is running out
+  $spawned = FALSE;
+  foreach ($blog->migrations() as $migration) {
+    $result = $migration->processImport();
+    if ($result == MigrationBase::RESULT_INCOMPLETE) {
+      $drush = variable_get('wordpress_migrate_drush', '');
+      if (!$drush) {
+        if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+          $message = t('The blog was too large to import through the browser - please
+              <a href="@config">configure drush</a> so the import process may be
+              run in the background.',
+            array('@config' => url('admin/content/wordpress/configure')));
         }
-        drupal_set_message(t('The blog is too large to completely import immediately -
-          the rest of the import will be run in the background and you will receive an email
-          when it is complete'));
-        $uri = 'http://' . $_SERVER['HTTP_HOST'];
-        $log_file = '/tmp/' . $filename . '.import.log';
-        $command = "$drush --uri=$uri wordpress-migrate-import $destination >$log_file 2>&1 &";
-        exec($command);
-        $spawned = TRUE;
+        else {
+          $message = t('The blog was too large to import through the browser - please
+            contact a site administrator to properly configure the site for
+            background imports.');
+        }
+        form_set_error('wxr_file', $message);
         break;
       }
+      drupal_set_message(t('The blog is too large to completely import immediately -
+        the rest of the import will be run in the background and you will receive an email
+        when it is complete'));
+      $uri = 'http://' . $_SERVER['HTTP_HOST'];
+      $log_file = '/tmp/' . $filename . '.import.log';
+      $command = "$drush --uri=$uri wordpress-migrate-import $destination >$log_file 2>&1 &";
+      exec($command);
+      $spawned = TRUE;
+      break;
     }
-    if (!$spawned) {
-      drupal_set_message(t('File %filename successfully uploaded and imported',
-        array('%filename' => $filename)));
-    }
+  }
+  if (!$spawned) {
+    drupal_set_message(t('File %filename successfully uploaded and imported',
+      array('%filename' => $filename)));
   }
 }
 
