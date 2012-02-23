@@ -18,7 +18,23 @@ class WordPressXMLReader extends MigrateXMLReader {
       $currentRow = new stdClass;
       // Pull non-namespaced items
       foreach ($item as $name => $value) {
-        $currentRow->$name = (string)$value;
+        // Special-case tags and categories, where we want to pull the
+        // nicename attribute
+        if ($name == 'category') {
+          $attributes = $value->attributes();
+          $domain = $attributes['domain'];
+          $nicename = $attributes['nicename'];
+          // Note we can have multiples tags, but only one category
+          if ($domain == 'category') {
+            $currentRow->category = (string)$nicename;
+          }
+          else if ($domain == 'post_tag') {
+            $currentRow->tag[] = (string)$nicename;
+          }
+        }
+        else {
+          $currentRow->$name = (string)$value;
+        }
       }
       $namespaces = $item->getNameSpaces(TRUE);
       foreach ($namespaces as $ns => $nsuri) {
