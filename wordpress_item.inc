@@ -9,7 +9,7 @@
 /**
  * Implementation of MigrateSource, to handle migrating items from WordPress XML dumps.
  */
-class WordPressItemSource extends WordPressSourceXML {
+class WordPressItemSource extends WordPressSource {
   /**
    * The <wp:post_type> value we're looking for in this migration
    * (post/page/attachment).
@@ -53,32 +53,87 @@ class WordPressItemSource extends WordPressSourceXML {
    *
    */
   public function __construct($filename, $post_type) {
-    $source_options = array(
-      'reader_class' => 'WordPressXMLReader',
-      'cache_counts' => TRUE,
-      'cache_key' => "wordpress_migrate_$post_type",
-    );
-    parent::__construct($filename, '/rss/channel/item', 'wp:post_id',
-      $this->fields, $source_options);
+    parent::__construct($filename);
     $this->postType = $post_type;
+    $this->xpath = '//channel/item';
   }
 
   /**
    * Return a count of all available source records.
+   *
+   * @param boolean $refresh
+   *  Not currently in use.
    */
-  public function computeCount() {
-    $count = 0;
-    foreach ($this->sourceUrls as $url) {
-      $reader = new $this->readerClass($url, $this->elementQuery, $this->idQuery);
-      foreach ($reader as $element) {
-        // Only count relevant postType
-        if ($element->post_type == $this->postType) {
-          $count++;
+  public function count($refresh = FALSE) {
+    $post_types = $this->xml->xpath("//channel/item[wp:post_type='$this->postType']");
+    $count = count($post_types);
+    return $count;
+  }
+
+  /**
+   * Parse the values out of the item element.
+   *
+   * @param SimpleXMLElement $item
+   * @return boolean
+   */
+  protected function populateRow($item) {
+    // Pull non-namespaced items
+    foreach ($item as $name => $value) {
+      $this->currentRow->$name = (string)$value;
+    }
+    // Now check each namespace
+    $namespaces = $item->getNameSpaces(TRUE);
+
+    foreach ($namespaces as $ns => $nsuri) {
+      $item_ns = $item->children($namespaces[$ns]);
+      foreach ($item_ns as $name => $value) {
+        // Special-case content:encoded and excerpt:encoded, which otherwise
+        // would both be saved as "encoded"
+        if ($name == 'encoded') {
+          $this->currentRow->$ns = (string)$value;
+        }
+        else {
+          $this->currentRow->$name = (string)$value;
+        }
+      }
+    }
+    // Make sure this is the desired post type
+    if ($this->currentRow->post_type != $this->postType) {
+      $this->currentRow = NULL;
+      return FALSE;
+    }
+
+    // The category field is now the descriptive name, we want the nicename
+    $this->currentRow->category = array();
+
+    // The tag domain changed with WXR version 1.1
+    $migration = Migration::currentMigration();
+    $wxr_version = $this->xml->xpath('//channel/wp:wxr_version');
+    $wxr_version = (float)reset($wxr_version);
+    if ($wxr_version < 1.1) {
+      $tag_domain = 'tag';
+    }
+    else {
+      $tag_domain = 'post_tag';
+    }
+
+    foreach ($item->category as $cat) {
+      $attributes = $cat->attributes();
+      $domain = $attributes->domain;
+      $nicename = $attributes->nicename;
+      if ($nicename) {
+        $nicename = (string)$nicename[0];
+        if ($domain == 'category') {
+          $this->currentRow->category[] = $nicename;
+        }
+        if ($domain == $tag_domain) {
+          $this->currentRow->tag[] = $nicename;
         }
       }
     }
 
-    return $count;
+    $this->currentKey = array($this->currentRow->post_id);
+    return TRUE;
   }
 }
 
@@ -87,14 +142,6 @@ class WordPressItemSource extends WordPressSourceXML {
  * types (post_type) of items.
  */
 abstract class WordPressItemMigration extends WordPressMigration {
-  /**
-   * The <wp:post_type> value we're looking for in this migration
-   * (post/page/attachment).
-   *
-   * @var string
-   */
-  protected $postType;
-
   /**
    * Indicates to the complete() method that the nid of this item needs to be
    * saved in linksToFix for later processing.
@@ -116,17 +163,11 @@ abstract class WordPressItemMigration extends WordPressMigration {
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
 
-    if (module_exists('taxonomy')) {
-      if (variable_get('wordpress_migrate_category_vocabulary', '')) {
-        $this->dependencies[] = $this->generateMachineName('WordPressCategory');
-      }
-      if (variable_get('wordpress_migrate_tag_vocabulary', '')) {
-        $this->dependencies[] = $this->generateMachineName('WordPressTag');
-      }
-    }
+    $this->dependencies = array($this->generateMachineName('WordPressCategory'),
+      $this->generateMachineName('WordPressTag'));
 
     // WordPress post type
-    $this->postType = $arguments['post_type'];
+    $post_type = $arguments['post_type'];
     // Drupal content type (bundle)
     $bundle = $arguments['bundle'];
 
@@ -144,7 +185,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     );
 
     // Construct the source objects.
-    $this->source = new WordPressItemSource($this->wxrFile, $this->postType);
+    $this->source = new WordPressItemSource($this->wxrFile, $post_type);
     $this->destination = new MigrateDestinationNode($bundle);
 
     // Default mappings, applying to most or all migrations
@@ -160,117 +201,90 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping('body', 'content')
          ->arguments($arguments);
     $this->addFieldMapping(NULL, 'excerpt');
-    if (module_exists('comment')) {
-      $this->addFieldMapping('comment', 'comment_status')
-           ->description('WP "open" mapped to Drupal COMMENT_NODE_OPEN');
-    }
+    $this->addFieldMapping('comment', 'comment_status')
+         ->description('WP "open" mapped to Drupal COMMENT_NODE_OPEN');
     $this->addFieldMapping('status', 'status')
          ->description('Set Drupal status to 1 iff wp:status=publish');
     $this->addFieldMapping(NULL, 'post_parent')
-         ->description('Only applies to attachments');
+         ->description('For attachments, indicates item attached to')
+         ->issueGroup(t('Open issues'))
+         ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
     $this->addFieldMapping('sticky', 'is_sticky');
     if (module_exists('path')) {
-      switch (variable_get('wordpress_migrate_path_action', 1)) {
-        // Do not set path aliases
-        case 0:
-          $this->addFieldMapping('path');
-          if (!module_exists('redirect')) {
-            $this->addFieldMapping(NULL, 'link');
-          }
-          if (module_exists('pathauto')) {
-            $this->addFieldMapping('pathauto')
-                 ->defaultValue(0);
-          }
-          break;
-        // Set path aliases to their original WordPress values
-        case 1:
-          $this->addFieldMapping('path', 'link');
-          if (module_exists('pathauto')) {
-            $this->addFieldMapping('pathauto')
-                 ->defaultValue(0);
-          }
-          break;
-        // Have pathauto generate new aliases
-        case 2:
-          $this->addFieldMapping('path');
-          if (!module_exists('redirect')) {
-            $this->addFieldMapping(NULL, 'link');
-          }
-          if (module_exists('pathauto')) {
-            $this->addFieldMapping('pathauto')
-                 ->defaultValue(1);
-          }
-          break;
+      $this->addFieldMapping('path', 'link')
+           ->description(t('If no ? in the link, strip the domain for the path'));
+      if (module_exists('pathauto')) {
+        $this->addFieldMapping('pathauto_perform_alias')
+             ->defaultValue(0)
+             ->description('Disable pathauto, we set the alias from the WP link');
       }
     }
 
-    if (module_exists('redirect')) {
-      if (variable_get('wordpress_migrate_generate_redirects', 0)) {
-        $this->addFieldMapping('migrate_redirects', 'link');
+    // Map the source fields to the configured vocabularies
+    $vocabs = array(
+      'tag' => variable_get('wordpress_migrate_tag_vocabulary', ''),
+      'category' => variable_get('wordpress_migrate_category_vocabulary', ''),
+    );
+
+    // Look through this content type's fields for term references
+    foreach ($this->destination->fields() as $machine_name => $description) {
+      if (preg_match('/\(taxonomy_term_reference\)$/', $description)) {
+        $field_info = field_info_field($machine_name);
+        // Check this field against each of the configured vocabularies - if
+        // a match is found, make the mapping
+        foreach ($vocabs as $source_field => $vocab_name) {
+          if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
+            if ($source_field == 'tag') {
+              $sourceMigration = $this->generateMachineName('WordPressTag');
+            }
+            else {
+              $sourceMigration = $this->generateMachineName('WordPressCategory');
+            }
+            $this->addFieldMapping($machine_name, $source_field)
+                 ->arguments(array('source_type' => 'tid'))
+                 ->sourceMigration($sourceMigration);
+            unset($vocabs[$source_field]);
+          }
+        }
+      }
+    }
+
+    // If we didn't map one or both of the tag/category fields, indicate so with
+    // a DNM mapping.
+    foreach ($vocabs as $source_field => $vocab_name) {
+      if ($vocab_name) {
+        $message = t('!vocab_name vocabulary is not assigned to node type !bundle',
+          array('!vocab_name' => $vocab_name, '!bundle' => $bundle));
       }
       else {
-        $this->addFieldMapping('migrate_redirects');
-        $this->addFieldMapping(NULL, 'link');
+        $message = t('No vocabulary assigned for this field');
       }
-    }
-
-    if (module_exists('taxonomy')) {
-      // Map the source fields to the configured vocabularies
-      $vocabs = array(
-        'tag' => variable_get('wordpress_migrate_tag_vocabulary', ''),
-        'category' => variable_get('wordpress_migrate_category_vocabulary', ''),
-      );
-
-      // Look through this content type's fields for term references
-      foreach ($this->destination->fields() as $machine_name => $description) {
-        if (preg_match('/\(taxonomy_term_reference\)$/', $description)) {
-          $field_info = field_info_field($machine_name);
-          // Check this field against each of the configured vocabularies - if
-          // a match is found, make the mapping
-          foreach ($vocabs as $source_field => $vocab_name) {
-            if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
-              if ($source_field == 'tag') {
-                $sourceMigration = $this->generateMachineName('WordPressTag');
-              }
-              else {
-                $sourceMigration = $this->generateMachineName('WordPressCategory');
-              }
-              $this->addFieldMapping($machine_name, $source_field)
-                   ->arguments(array('source_type' => 'tid'))
-                   ->sourceMigration($sourceMigration);
-              unset($vocabs[$source_field]);
-            }
-          }
-        }
-      }
-
-      // If we didn't map one or both of the tag/category fields, indicate so with
-      // a DNM mapping.
-      foreach ($vocabs as $source_field => $vocab_name) {
-        if ($vocab_name) {
-          $message = t('!vocab_name vocabulary is not assigned to node type !bundle',
-            array('!vocab_name' => $vocab_name, '!bundle' => $bundle));
-        }
-        else {
-          $message = t('No vocabulary assigned for this field');
-        }
-        $this->addFieldMapping(NULL, $source_field)
-             ->description($message)
-             ->issueGroup(t('DNM'));
-      }
+      $this->addFieldMapping(NULL, $source_field)
+           ->description($message)
+           ->issueGroup(t('DNM'));
     }
 
     // Unmapped destination fields
-    $this->addUnmigratedDestinations(array('is_new', 'revision', 'language',
-                                     'promote', 'revision_uid', 'log', 'tnid'));
+    $this->addFieldMapping('is_new')
+         ->issueGroup(t('DNM'));
+    $this->addFieldMapping('revision')
+         ->issueGroup(t('DNM'));
+    $this->addFieldMapping('language')
+         ->issueGroup(t('DNM'));
+    $this->addFieldMapping('promote')
+         ->issueGroup(t('DNM'));
+    $this->addFieldMapping('revision_uid')
+         ->issueGroup(t('DNM'));
 
     // Unmapped source fields
-    $this->addUnmigratedSources(array('post_id', 'menu_order', 'post_type'));
     $this->addFieldMapping(NULL, 'guid')
          ->description('same as link, plus isPermaLink attribute?')
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'description')
          ->description('Always empty?')
+         ->issueGroup(t('DNM'));
+    $this->addFieldMapping(NULL, 'post_id')
+         ->description(t('Primary key of source'))
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'pubDate')
          ->description('Use post_date')
@@ -285,6 +299,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping(NULL, 'post_name')
          ->description('Looks like last component of path')
          ->issueGroup(t('DNM'));
+    $this->addFieldMapping(NULL, 'menu_order')
+         ->issueGroup(t('DNM'));
+    $this->addFieldMapping(NULL, 'post_type')
+         ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'post_password')
          ->description('???')
          ->issueGroup(t('DNM'));
@@ -297,11 +315,6 @@ abstract class WordPressItemMigration extends WordPressMigration {
    * @return string
    */
   public function prepareRow($row) {
-    // Skip any of the wrong post type
-    if ($row->post_type != $this->postType) {
-      return FALSE;
-    }
-
     // Only publish those with wp:status == 'publish'
     if (isset($row->status) && $row->status == 'publish') {
       $row->status = NODE_PUBLISHED;
@@ -333,21 +346,19 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // Translate WordPress comment_status to Drupal values
-    if (module_exists('comment')) {
-      if ($row->comment_status == 'open') {
-        $row->comment_status = COMMENT_NODE_OPEN;
-      }
-      else {
-        $row->comment_status = COMMENT_NODE_CLOSED;
-      }
+    if ($row->comment_status == 'open') {
+      $row->comment_status = COMMENT_NODE_OPEN;
+    }
+    else {
+      $row->comment_status = COMMENT_NODE_CLOSED;
     }
 
     // Interpret the [caption] tags
     $row->content = preg_replace_callback('|(\[caption.*?\])(.*?)(\[/caption\])|i',
       array($this, 'replaceCaptions'), $row->content);
 
-    // Rewrite embedded video references to media tags
-    if (module_exists('media')) {
+    // Rewrite embedded video references to media tags (TODO: YouTube only for now)
+    if (module_exists('media_youtube')) {
       $row->content = preg_replace_callback('|<object [^>]*>.*?(<embed [^>]*>).*?</object>|i',
         array($this, 'replaceEmbeds'), $row->content);
     }
@@ -403,16 +414,16 @@ abstract class WordPressItemMigration extends WordPressMigration {
   }
 
   /**
-   * If we have a YouTube or other media reference, replace it with media tags.
+   * If we have a YouTube reference, replace it with media tags.
    *
    * @param array $matches
    */
   protected function replaceEmbeds(array $matches) {
     $embed_matches = array();
-    // Default to the original <object> tag.
+    // Default to the original <object> tag
     $result = $matches[0];
 
-    // If an <embed> tag is present, atttempt to parse it.
+    // If an <embed> tag is present, parse it
     if ($matches[1]) {
       if (preg_match('|src=[\'"](.*?)[\'"]|i', $matches[1], $src_matches)) {
         $src = $src_matches[1];
@@ -420,21 +431,13 @@ abstract class WordPressItemMigration extends WordPressMigration {
       else {
         return $result;
       }
-
-      // Attempt to parse embedded media automatically through the media module.
-      try {
-        $uri = media_parse_to_uri($src);
-        // Sometimes, at least with oembed, it doesn't like the /v/ form
-        $uri = str_replace('youtube.com/v/', 'youtube.com/watch?v=', $uri);
+      // We support YouTube only
+      if (preg_match('|^https?://www.youtube.com/|', $src)) {
+        $src = preg_replace('|^https?://www.youtube.com/|', 'youtube://', $src);
       }
-      catch (Exception $e) {
+      else {
         return $result;
       }
-      if (!isset($uri)) {
-        return $result;
-      }
-
-      // Extract the width & height for the media tag.
       if (preg_match('|width=[\'"](.*?)[\'"]|i', $matches[1], $width_matches)) {
         $width = $width_matches[1];
       }
@@ -447,25 +450,33 @@ abstract class WordPressItemMigration extends WordPressMigration {
       else {
         return $result;
       }
-
-      // Build a file object suitable for saving.
-      if (function_exists('file_uri_to_object')) {
-        $file = file_uri_to_object($uri, TRUE);
-        if (!isset($file->fid)) {
-          // Save the media.
-          file_save($file);
+      // OK, at this point we have all the info we need - construct a file_managed table
+      // entry (if one doesn't already exist)
+      $fid = db_select('file_managed', 'f')
+             ->fields('f', array('fid'))
+             ->condition('uri', $src)
+             ->execute()
+             ->fetchField();
+      if (!$fid) {
+        global $user;
+        $file = new stdClass();
+        $file->uri = $src;
+        $file->filename = basename($src);
+        $file->filemime = 'video/youtube';
+        $file->type = 'video';
+        $file->uid = $user->uid;
+        $file->status = 1;
+        file_save($file);
+        if (module_exists('media')) {
+          media_save($file);
         }
+        $fid = $file->fid;
       }
-      else {
-        // We shouldn't get here. But just in case...
-        return $result;
-      }
-
       // Build the media tag
       $video_info = array(
         'type' => 'media',
         'view_mode' => 'media_large',
-        'fid' => $file->fid,
+        'fid' => $fid,
         'attributes' => array(
           'class' => 'media-image',
           'typeof' => 'foaf:Image',
@@ -488,7 +499,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
    */
   protected function fixLocalLinks($body) {
     $this->linksNeedFixing = FALSE;
-    $site_url = $this->blog->getLink();
+    $site_url = reset($this->source->getXml()->xpath('//channel/link'));
     $pattern = '|href="' . $site_url . '/\?p=([0-9]+)"|i';
     $body = preg_replace_callback($pattern, array($this, 'replaceLinks'), $body);
     return $body;
@@ -615,7 +626,6 @@ class WordPressPage extends WordPressItemMigration {
    * nodes not yet migrated) and see if we can resolve them now.
    */
   public function postImport() {
-    parent::postImport();
     foreach (self::$linksToFix as $nid) {
       $node = node_load($nid);
       $node->body[LANGUAGE_NONE][0]['value'] = $this->fixLocalLinks($node->body[LANGUAGE_NONE][0]['value']);

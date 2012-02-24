@@ -28,7 +28,8 @@ class WordPressXMLReader extends MigrateXMLReader {
           if ($domain == 'category') {
             $currentRow->category = (string)$nicename;
           }
-          else if ($domain == 'post_tag') {
+          // 'tag' for WXR 1.0, 'post_tag' for WXR 1.1
+          else if ($domain == 'tag' || $domain == 'post_tag') {
             $currentRow->tag[] = (string)$nicename;
           }
         }
