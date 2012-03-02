@@ -156,7 +156,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping('uid', 'creator')
          ->description('Use matching username if any, otherwise current user');
     $text_format = variable_get('wordpress_migrate_text_format', 'filtered_html');
-    $arguments = array('source_field' => 'excerpt', 'format' => $text_format);
+    $arguments = MigrateTextFieldHandler::arguments(array('source_field' => 'excerpt'), $text_format);
     $this->addFieldMapping('body', 'content')
          ->arguments($arguments);
     $this->addFieldMapping(NULL, 'excerpt');
