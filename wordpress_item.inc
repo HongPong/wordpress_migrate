@@ -618,8 +618,14 @@ class WordPressPage extends WordPressItemMigration {
     parent::postImport();
     foreach (self::$linksToFix as $nid) {
       $node = node_load($nid);
+      // Maintain the original update datestamp
+      $changed = $node->changed;
       $node->body[LANGUAGE_NONE][0]['value'] = $this->fixLocalLinks($node->body[LANGUAGE_NONE][0]['value']);
       node_save($node);
+      db_update('node')
+        ->fields(array('changed' => $changed))
+        ->condition('nid', $node->nid)
+        ->execute();
     }
   }
 }

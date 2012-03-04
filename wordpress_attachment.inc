@@ -258,7 +258,13 @@ class WordPressAttachment extends WordPressMigration {
             $body = str_replace($row->original_url, $row->new_uri, $body);
           }
           $node->body[LANGUAGE_NONE][0]['value'] = $body;
+          // Maintain the original update datestamp
+          $changed = $node->changed;
           node_save($node);
+          db_update('node')
+            ->fields(array('changed' => $changed))
+            ->condition('nid', $node->nid)
+            ->execute();
         }
       }
     }
