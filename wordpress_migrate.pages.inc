@@ -755,7 +755,8 @@ function wordpress_migrate_configure_form($form, &$form_state) {
  */
 function wordpress_migrate_configure_form_validate($form, &$form_state) {
   $values = $form_state['values'];
-  if ($values['wordpress_migrate_path_action'] == 1
+  if (module_exists('redirect')
+      && $values['wordpress_migrate_path_action'] == 1
       && $values['wordpress_migrate_generate_redirects'] == 1) {
     form_set_error('wordpress_migrate_generate_redirects',
       t('It is not meaningful to set redirects from the WordPress aliases '
