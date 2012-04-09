@@ -13,16 +13,15 @@ class WordpressMigrateStreamWrapper extends DrupalLocalStreamWrapper {
    * Implements abstract public function getDirectoryPath()
    */
   public function getDirectoryPath() {
-    return variable_get('file_public_path', conf_path() . '/files') . '/wordpress';
+    return variable_get('file_private_path', '') . '/wordpress';
   }
 
   /**
    * Overrides getExternalUrl().
    *
-   * Return the HTML URI of a private file.
+   * Do not allow an external URL to WordPress files.
    */
   function getExternalUrl() {
-    $path = str_replace('\\', '/', $this->getTarget());
-    return url('system/files/' . $path, array('absolute' => TRUE));
+    return FALSE;
   }
 }

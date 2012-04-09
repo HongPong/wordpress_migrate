@@ -44,6 +44,19 @@ function wordpress_migrate_import_form($form, &$form_state) {
     );
     return $form;
   }
+  
+  // Make sure we have a private directory configured
+  if (!variable_get('file_private_path', '')) {
+    $message = t('A private file systm path must be <a href="@config">configured</a>
+      to securely store your uploaded WordPress file.',
+      array('@config' => url('admin/config/media/file-system')));
+    $form['unconfigured'] = array(
+      '#prefix' => '<div>',
+      '#markup' => $message,
+      '#suffix' => '</div>',
+    );
+    return $form;
+  }
 
   $form['overview'] = array(
     '#prefix' => '<div>',
