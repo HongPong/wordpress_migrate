@@ -82,7 +82,6 @@ function wordpress_migrate_schema_attachment() {
  * Add uid field to wordpress_migrate table.
  */
 function wordpress_migrate_update_7001() {
-  $ret = array();
   db_add_field('wordpress_migrate', 'uid', array(
         'type' => 'int',
         'not null' => TRUE,
@@ -91,18 +90,15 @@ function wordpress_migrate_update_7001() {
       )
   );
 
-  $ret[] = t('Added uid column to wordpress_migrate table');
-  return $ret;
+  return t('Added uid column to wordpress_migrate table');
 }
 
 /**
  * Add the wordpress_migrate_attachment table.
  */
 function wordpress_migrate_update_7002() {
-  $ret = array();
   db_create_table('wordpress_migrate_attachment', wordpress_migrate_schema_attachment());
-  $ret[] = t('Added the wordpress_migrate_attachment table');
-  return $ret;
+  return t('Added the wordpress_migrate_attachment table');
 }
 
 /**
@@ -118,25 +114,24 @@ function wordpress_migrate_update_7003() {
       )
   );
 
-  $ret[] = t('Added blog_url column to wordpress_migrate table');
-  return $ret;
+  return t('Added blog_url column to wordpress_migrate table');
 }
 
 /**
  * Add link field to wordpress_migrate table.
  */
 function wordpress_migrate_update_7004() {
-  $ret = array();
-  db_add_field('wordpress_migrate', 'link', array(
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'description' => 'Link value from XML',
-      )
-  );
+  if (!db_field_exists('wordpress_migrate', 'link')) {
+    db_add_field('wordpress_migrate', 'link', array(
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+          'description' => 'Link value from XML',
+        )
+    );
+  }
 
-  $ret[] = t('Added link column to wordpress_migrate table');
-  return $ret;
+  return t('Added link column to wordpress_migrate table');
 }
 
 /**
