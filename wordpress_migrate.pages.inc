@@ -27,24 +27,6 @@ function wordpress_migrate_import_form($form, &$form_state) {
       array('!error' => $error['message'], '!limit' => format_size(file_upload_max_size()))));
   }
 
-  $post_type = variable_get('wordpress_migrate_post_type', '');
-  if (!$post_type) {
-    if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-      $message = t('Wordpress migration must be <a href="@config">configured</a> before use',
-        array('@config' => url('admin/content/wordpress/configure')));
-    }
-    else {
-      $message = t('WordPress migration is not properly configured - please contact
-        a site administrator');
-    }
-    $form['unconfigured'] = array(
-      '#prefix' => '<div>',
-      '#markup' => $message,
-      '#suffix' => '</div>',
-    );
-    return $form;
-  }
-  
   // Make sure we have a private directory configured
   if (!variable_get('file_private_path', '')) {
     $message = t('A private file system path must be <a href="@config">configured</a>
@@ -81,6 +63,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['source'] = array(
     '#type' => 'fieldset',
+    '#title' => t('Import source'),
   );
   $form['source']['source_select'] = array(
     '#type' => 'radios',
@@ -91,6 +74,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['source']['credentials'] = array(
     '#type' => 'fieldset',
+    '#title' => t('WordPress credentials'),
     '#states' => array(
       'visible' => array(
         ':input[name="source_select"]' => array('value' => 0),
@@ -98,16 +82,10 @@ function wordpress_migrate_import_form($form, &$form_state) {
     ),
   );
 
-  $form['source']['credentials']['description'] = array(
-    '#prefix' => '<div>',
-    '#markup' => t('To import your blog directly from WordPress, enter your credentials here.'),
-    '#suffix' => '</div>',
-  );
-
   $form['source']['credentials']['domain'] = array(
     '#type' => 'textfield',
     '#title' => t('Domain of your blog'),
-    '#description' => t('Enter the domain of the blog to import (e.g., example.wordpress.com)'),
+    '#description' => t('Enter the URL of the blog to import (e.g., example.wordpress.com)'),
   );
 
   $form['source']['credentials']['username'] = array(
@@ -136,11 +114,20 @@ function wordpress_migrate_import_form($form, &$form_state) {
     ),
   );
 
+  // If they haven't yet configured their import, open up the field set.
+  $post_type = variable_get('wordpress_migrate_post_type', '');
+  if (!$post_type) {
+    $collapsed = FALSE;
+  }
+  else {
+    $collapsed = TRUE;
+  }
+
   $form['settings'] = array(
     '#type' => 'fieldset',
     '#title' => t('Import settings'),
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
+    '#collapsed' => $collapsed,
   );
 
   // Select destination node type(s)
@@ -263,6 +250,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['settings']['drush'] = array(
     '#type' => 'fieldset',
+    '#title' => t('Drush configuration'),
   );
   $form['settings']['drush']['wordpress_migrate_drush'] = array(
     '#type' => 'textfield',
@@ -500,7 +488,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
           $message = t('The blog was too large to import through the browser - please
               <a href="@config">configure drush</a> so the import process may be
               run in the background.',
-            array('@config' => url('admin/content/wordpress/configure')));
+            array('@config' => url('admin/content/wordpress')));
         }
         else {
           $message = t('The blog was too large to import through the browser - please
@@ -525,6 +513,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     drupal_set_message(t('File %filename successfully uploaded and imported',
       array('%filename' => $filename)));
   }
+  $form_state['redirect'] = 'admin/content/wordpress/review';
 }
 
 /**
@@ -737,7 +726,7 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
                 $message = t('The blog was too large to delete through the browser - please
                       <a href="@config">configure drush</a> so the deletion process may be
                       run in the background.',
-                array('@config' => url('admin/content/wordpress/configure')));
+                array('@config' => url('admin/content/wordpress')));
               }
               else {
                 $message = t('The blog was too large to delete through the browser - please
