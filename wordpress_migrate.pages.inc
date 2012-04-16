@@ -47,7 +47,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
   
   // Make sure we have a private directory configured
   if (!variable_get('file_private_path', '')) {
-    $message = t('A private file systm path must be <a href="@config">configured</a>
+    $message = t('A private file system path must be <a href="@config">configured</a>
       to securely store your uploaded WordPress file.',
       array('@config' => url('admin/config/media/file-system')));
     $form['unconfigured'] = array(
@@ -79,44 +79,220 @@ function wordpress_migrate_import_form($form, &$form_state) {
     );
   }
 
-  $form['credentials'] = array(
+  $form['source'] = array(
     '#type' => 'fieldset',
-    '#title' => t('WordPress blog credentials'),
-    '#collapsible' => TRUE,
-    '#collapsed' => FALSE,
+  );
+  $form['source']['source_select'] = array(
+    '#type' => 'radios',
+    '#options' => array(t('Import from a URL'), t('Import from a file')),
+    '#default_value' => 0,
+    '#attributes' => array('class' => array('container-inline')),
   );
 
-  $form['credentials']['description'] = array(
+  $form['source']['credentials'] = array(
+    '#type' => 'fieldset',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="source_select"]' => array('value' => 0),
+      ),
+    ),
+  );
+
+  $form['source']['credentials']['description'] = array(
     '#prefix' => '<div>',
     '#markup' => t('To import your blog directly from WordPress, enter your credentials here.'),
     '#suffix' => '</div>',
   );
 
-  $form['credentials']['domain'] = array(
+  $form['source']['credentials']['domain'] = array(
     '#type' => 'textfield',
     '#title' => t('Domain of your blog'),
     '#description' => t('Enter the domain of the blog to import (e.g., example.wordpress.com)'),
   );
 
-  $form['credentials']['username'] = array(
+  $form['source']['credentials']['username'] = array(
     '#type' => 'textfield',
     '#title' => t('Username of your WordPress account'),
     '#description' => t(''),
   );
 
-  $form['credentials']['password'] = array(
+  $form['source']['credentials']['password'] = array(
     '#type' => 'password',
     '#title' => t('Password to your WordPress account'),
     '#description' => t(''),
   );
 
   $form['#attributes'] = array('enctype' => 'multipart/form-data');
-  $form['wxr_file'] = array(
+  $form['source']['wxr_file'] = array(
     '#type' => 'file',
     '#title' => t('WordPress exported (WXR) file to import into Drupal'),
     '#description' => t('If you have exported your WordPress blog to your local filesystem,
       choose the downloaded file here. The largest file size you can import is !size',
       array('!size' => format_size(file_upload_max_size()))),
+    '#states' => array(
+      'visible' => array(
+        ':input[name="source_select"]' => array('value' => 1),
+      ),
+    ),
+  );
+
+  $form['settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Import settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  // Select destination node type(s)
+  $node_types = node_type_get_types();
+  $options = array();
+  foreach ($node_types as $node_type => $info) {
+    $options[$node_type] = $info->name;
+  }
+
+  if (isset($options['blog'])) {
+    $default = 'blog';
+  }
+  else {
+    $default = '';
+  }
+
+  $form['settings']['wordpress_migrate_post_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Convert WordPress posts to'),
+    '#default_value' => variable_get('wordpress_migrate_post_type', $default),
+    '#options' => $options,
+    '#description' => t(''),
+  );
+
+  if (isset($options['page'])) {
+    $default = 'page';
+  }
+  else {
+    $default = '';
+  }
+
+  $form['settings']['wordpress_migrate_page_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Convert WordPress pages to'),
+    '#default_value' => variable_get('wordpress_migrate_page_type', $default),
+    '#options' => $options,
+    '#description' => t(''),
+  );
+
+  // Select default text format for bodies etc.
+  $options = array();
+  foreach (filter_formats() as $format_id => $format) {
+    $options[$format_id] = $format->name;
+  }
+  $form['settings']['wordpress_migrate_text_format'] = array(
+    '#type' => 'select',
+    '#title' => t('Default format for text fields'),
+    '#default_value' => variable_get('wordpress_migrate_text_format', 'filtered_html'),
+    '#options' => $options,
+    '#description' => t(''),
+  );
+
+  // TODO: Select user to own blog
+
+  // Select vocabularies for categories and tags
+  if (module_exists('taxonomy')) {
+    // TODO: Get only those attached to destination content types
+    $vocabs = taxonomy_vocabulary_get_names();
+    $options = array('' => t('Do not import'));
+    foreach ($vocabs as $machine_name => $vocab) {
+      $options[$machine_name] = $vocab->name;
+    }
+
+    $form['settings']['wordpress_migrate_tag_vocabulary'] = array(
+      '#type' => 'select',
+      '#title' => t('Convert WordPress tags to the vocabulary'),
+      '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', ''),
+      '#options' => $options,
+    );
+
+    $form['settings']['wordpress_migrate_category_vocabulary'] = array(
+      '#type' => 'select',
+      '#title' => t('Convert WordPress categories to the vocabulary'),
+      '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
+      '#options' => $options,
+    );
+  }
+
+  if (module_exists('path')) {
+    $options = array(
+      0 => t('Do not set path aliases'),
+      1 => t('Set path aliases to their original WordPress values'),
+    );
+    $attributes = array();
+    $default_value = variable_get('wordpress_migrate_path_action', 1);
+    if (module_exists('pathauto')) {
+      $options[2] = t('Have pathauto generate new aliases');
+      if (!module_exists('migrate_extras')) {
+        $form['wordpress_migrate_pathauto_message'] = array(
+          '#prefix' => '<p>',
+          '#markup' => t('<strong>If you do not have the migrate_extras module enabled, ' .
+            'pathauto will automatically generate aliases regardless of this setting.</strong>'),
+          '#suffix' => '</p>',
+        );
+        $attributes['disabled'] = TRUE;
+        $default_value = 2;
+      }
+    }
+    $form['settings']['wordpress_migrate_path_action'] = array(
+      '#type' => 'radios',
+      '#title' => t('Path alias handling'),
+      '#description' => t('Select how path aliases for imported nodes will be set.'),
+      '#options' => $options,
+      '#default_value' => $default_value,
+      '#attributes' => $attributes,
+    );
+  }
+
+  if (module_exists('redirect')) {
+    $form['settings']['wordpress_migrate_generate_redirects'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Generate redirects'),
+      '#description' => t('If this box is checked, redirects will be set up from
+        the former WordPress blog URLs to the new URLs on your Drupal site'),
+      '#default_value' => variable_get('wordpress_migrate_generate_redirects', FALSE),
+    );
+  }
+
+  // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
+
+  $form['settings']['drush'] = array(
+    '#type' => 'fieldset',
+  );
+  $form['settings']['drush']['wordpress_migrate_drush'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Location of drush command on server'),
+    '#default_value' => variable_get('wordpress_migrate_drush', ''),
+    '#description' => t('Larger blogs need to be imported by spawning a drush
+      command. Please enter the full path of the drush command on the server
+      to enable this functionality.'),
+  );
+
+  $form['settings']['drush']['wordpress_migrate_notification_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Subject for email notifications'),
+    '#default_value' => variable_get('wordpress_migrate_notification_subject',
+      t('Wordpress import status')),
+    '#description' => t(''),
+  );
+
+  $form['settings']['drush']['wordpress_migrate_notification_body'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Body for email notifications of import success'),
+    '#default_value' => variable_get('wordpress_migrate_notification_body',
+      t("Your WordPress import is complete! Any messages generated are below.\n\n!output")),
+  );
+
+  $form['settings']['drush']['wordpress_migrate_notification_failure_body'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Body for email notifications of import failure'),
+    '#default_value' => variable_get('wordpress_migrate_notification_failure_body',
+      t('Your WordPress import failed. Any messages generated are below.\n\n!output')),
   );
 
   $form['submit'] = array(
@@ -128,9 +304,48 @@ function wordpress_migrate_import_form($form, &$form_state) {
 }
 
 /**
+ * Validate callback for the WordPress import form.
+ */
+function wordpress_migrate_import_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+  if (module_exists('redirect')
+      && $values['wordpress_migrate_path_action'] == 1
+      && $values['wordpress_migrate_generate_redirects'] == 1) {
+    form_set_error('wordpress_migrate_generate_redirects',
+      t('It is not meaningful to set redirects from the WordPress aliases '
+        . 'when they are also setting the Drupal aliases. Please either make '
+        . 'another <strong>Path alias handling</strong> choice, or turn off '
+        . '<strong>Generate redirects</strong>.'));
+  }
+}
+
+/**
  * Submit callback for the WordPress import form.
  */
 function wordpress_migrate_import_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  // First, save all the settings.
+  // TODO: Verify drush command file exists
+  variable_set('wordpress_migrate_drush', $values['wordpress_migrate_drush']);
+
+  variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
+  variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
+  variable_set('wordpress_migrate_page_type', $values['wordpress_migrate_page_type']);
+  if (module_exists('taxonomy')) {
+    variable_set('wordpress_migrate_tag_vocabulary', $values['wordpress_migrate_tag_vocabulary']);
+    variable_set('wordpress_migrate_category_vocabulary', $values['wordpress_migrate_category_vocabulary']);
+  }
+  if (module_exists('path')) {
+    variable_set('wordpress_migrate_path_action', $values['wordpress_migrate_path_action']);
+  }
+  if (module_exists('redirect')) {
+    variable_set('wordpress_migrate_generate_redirects', $values['wordpress_migrate_generate_redirects']);
+  }
+  variable_set('wordpress_migrate_notification_subject', $values['wordpress_migrate_notification_subject']);
+  variable_set('wordpress_migrate_notification_body', $values['wordpress_migrate_notification_body']);
+  variable_set('wordpress_migrate_notification_failure_body', $values['wordpress_migrate_notification_failure_body']);
+
   if ($_FILES['files']['error']['wxr_file'] && empty($form_state['values']['domain'])) {
     form_set_error('wxr_file', t('The file could not be uploaded, most likely
       because the file size exceeds the configured limit of !filesize',
@@ -588,220 +803,4 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
     }
   }
   $form_state['redirect'] = 'admin/content/wordpress/review';
-}
-
-/**
- * Menu callback: Returns a page for configuring WordPress migrations.
- */
-function wordpress_migrate_configure() {
-  drupal_set_title(t('WordPress configuration'));
-  return drupal_get_form('wordpress_migrate_configure_form');
-}
-
-/**
- * Form for configuring WordPress migrations.
- */
-function wordpress_migrate_configure_form($form, &$form_state) {
-  $form['wordpress_migrate_drush'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Location of drush command on server'),
-    '#default_value' => variable_get('wordpress_migrate_drush', ''),
-    '#description' => t('Larger blogs need to be imported by spawning a drush
-      command. Please enter the full path of the drush command on the server
-      to enable this functionality.'),
-  );
-
-  // Select destination node type(s)
-  $node_types = node_type_get_types();
-  $options = array();
-  foreach ($node_types as $node_type => $info) {
-    $options[$node_type] = $info->name;
-  }
-
-  if (isset($options['blog'])) {
-    $default = 'blog';
-  }
-  else {
-    $default = '';
-  }
-
-  $form['wordpress_migrate_post_type'] = array(
-    '#type' => 'select',
-    '#title' => t('Type of node to hold WordPress posts'),
-    '#default_value' => variable_get('wordpress_migrate_post_type', $default),
-    '#options' => $options,
-    '#description' => t(''),
-  );
-
-  if (isset($options['page'])) {
-    $default = 'page';
-  }
-  else {
-    $default = '';
-  }
-
-  $form['wordpress_migrate_page_type'] = array(
-    '#type' => 'select',
-    '#title' => t('Type of node to hold WordPress pages'),
-    '#default_value' => variable_get('wordpress_migrate_page_type', $default),
-    '#options' => $options,
-    '#description' => t(''),
-  );
-
-  // Select default text format for bodies etc.
-  $options = array();
-  foreach (filter_formats() as $format_id => $format) {
-    $options[$format_id] = $format->name;
-  }
-  $form['wordpress_migrate_text_format'] = array(
-    '#type' => 'select',
-    '#title' => t('Format for text fields'),
-    '#default_value' => variable_get('wordpress_migrate_text_format', 'filtered_html'),
-    '#options' => $options,
-    '#description' => t(''),
-  );
-
-  // TODO: Select user to own blog
-
-  // Select vocabularies for categories and tags
-  if (module_exists('taxonomy')) {
-    // TODO: Get only those attached to destination content types
-    $vocabs = taxonomy_vocabulary_get_names();
-    $options = array('' => t('Do not import'));
-    foreach ($vocabs as $machine_name => $vocab) {
-      $options[$machine_name] = $vocab->name;
-    }
-
-    $form['wordpress_migrate_tag_vocabulary'] = array(
-      '#type' => 'select',
-      '#title' => t('Vocabulary for WordPress tags'),
-      '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', ''),
-      '#options' => $options,
-      '#description' => t('Choose the vocabulary to hold WordPress tags.'),
-    );
-
-    $form['wordpress_migrate_category_vocabulary'] = array(
-      '#type' => 'select',
-      '#title' => t('Vocabulary for WordPress categories'),
-      '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
-      '#options' => $options,
-      '#description' => t('Choose the vocabulary to hold WordPress categories.'),
-    );
-  }
-
-  if (module_exists('path')) {
-    $options = array(
-      0 => t('Do not set path aliases'),
-      1 => t('Set path aliases to their original WordPress values'),
-    );
-    $attributes = array();
-    $default_value = variable_get('wordpress_migrate_path_action', 1);
-    if (module_exists('pathauto')) {
-      $options[2] = t('Have pathauto generate new aliases');
-      if (!module_exists('migrate_extras')) {
-        $form['wordpress_migrate_pathauto_message'] = array(
-          '#prefix' => '<p>',
-          '#markup' => t('<strong>If you do not have the migrate_extras module enabled, ' .
-            'pathauto will automatically generate aliases regardless of this setting.</strong>'),
-          '#suffix' => '</p>',
-        );
-        $attributes['disabled'] = TRUE;
-        $default_value = 2;
-      }
-    }
-    $form['wordpress_migrate_path_action'] = array(
-      '#type' => 'radios',
-      '#title' => t('Path alias handling'),
-      '#description' => t('Select how path aliases for imported nodes will be set.'),
-      '#options' => $options,
-      '#default_value' => $default_value,
-      '#attributes' => $attributes,
-    );
-  }
-
-  if (module_exists('redirect')) {
-    $form['wordpress_migrate_generate_redirects'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Generate redirects'),
-      '#description' => t('If this box is checked, redirects will be set up from
-        the former WordPress blog URLs to the new URLs on your Drupal site'),
-      '#default_value' => variable_get('wordpress_migrate_generate_redirects', FALSE),
-    );
-  }
-
-  // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
-
-  $form['wordpress_migrate_notification_subject'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Subject for email notifications'),
-    '#default_value' => variable_get('wordpress_migrate_notification_subject',
-      t('Wordpress import status')),
-    '#description' => t(''),
-  );
-
-  $form['wordpress_migrate_notification_body'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Body for email notifications of import success'),
-    '#default_value' => variable_get('wordpress_migrate_notification_body',
-      t("Your WordPress import is complete! Any messages generated are below.\n\n!output")),
-  );
-
-  $form['wordpress_migrate_notification_failure_body'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Body for email notifications of import failure'),
-    '#default_value' => variable_get('wordpress_migrate_notification_failure_body',
-      t('Your WordPress import failed. Any messages generated are below.\n\n!output')),
-  );
-
-  // TODO: For most of the above, indicate whether they can be overridden per import
-
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Save configuration changes'),
-  );
-
-  return $form;
-}
-
-/**
- * Validate callback for the WordPress configure form.
- */
-function wordpress_migrate_configure_form_validate($form, &$form_state) {
-  $values = $form_state['values'];
-  if (module_exists('redirect')
-      && $values['wordpress_migrate_path_action'] == 1
-      && $values['wordpress_migrate_generate_redirects'] == 1) {
-    form_set_error('wordpress_migrate_generate_redirects',
-      t('It is not meaningful to set redirects from the WordPress aliases '
-        . 'when they are also setting the Drupal aliases. Please either make '
-        . 'another <strong>Path alias handling</strong> choice, or turn off '
-        . '<strong>Generate redirects</strong>.'));
-  }
-}
-
-/**
- * Submit callback for the WordPress configure form.
- */
-function wordpress_migrate_configure_form_submit($form, &$form_state) {
-  $values = $form_state['values'];
-  // TODO: Verify drush command file exists
-  variable_set('wordpress_migrate_drush', $values['wordpress_migrate_drush']);
-
-  variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
-  variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
-  variable_set('wordpress_migrate_page_type', $values['wordpress_migrate_page_type']);
-  if (module_exists('taxonomy')) {
-    variable_set('wordpress_migrate_tag_vocabulary', $values['wordpress_migrate_tag_vocabulary']);
-    variable_set('wordpress_migrate_category_vocabulary', $values['wordpress_migrate_category_vocabulary']);
-  }
-  if (module_exists('path')) {
-    variable_set('wordpress_migrate_path_action', $values['wordpress_migrate_path_action']);
-  }
-  if (module_exists('redirect')) {
-    variable_set('wordpress_migrate_generate_redirects', $values['wordpress_migrate_generate_redirects']);
-  }
-  variable_set('wordpress_migrate_notification_subject', $values['wordpress_migrate_notification_subject']);
-  variable_set('wordpress_migrate_notification_body', $values['wordpress_migrate_notification_body']);
-  variable_set('wordpress_migrate_notification_failure_body', $values['wordpress_migrate_notification_failure_body']);
-  drupal_set_message(t('WordPress configuration changes saved.'));
 }

@@ -52,15 +52,6 @@ function wordpress_migrate_menu() {
     'file' => 'wordpress_migrate.pages.inc',
     'weight' => 0,
   );
-  $items['admin/content/wordpress/configure'] = array(
-    'title' => 'Configure',
-    'type' => MENU_LOCAL_TASK,
-    'description' => 'Configure WordPress migration into Drupal',
-    'page callback' => 'wordpress_migrate_configure',
-    'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_CONFIGURE),
-    'file' => 'wordpress_migrate.pages.inc',
-    'weight' => 10,
-  );
 
   return $items;
 }
