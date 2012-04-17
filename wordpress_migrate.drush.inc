@@ -67,12 +67,14 @@ function drush_wordpress_migrate_import($filename) {
   }
 
   // Notify user
-  $account = user_load($blog->getUid());
-  $params['account'] = $account;
-  $params['output'] = ob_get_contents();
-  ob_end_flush();
-  drupal_mail('wordpress_migrate', $mail_key, $account->mail,
-    user_preferred_language($account), $params);
+  if (variable_get('wordpress_migrate_notification', 0) == 1) {
+    $account = user_load($blog->getUid());
+    $params['account'] = $account;
+    $params['output'] = ob_get_contents();
+    ob_end_flush();
+    drupal_mail('wordpress_migrate', $mail_key, $account->mail,
+      user_preferred_language($account), $params);
+  }
 }
 
 function drush_wordpress_migrate_rollback($filename) {

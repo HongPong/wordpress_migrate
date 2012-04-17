@@ -40,9 +40,9 @@ function wordpress_migrate_menu() {
     'weight' => -10,
   );
   $items['admin/content/wordpress/review'] = array(
-    'title' => 'Review',
+    'title' => 'Imported blogs',
     'type' => MENU_LOCAL_TASK,
-    'description' => 'Review and manage WordPress migrations',
+    'description' => 'Review and manage imported WordPress blogs',
     'page callback' => 'wordpress_migrate_review',
     'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_MIGRATE),
     'file' => 'wordpress_migrate.pages.inc',

@@ -280,8 +280,23 @@ function wordpress_migrate_import_form($form, &$form_state) {
       command. Please enter the full path of the drush command on the server
       to enable this functionality.'),
   );
+  $form['settings']['import_method']['drush']['notification_select'] = array(
+    '#type' => 'radios',
+    '#options' => array(t('No notification'), t('Email notification')),
+    '#default_value' => variable_get('wordpress_migrate_notification', 0),
+    '#attributes' => array('class' => array('container-inline')),
+  );
+  $form['settings']['import_method']['drush']['notification'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Notification configuration'),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="notification_select"]' => array('value' => 1),
+        ),
+      ),
+    );
 
-  $form['settings']['import_method']['drush']['wordpress_migrate_notification_subject'] = array(
+  $form['settings']['import_method']['drush']['notification']['wordpress_migrate_notification_subject'] = array(
     '#type' => 'textfield',
     '#title' => t('Subject for email notifications'),
     '#default_value' => variable_get('wordpress_migrate_notification_subject',
@@ -289,14 +304,14 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#description' => t(''),
   );
 
-  $form['settings']['import_method']['drush']['wordpress_migrate_notification_body'] = array(
+  $form['settings']['import_method']['drush']['notification']['wordpress_migrate_notification_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body for email notifications of import success'),
     '#default_value' => variable_get('wordpress_migrate_notification_body',
       t("Your WordPress import is complete! Any messages generated are below.\n\n!output")),
   );
 
-  $form['settings']['import_method']['drush']['wordpress_migrate_notification_failure_body'] = array(
+  $form['settings']['import_method']['drush']['notification']['wordpress_migrate_notification_failure_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body for email notifications of import failure'),
     '#default_value' => variable_get('wordpress_migrate_notification_failure_body',
@@ -354,6 +369,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_notification_body', $values['wordpress_migrate_notification_body']);
   variable_set('wordpress_migrate_notification_failure_body', $values['wordpress_migrate_notification_failure_body']);
   variable_set('wordpress_migrate_import_method', $values['method_select']);
+  variable_set('wordpress_migrate_notification', $values['notification_select']);
 
   if ($_FILES['files']['error']['wxr_file'] && empty($form_state['values']['domain'])) {
     form_set_error('wxr_file', t('The file could not be uploaded, most likely
@@ -537,7 +553,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
           when it is complete'));
         $uri = 'http://' . $_SERVER['HTTP_HOST'];
         $log_file = '/tmp/' . $filename . '.import.log';
-        $command = "$drush --uri=$uri wordpress-migrate-import $destination >$log_file 2>&1 &";
+        $command = "$drush --uri=$uri wordpress-migrate-import --root=" .
+                   DRUPAL_ROOT . " $destination >$log_file 2>&1 &";
+        drupal_set_message($command);
         exec($command);
         $spawned = TRUE;
         break;
