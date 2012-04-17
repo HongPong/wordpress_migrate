@@ -1,7 +1,6 @@
 <?php
 
 define('WORDPRESS_MIGRATE_ACCESS_MIGRATE', 'migrate wordpress blogs');
-define('WORDPRESS_MIGRATE_ACCESS_CONFIGURE', 'configure wordpress migration');
 
 /**
  * @file
@@ -16,9 +15,6 @@ function wordpress_migrate_permission() {
   return array(
     WORDPRESS_MIGRATE_ACCESS_MIGRATE => array(
       'title' => t('Migrate WordPress blogs into Drupal'),
-    ),
-    WORDPRESS_MIGRATE_ACCESS_CONFIGURE => array(
-      'title' => t('Configure migration of WordPress blogs'),
     ),
   );
 }

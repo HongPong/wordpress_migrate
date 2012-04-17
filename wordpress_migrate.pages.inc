@@ -246,13 +246,33 @@ function wordpress_migrate_import_form($form, &$form_state) {
     );
   }
 
-  // TODO: Select mechanism for running import (Batch API, cron, spawned process...)
-
-  $form['settings']['drush'] = array(
+  // Select mechanism for running import (Batch API, spawned drush process...)
+  $form['settings']['import_method'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Drush configuration'),
+    '#title' => t('Import method'),
+    '#description' => t('You may choose to have your import run immediately in
+      the browser, or if your server has Drush installed you may have the import
+      run in the background and notify you by email when it is complete. The
+      background method will be faster and more reliable for importing very large
+      blogs, but requires familiarity with the web server configuration.'),
   );
-  $form['settings']['drush']['wordpress_migrate_drush'] = array(
+  $form['settings']['import_method']['method_select'] = array(
+    '#type' => 'radios',
+    '#options' => array(t('Immediate'), t('Background')),
+    '#default_value' => variable_get('wordpress_migrate_import_method', 0),
+    '#attributes' => array('class' => array('container-inline')),
+  );
+
+  $form['settings']['import_method']['drush'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Background configuration'),
+    '#states' => array(
+      'visible' => array(
+        ':input[name="method_select"]' => array('value' => 1),
+      ),
+    ),
+  );
+  $form['settings']['import_method']['drush']['wordpress_migrate_drush'] = array(
     '#type' => 'textfield',
     '#title' => t('Location of drush command on server'),
     '#default_value' => variable_get('wordpress_migrate_drush', ''),
@@ -261,7 +281,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
       to enable this functionality.'),
   );
 
-  $form['settings']['drush']['wordpress_migrate_notification_subject'] = array(
+  $form['settings']['import_method']['drush']['wordpress_migrate_notification_subject'] = array(
     '#type' => 'textfield',
     '#title' => t('Subject for email notifications'),
     '#default_value' => variable_get('wordpress_migrate_notification_subject',
@@ -269,14 +289,14 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#description' => t(''),
   );
 
-  $form['settings']['drush']['wordpress_migrate_notification_body'] = array(
+  $form['settings']['import_method']['drush']['wordpress_migrate_notification_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body for email notifications of import success'),
     '#default_value' => variable_get('wordpress_migrate_notification_body',
       t("Your WordPress import is complete! Any messages generated are below.\n\n!output")),
   );
 
-  $form['settings']['drush']['wordpress_migrate_notification_failure_body'] = array(
+  $form['settings']['import_method']['drush']['wordpress_migrate_notification_failure_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body for email notifications of import failure'),
     '#default_value' => variable_get('wordpress_migrate_notification_failure_body',
@@ -333,6 +353,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_notification_subject', $values['wordpress_migrate_notification_subject']);
   variable_set('wordpress_migrate_notification_body', $values['wordpress_migrate_notification_body']);
   variable_set('wordpress_migrate_notification_failure_body', $values['wordpress_migrate_notification_failure_body']);
+  variable_set('wordpress_migrate_import_method', $values['method_select']);
 
   if ($_FILES['files']['error']['wxr_file'] && empty($form_state['values']['domain'])) {
     form_set_error('wxr_file', t('The file could not be uploaded, most likely
@@ -478,42 +499,169 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
 
   // Import each migration in order, until done or time is running out
-  $spawned = FALSE;
-  foreach ($blog->migrations() as $migration) {
-    $result = $migration->processImport();
-    if ($result == MigrationBase::RESULT_INCOMPLETE) {
-      $drush = variable_get('wordpress_migrate_drush', '');
-      if (!$drush) {
-        if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
+  if (variable_get('wordpress_migrate_import_method', 0) == 0) {
+    $operations = array();
+    foreach ($blog->migrations() as $migration) {
+       $operations[] = array('wordpress_migrate_batch',
+                              array('import', $migration->getMachineName()));
+    }
+
+    $batch = array(
+      'operations' => $operations,
+      'title' => t('WordPress import in progress'),
+      'file' => drupal_get_path('module', 'wordpress_migrate') .
+                    '/wordpress_migrate.pages.inc',
+      'init_message' => t('Starting import process'),
+      'progress_message' => t(''),
+      'error_message' => t('An error occurred. Some or all of the import processing has failed.'),
+      'finished' => 'wordpress_migrate_batch_finish',
+    );
+    batch_set($batch);
+  }
+  else {
+    $spawned = FALSE;
+    foreach ($blog->migrations() as $migration) {
+      $result = $migration->processImport();
+      if ($result == MigrationBase::RESULT_INCOMPLETE) {
+        $drush = variable_get('wordpress_migrate_drush', '');
+        if (!$drush) {
           $message = t('The blog was too large to import through the browser - please
               <a href="@config">configure drush</a> so the import process may be
               run in the background.',
             array('@config' => url('admin/content/wordpress')));
+          form_set_error('wxr_file', $message);
+          break;
         }
-        else {
-          $message = t('The blog was too large to import through the browser - please
-            contact a site administrator to properly configure the site for
-            background imports.');
-        }
-        form_set_error('wxr_file', $message);
+        drupal_set_message(t('The blog is too large to completely import immediately -
+          the rest of the import will be run in the background and you will receive an email
+          when it is complete'));
+        $uri = 'http://' . $_SERVER['HTTP_HOST'];
+        $log_file = '/tmp/' . $filename . '.import.log';
+        $command = "$drush --uri=$uri wordpress-migrate-import $destination >$log_file 2>&1 &";
+        exec($command);
+        $spawned = TRUE;
         break;
       }
-      drupal_set_message(t('The blog is too large to completely import immediately -
-        the rest of the import will be run in the background and you will receive an email
-        when it is complete'));
-      $uri = 'http://' . $_SERVER['HTTP_HOST'];
-      $log_file = '/tmp/' . $filename . '.import.log';
-      $command = "$drush --uri=$uri wordpress-migrate-import $destination >$log_file 2>&1 &";
-      exec($command);
-      $spawned = TRUE;
-      break;
+    }
+    if (!$spawned) {
+      drupal_set_message(t('File %filename successfully uploaded and imported',
+        array('%filename' => $filename)));
     }
   }
-  if (!$spawned) {
-    drupal_set_message(t('File %filename successfully uploaded and imported',
-      array('%filename' => $filename)));
-  }
   $form_state['redirect'] = 'admin/content/wordpress/review';
+}
+
+/**
+ * Process all enabled migration processes in a browser, using the Batch API
+ * to break it into manageable chunks.
+ *
+ * @param $operation
+ *  Operation to perform - 'import', 'rollback', 'stop', or 'reset'.
+ * @param $machine_name
+ *  Machine name of migration to process.
+ * @param $context
+ *  Batch API context structure
+ */
+function wordpress_migrate_batch($operation, $machine_name, &$context) {
+  // If we got a stop message, skip everything else
+  if (isset($context['results']['stopped'])) {
+    $context['finished'] = 1;
+    return;
+  }
+
+  $migration = Migration::getInstance($machine_name);
+
+  // Messages generated by migration processes will be captured in this global
+  global $_migrate_messages;
+  $_migrate_messages = array();
+  Migration::setDisplayFunction('wordpress_migrate_capture_message');
+
+  // Perform the requested operation
+  switch ($operation) {
+    case 'import':
+      $result = $migration->processImport();
+      break;
+    case 'rollback':
+      $result = $migration->processRollback();
+      break;
+  }
+
+  switch ($result) {
+    case Migration::RESULT_INCOMPLETE:
+      // Default to half-done, in case we can't get a more precise fix
+      $context['finished'] = .5;
+      if (method_exists($migration, 'sourceCount')) {
+        $total = $migration->sourceCount();
+        if ($total && method_exists($migration, 'importedCount')) {
+          $imported = $migration->importedCount();
+          switch ($operation) {
+            case 'import':
+              $context['finished'] = $imported/$total;
+              break;
+            case 'rollback':
+              $context['finished'] = ($total-$imported)/$total;
+              break;
+          }
+        }
+      }
+      break;
+    case MigrationBase::RESULT_SKIPPED:
+      $_migrate_messages[] = t('Skipped !name due to unfulfilled dependencies',
+        array('!name' => $machine_name));
+      $context['finished'] = 1;
+      break;
+    case MigrationBase::RESULT_STOPPED:
+      $context['finished'] = 1;
+      // Skip any further operations
+      $context['results']['stopped'] = TRUE;
+      break;
+    default:
+      $context['finished'] = 1;
+      break;
+  }
+
+  // Add any messages generated in this batch to the cumulative list
+  foreach ($_migrate_messages as $message) {
+    $context['results'][] = $message;
+  }
+
+  // While in progress, show the cumulative list of messages
+  $full_message = '';
+  foreach ($context['results'] as $message) {
+    $full_message .= $message . '<br />';
+  }
+  $context['message'] = $full_message;
+}
+
+/**
+ * Batch API finished callback - report results
+ *
+ * @param $success
+ *  Ignored
+ * @param $results
+ *  List of results from batch processing
+ * @param $operations
+ *  Ignored
+ */
+function wordpress_migrate_batch_finish($success, $results, $operations) {
+  unset($results['stopped']);
+  foreach ($results as $result) {
+    drupal_set_message($result);
+  }
+}
+
+/**
+ * Pick up any messages that would normally be output by the migration, and
+ * stash them for display under batch control.
+ *
+ * @param $message
+ * @param $level
+ */
+function wordpress_migrate_capture_message($message, $level) {
+  if ($level != 'debug') {
+    global $_migrate_messages;
+    $_migrate_messages[] = $message;
+  }
 }
 
 /**
@@ -722,17 +870,10 @@ function wordpress_migrate_rollback_confirm_submit($form, &$form_state) {
           if ($result == MigrationBase::RESULT_INCOMPLETE) {
             $drush = variable_get('wordpress_migrate_drush', '');
             if (!$drush) {
-              if (user_access(WORDPRESS_MIGRATE_ACCESS_CONFIGURE)) {
-                $message = t('The blog was too large to delete through the browser - please
-                      <a href="@config">configure drush</a> so the deletion process may be
-                      run in the background.',
-                array('@config' => url('admin/content/wordpress')));
-              }
-              else {
-                $message = t('The blog was too large to delete through the browser - please
-                    contact a site administrator to properly configure the site for
-                    background deletion.');
-              }
+              $message = t('The blog was too large to delete through the browser - please
+                    <a href="@config">configure drush</a> so the deletion process may be
+                    run in the background.',
+              array('@config' => url('admin/content/wordpress')));
               drupal_set_message($message);
               break;
             }

@@ -55,16 +55,6 @@ abstract class WordPressMigration extends DynamicMigration {
   }
 
   /**
-   * Suppress normal migrate module output in the browser. In drush, use
-   * drush_print instead of drush_log to capture output (non-informational) for email.
-   */
-  public function showMessage($message, $level = MigrationBase::MESSAGE_ERROR) {
-    if (function_exists('drush_print') && $level != 'completed') {
-      drush_print($message);
-    }
-  }
-
-  /**
    * Called after completion of each migration.
    */
   public function postImport() {
@@ -73,6 +63,79 @@ abstract class WordPressMigration extends DynamicMigration {
     db_delete($map_table)
       ->condition('needs_update', MigrateMap::STATUS_IGNORED)
       ->execute();
+  }
+
+
+  /**
+   * Outputs a progress message, reflecting the current status of a migration process.
+   *
+   * @param int $result
+   *  Status of the process, represented by one of the Migration::RESULT_* constants.
+   */
+  protected function progressMessage($result) {
+    $time = microtime(TRUE) - $this->lastfeedback;
+    if ($time > 0) {
+      $perminute = round(60*$this->processed_since_feedback/$time);
+      $time = round($time, 1);
+    }
+    else {
+      $perminute = '?';
+    }
+
+    if ($this->status == Migration::STATUS_IMPORTING) {
+      switch ($result) {
+        case Migration::RESULT_COMPLETED:
+          $basetext = "Imported !numitems in !time sec (!perminute/min) - done with '!name'";
+          $type = 'completed';
+          break;
+        case Migration::RESULT_FAILED:
+          $basetext = "Imported !numitems in !time sec (!perminute/min) - failure with '!name'";
+          $type = 'failed';
+          break;
+        case Migration::RESULT_INCOMPLETE:
+          $basetext = "Imported !numitems in !time sec (!perminute/min) - continuing with '!name'";
+          $type = 'ok';
+          break;
+        case Migration::RESULT_STOPPED:
+          $basetext = "Imported !numitems in !time sec (!perminute/min) - stopped '!name'";
+          $type = 'warning';
+          break;
+      }
+    }
+    else {
+      switch ($result) {
+        case Migration::RESULT_COMPLETED:
+          $basetext = "Rolled back !numitems in !time sec (!perminute/min) - done with '!name'";
+          $type = 'completed';
+          break;
+        case Migration::RESULT_FAILED:
+          $basetext = "Rolled back !numitems in !time sec (!perminute/min) - failure with '!name'";
+          $type = 'failed';
+          break;
+        case Migration::RESULT_INCOMPLETE:
+          $basetext = "Rolled back !numitems in !time sec (!perminute/min) - continuing with '!name'";
+          $type = 'ok';
+          break;
+        case Migration::RESULT_STOPPED:
+          $basetext = "Rolled back !numitems in !time sec (!perminute/min) - stopped '!name'";
+          $type = 'warning';
+          break;
+      }
+    }
+    $numitems = $this->destination->getCreated();
+    $message = t($basetext,
+        array('!numitems' => $numitems,
+              '!time' => $time,
+              '!perminute' => $perminute,
+              '!name' => $this->machineName));
+    self::displayMessage($message, $type);
+
+    if ($result == Migration::RESULT_INCOMPLETE) {
+      $this->lastfeedback = time();
+      $this->processed_since_feedback = $this->successes_since_feedback = 0;
+      $this->source->resetStats();
+      $this->destination->resetStats();
+    }
   }
 }
 
