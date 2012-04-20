@@ -493,11 +493,18 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   $atom_ns = 'xmlns:atom="http://www.w3.org/2005/Atom"';
   $header = str_replace($content_ns, $atom_ns . "\n\t" . $content_ns, $header);
 
+  // What the hell, throw in iTunes too
+  $itunes_ns = 'xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"';
+  $header = str_replace($content_ns, $itunes_ns . "\n\t" . $content_ns, $header);
+
   fputs($dest_handle, $header);
 
-  // Now, fix unencoded ampersands on a line-by-line basis
+  // Now, do some line-by-line fix-ups fix unencoded ampersands and bogus characters on a line-by-line basis
   while ($line = fgets($temp_handle)) {
+    // Handle unencoded ampersands
     $line = preg_replace('/&(?![\w\d#]+;)/', '&amp;', $line);
+    // Remove control characters (the regex removes the newline, so tack it back on)
+    $line = preg_replace('~\p{C}+~u', '', $line) . "\n";
     fputs($dest_handle, $line);
   }
 
