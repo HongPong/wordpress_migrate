@@ -38,25 +38,9 @@ class WordPressAttachment extends WordPressMigration {
     $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'),
       $this->generateMachineName('WordPressPage'));
 
-    $dest_options = array('copy_file' => TRUE);
-    // Make use of the media module if present
-    if (module_exists('media') && module_exists('migrate_extras')) {
-      $dest_options['source_migrations'] = $this->dependencies;
-      $this->destination = new MigrateDestinationMedia('image', $dest_options);
-      $keySchema = MigrateDestinationMedia::getKeySchema();
-      $this->addFieldMapping('media_title', 'title');
-      $this->addFieldMapping('media_description', 'content');
-      $this->addFieldMapping('file')
-           ->issueGroup(t('DNM'));
-    }
-    else {
-      $this->destination = new MigrateDestinationFile($dest_options);
-      $keySchema = MigrateDestinationFile::getKeySchema();
-      $this->addFieldMapping(NULL, 'title')
-           ->issueGroup(t('DNM'));
-      $this->addFieldMapping(NULL, 'content')
-           ->issueGroup(t('DNM'));
-    }
+    // Construct the source object.
+    $this->source = new WordPressAttachmentSource($this->wxrFile);
+    $this->destination = new MigrateDestinationFile();
 
     // post_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
@@ -68,23 +52,12 @@ class WordPressAttachment extends WordPressMigration {
           'description' => 'WordPress post ID',
         )
       ),
-      $keySchema
+      MigrateDestinationFile::getKeySchema()
     );
 
-    // Construct the source object.
-    $this->source = new WordPressAttachmentSource($this->wxrFile);
-
-    $this->addFieldMapping('fid')
-         ->issueGroup(t('DNM'));
+    $this->addFieldMapping('value', 'attachment_url');
     $this->addFieldMapping('uid', 'creator')
          ->description('Use matching username if any, otherwise current user');
-    $this->addFieldMapping('filename')
-         ->description(t('Defaults to basename(uri)'));
-    $this->addFieldMapping('uri', 'attachment_url');
-    $this->addFieldMapping('filemime')
-         ->description(t('Determined by default'));
-    $this->addFieldMapping('status')
-         ->defaultValue(FILE_STATUS_PERMANENT);
     $this->addFieldMapping('timestamp', 'post_date');
     $this->addFieldMapping(NULL, 'post_parent')
          ->description('TODO: find node we\'re attached to, see if it has filefield')
@@ -92,48 +65,19 @@ class WordPressAttachment extends WordPressMigration {
          ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
 
     // Unmapped destination fields
-    $this->addFieldMapping('path')
-         ->issueGroup(t('DNM'));
+    $this->addUnmigratedDestinations(array('path', 'destination_dir', 'destination_file',
+                                     'file_replace', 'preserve_files', 'source_dir'));
 
     // Unmapped source fields
-    $this->addFieldMapping(NULL, 'link')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'guid')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'description')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'excerpt')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_id')
-         ->description(t('Primary key of source'))
-         ->issueGroup(t('DNM'));
+    $this->addUnmigratedSources(array('link', 'guid', 'description', 'excerpt',
+      'post_id', 'comment_status', 'ping_status', 'post_name', 'status',
+      'menu_order', 'post_type', 'post_password', 'is_sticky', 'tag', 'category',
+      '_wp_attached_file', '_wp_attachment_metadata', 'title', 'content'));
     $this->addFieldMapping(NULL, 'pubDate')
          ->description('Use post_date')
          ->issueGroup(t('DNM'));
     $this->addFieldMapping(NULL, 'post_date_gmt')
          ->description('Use post_date')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'comment_status')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'ping_status')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_name')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'status')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'menu_order')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_type')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_password')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'is_sticky')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'category')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, '_wp_attached_file')
-         ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, '_wp_attachment_metadata')
          ->issueGroup(t('DNM'));
   }
 
