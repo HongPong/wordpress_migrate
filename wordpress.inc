@@ -184,6 +184,8 @@ class WordPressBlog {
       $status = $reader->open($this->filename);
       if ($status) {
         $title = $wxr_version = $this->blog_url = '';
+        // Early versions had no wxr_version, default it
+        $wxr_version = '1.0';
         while ($reader->read()) {
           if ($reader->nodeType == XMLREADER::ELEMENT) {
             switch ($reader->name) {
@@ -201,13 +203,12 @@ class WordPressBlog {
                 break;
             }
           }
-          if (!empty($title) && !empty($wxr_version) &&
-              !empty($this->blog_url) && !empty($this->link)) {
+          if (!empty($title) && !empty($this->blog_url) && !empty($this->link)) {
             break;
           }
         }
         // Validate that it really is a WXR file
-        if (empty($wxr_version)) {
+        if (empty($this->blog_url)) {
           throw new Exception(t('The uploaded file is not a valid WordPress export'));
         }
         // Keep only alphabetic characters
