@@ -178,7 +178,8 @@ class WordPressComment extends WordPressMigration {
          ->description('Do not import those with values of "spam"');
     $this->addFieldMapping('thread')
          ->issueGroup('DNM');
-    $this->addFieldMapping('name', 'comment_author');
+    $this->addFieldMapping('name', 'comment_author')
+         ->callbacks(array($this, 'truncateName'));
     $this->addFieldMapping('mail', 'comment_author_email');
     $this->addFieldMapping('homepage', 'comment_author_url');
     $this->addFieldMapping('language');
@@ -196,6 +197,14 @@ class WordPressComment extends WordPressMigration {
     $arguments = array('format' => $text_format);
     $this->addFieldMapping('comment_body', 'comment_content')
          ->arguments($arguments);
+  }
+
+  /**
+   * Names from Wordpress can be longer than 60 characters, truncate them.
+   */
+  protected function truncateName($value) {
+    $value = substr($value, 0, 60);
+    return $value;
   }
 
   public function prepareRow($row) {
