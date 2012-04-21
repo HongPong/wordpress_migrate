@@ -2,7 +2,7 @@ name = "Migration from WordPress"
 description = "Support for migrating WordPress blogs into Drupal"
 package = "Development"
 core = 7.x
-dependencies[] = migrate
+dependencies[] = migrate (>2.3)
 
 files[] = wordpress_migrate.module
 files[] = wordpress_migrate.pages.inc
