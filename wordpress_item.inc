@@ -356,6 +356,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
     // http://example.wordpress.com/?p=19 to local links of the form /node/35
     $row->content = $this->fixLocalLinks($row->content);
 
+    // Handle Embedit HTML embed
+    if (isset($row->HTML1)) {
+      $row->content = $this->replaceHTMLEmbeds($row, $row->content);
+    }
     return TRUE;
   }
 
@@ -533,6 +537,16 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $return = 'href="/node/' . $destination_id . '"';
     }
     return $return;
+  }
+
+  protected function replaceHTMLEmbeds($row, $text) {
+    for ($i = 1; $i <= 9; $i++) {
+      $field = "HTML$i";
+      if (isset($row->$field)) {
+        $text = str_replace("[$field]", $row->$field, $text);
+      }
+    }
+    return $text;
   }
 
   /**
