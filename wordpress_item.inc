@@ -360,6 +360,12 @@ abstract class WordPressItemMigration extends WordPressMigration {
     if (isset($row->HTML1)) {
       $row->content = $this->replaceHTMLEmbeds($row, $row->content);
     }
+
+    // Replace Kimilli Flash Embed tags with <object>
+    $row->content = preg_replace_callback(
+      '|\[kml_flashembed *(.*?)/\]|i',
+      array($this, 'replaceFlashEmbeds'), $row->content);
+
     return TRUE;
   }
 
@@ -412,7 +418,6 @@ abstract class WordPressItemMigration extends WordPressMigration {
    * @param array $matches
    */
   protected function replaceEmbeds(array $matches) {
-    $embed_matches = array();
     // Default to the original <object> tag.
     $result = $matches[0];
 
@@ -481,6 +486,79 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $result = '[[' . drupal_json_encode($video_info) . ']]';
     }
 
+    return $result;
+  }
+
+  /**
+   * Replace a kml_flashembed tag with an HTML <object> tag.
+   *
+   [kml_flashembed movie="http://s3.amazonaws.com/wholefoods/video/wpf/mariajuracan/soundslider.swf"
+    FVARS="size=0" height="368" width="420" /]
+   <object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
+   			id="fm_soundslider_1640275925"
+   			class="flashmovie"
+   			width="420"
+   			height="368">
+   	<param name="movie" value="http://s3.amazonaws.com/wholefoods/video/wpf/mariajuracan/soundslider.swf" />
+   	<param name="flashvars" value="size=0" />
+   	<!--[if !IE]>-->
+   	<object	type="application/x-shockwave-flash"
+   			data="http://s3.amazonaws.com/wholefoods/video/wpf/mariajuracan/soundslider.swf"
+   			name="fm_soundslider_1640275925"
+   			width="420"
+   			height="368">
+   		<param name="flashvars" value="size=0" />
+   	<!--<![endif]-->
+
+   	<!--[if !IE]>-->
+   	</object>
+   	<!--<![endif]-->
+   </object>
+   * @param array $matches
+   */
+  protected function replaceFlashEmbeds(array $matches) {
+    $attribute_matches = array();
+    $attribute_string = '';
+    preg_match_all('|(?P<name>\w+)="(?P<value>.*?)"|', $matches[0], $attribute_matches);
+    foreach ($attribute_matches['name'] as $delta => $name) {
+      $value = $attribute_matches['value'][$delta];
+      switch (drupal_strtolower($name)) {
+        case 'movie':
+          // Sometimes they've got their own player in their ahead of the movie,
+          // strip it out
+          $url_position = strpos($value, 'http://');
+          if ($url_position) {
+            $movie = substr($value, $url_position);
+            // Strip parameters
+            $movie = substr($movie, 0, strpos($movie, '&'));
+          }
+          else {
+            $movie = $value;
+          }
+          break;
+        case 'fvars':
+          $flashvars = $value;
+          break;
+        default:
+          $attribute_string .= ' ' . $name . '="' . $value . '"';
+          break;
+      }
+    }
+    $result = '<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" class="flashmovie"'
+      . $attribute_string . ">\n";
+    $result .= '<param name="movie" value="' . $movie . "\" />\n";
+    if (isset($flashvars)) {
+      $result .= '<param name="flashvars" value="' . $flashvars . "\" />\n";
+    }
+    $result .= "<!--[if !IE]>-->\n";
+    $result .= '<object type="application/x-shockwave-flash" data="' . $movie .
+               '"' . $attribute_string. ">\n";
+    if (isset($flashvars)) {
+      $result .= '<param name="flashvars" value="' . $flashvars . "\" />\n";
+    }
+    $result .= "<!--<![endif]-->\n";
+    $result .= "<!--[if !IE]>--></object><!--<![endif]-->\n";
+    $result .= "</object>\n";
     return $result;
   }
 
