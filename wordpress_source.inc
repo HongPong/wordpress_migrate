@@ -46,6 +46,11 @@ class WordPressXMLReader extends MigrateXMLReader {
           if ($name == 'encoded') {
             $currentRow->$ns = (string)$value;
           }
+          // Turn <wp:postmeta><wp:meta_key></wp:meta_key><wp:meta_value></wp:meta_value></wp:postmeta>
+          // into $currentRow->meta_key = $meta_value;
+          elseif ($name == 'postmeta') {
+            $currentRow->{$value->meta_key} = (string)$value->meta_value;
+          }
           else {
             $currentRow->$name = (string)$value;
           }
