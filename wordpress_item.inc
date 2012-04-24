@@ -52,11 +52,11 @@ class WordPressItemSource extends WordPressSourceXML {
    * Simple initialization.
    *
    */
-  public function __construct($filename, $post_type) {
+  public function __construct($filename, $post_type, $cache_key) {
     $source_options = array(
       'reader_class' => 'WordPressXMLReader',
       'cache_counts' => TRUE,
-      'cache_key' => "wordpress_migrate_$post_type",
+      'cache_key' => $cache_key,
     );
     parent::__construct($filename, '/rss/channel/item', 'wp:post_id',
       $this->fields, $source_options);
@@ -144,7 +144,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     );
 
     // Construct the source objects.
-    $this->source = new WordPressItemSource($this->wxrFile, $this->postType);
+    $this->source = new WordPressItemSource($this->wxrFile, $this->postType, $this->machineName);
     $this->destination = new MigrateDestinationNode($bundle);
 
     // Default mappings, applying to most or all migrations

@@ -20,7 +20,7 @@ class WordPressAttachmentSource extends WordPressItemSource {
    *
    */
   public function __construct($filename) {
-    parent::__construct($filename, 'attachment');
+    parent::__construct($filename, 'attachment', $this->machineName);
     $this->fields += $this->attachmentFields;
   }
 }
