@@ -19,8 +19,8 @@ class WordPressAttachmentSource extends WordPressItemSource {
    * Simple initialization.
    *
    */
-  public function __construct($filename) {
-    parent::__construct($filename, 'attachment', $this->machineName);
+  public function __construct($filename, $cache_key) {
+    parent::__construct($filename, 'attachment', $cache_key);
     $this->fields += $this->attachmentFields;
   }
 }
@@ -39,7 +39,7 @@ class WordPressAttachment extends WordPressMigration {
       $this->generateMachineName('WordPressPage'));
 
     // Construct the source object.
-    $this->source = new WordPressAttachmentSource($this->wxrFile);
+    $this->source = new WordPressAttachmentSource($this->wxrFile, $this->machineName);
     $this->destination = new MigrateDestinationFile();
 
     // post_id is the unique ID of items in WordPress
