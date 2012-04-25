@@ -260,6 +260,13 @@ abstract class WordPressItemMigration extends WordPressMigration {
       }
     }
 
+    // If podcast migration is requested, add the mapping.
+    $podcast_field = variable_get('wordpress_migrate_podcast_field', '');
+    if ($podcast_field) {
+      $this->addFieldMapping($podcast_field, 'enclosure')
+           ->callbacks(array($this, 'handleEnclosure'));
+    }
+
     // Unmapped destination fields
     $this->addUnmigratedDestinations(array('is_new', 'revision', 'language',
                                      'promote', 'revision_uid', 'log', 'tnid'));
@@ -628,6 +635,22 @@ abstract class WordPressItemMigration extends WordPressMigration {
   }
 
   /**
+   * Blubrry PowerPress podcast values are of the form
+   *  http://www.example.com/audio/example.mp3
+   *  7662957
+   *  audio/mpeg
+   *  a:1:{s:8:"duration";s:8:"00:05:19";}
+   * We will extract and return the first line, the URL of the audio file.
+   *
+   * @param $value
+   * @return string
+   */
+  protected function handleEnclosure($value) {
+    $value_array = explode("\n", $value);
+    return reset($value_array);
+  }
+
+  /**
    * Prepare node - called just before node_save().
    *
    * @param stdClass $node
@@ -661,6 +684,27 @@ abstract class WordPressItemMigration extends WordPressMigration {
       }
     }
     $node->uid = $user_map[$row->creator];
+
+    // If we have an attached podcast, replace [powerpress] in the body with
+    // a link to the audio file.
+    $podcast_field = variable_get('wordpress_migrate_podcast_field', '');
+    if ($podcast_field && isset($node->$podcast_field)) {
+      $podcast_fid = $node->{$podcast_field}[LANGUAGE_NONE][0]['fid'];
+      if ($podcast_fid) {
+        $podcast = file_load($podcast_fid);
+        if ($podcast) {
+          // file_create_url() gives us a full URL, which when running from
+          // drush will often start with http://default/, which is not what we
+          // want. Strip the prefix for a relative link.
+          $url = file_create_url($podcast->uri);
+          $url = str_replace($GLOBALS['base_url'] . '/', '/', $url);
+          $link = '<p><a href="' . $url .
+                  '"><img src="/modules/file/icons/audio-x-generic.png" /></a></p>';
+          $node->body[LANGUAGE_NONE][0]['value'] = str_replace('[powerpress]',
+            $link, $node->body[LANGUAGE_NONE][0]['value']);
+        }
+      }
+    }
   }
 
   /**

@@ -114,9 +114,10 @@ function wordpress_migrate_import_form($form, &$form_state) {
     ),
   );
 
-  // If they haven't yet configured their import, open up the field set.
+  // If they haven't yet configured their import, open up the field set. Or, if
+  // we're being reloaded by AJAX, also keep it open.
   $post_type = variable_get('wordpress_migrate_post_type', '');
-  if (!$post_type) {
+  if (isset($form_state['values']) || !$post_type) {
     $collapsed = FALSE;
   }
   else {
@@ -137,21 +138,6 @@ function wordpress_migrate_import_form($form, &$form_state) {
     $options[$node_type] = $info->name;
   }
 
-  if (isset($options['blog'])) {
-    $default = 'blog';
-  }
-  else {
-    $default = '';
-  }
-
-  $form['settings']['wordpress_migrate_post_type'] = array(
-    '#type' => 'select',
-    '#title' => t('Convert WordPress posts to'),
-    '#default_value' => variable_get('wordpress_migrate_post_type', $default),
-    '#options' => $options,
-    '#description' => t(''),
-  );
-
   if (isset($options['page'])) {
     $default = 'page';
   }
@@ -166,6 +152,52 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#options' => $options,
     '#description' => t(''),
   );
+
+  if (isset($options['blog'])) {
+    $default = 'blog';
+  }
+  else {
+    $default = '';
+  }
+
+  $post_type = variable_get('wordpress_migrate_post_type', $default);
+  $form['settings']['wordpress_migrate_post_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Convert WordPress posts to'),
+    '#default_value' => $post_type,
+    '#options' => $options,
+    '#description' => t(''),
+    '#ajax' => array(
+      'wrapper' => 'edit-settings',
+      'callback' => 'wordpress_migrate_post_type_change',
+      'method' => 'replace',
+    ),
+  );
+
+  $filefields = array('' => t('Do not import'));
+  if (isset($form_state['values'])) {
+    $filefields +=
+      wordpress_migrate_filefields($form_state['values']['wordpress_migrate_post_type']);
+  }
+  else {
+    $filefields += wordpress_migrate_filefields($post_type);
+  }
+
+  if (count($filefields) > 1) {
+    $form['settings']['wordpress_migrate_podcast_field'] = array(
+      '#type' => 'select',
+      '#title' => t('Field for Blubrry PowerPress podcasts (if any)'),
+      '#default_value' => variable_get('wordpress_migrate_podcast_field', ''),
+      '#options' => $filefields,
+      '#description' => t(''),
+    );
+  }
+  else {
+    $form['settings']['wordpress_migrate_podcast_field'] = array(
+      '#type' => 'value',
+      '#value' => '',
+    );
+  }
 
   // Select default text format for bodies etc.
   $options = array();
@@ -353,6 +385,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_drush', $values['wordpress_migrate_drush']);
 
   variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
+  variable_set('wordpress_migrate_podcast_field', $values['wordpress_migrate_podcast_field']);
   variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
   variable_set('wordpress_migrate_page_type', $values['wordpress_migrate_page_type']);
   if (module_exists('taxonomy')) {
@@ -574,6 +607,28 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     }
   }
   $form_state['redirect'] = 'admin/content/wordpress/review';
+}
+
+/**
+ * Return a list of file fields attached to a given node type (bundle).
+ *
+ * @param $node_type
+ * @return array
+ */
+function wordpress_migrate_filefields($node_type) {
+  $fields = field_info_instances('node', $node_type);
+  $file_fields = array();
+  foreach ($fields as $field_name => $instance_info) {
+    $field_info = field_info_field($field_name);
+    if ($field_info['type'] == 'file') {
+      $file_fields[$field_name] = $instance_info['label'];
+    }
+  }
+  return $file_fields;
+}
+
+function wordpress_migrate_post_type_change($form, $form_state) {
+  return $form['settings'];
 }
 
 /**
