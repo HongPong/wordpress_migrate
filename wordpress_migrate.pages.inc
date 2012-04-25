@@ -537,6 +537,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     $line = preg_replace('/&(?![\w\d#]+;)/', '&amp;', $line);
     // Remove control characters (the regex removes the newline, so tack it back on)
     $line = preg_replace('~\p{C}+~u', '', $line) . "\n";
+    // WordPress export doesn't properly format embedded CDATA sections - our
+    // quick-and-dirty fix is to remove the terminator of the embedded section
+    $line = preg_replace('|// \]\]|', '', $line);
     fputs($dest_handle, $line);
   }
 
@@ -638,7 +641,8 @@ function wordpress_migrate_vocabularies($node_type) {
   foreach ($fields as $field_name => $instance_info) {
     $field_info = field_info_field($field_name);
     if ($field_info['type'] == 'taxonomy_term_reference') {
-      $term_fields[$field_name] = $instance_info['label'];
+      $term_fields[$field_info['settings']['allowed_values'][0]['vocabulary']] =
+        $instance_info['label'];
     }
   }
   return $term_fields;
