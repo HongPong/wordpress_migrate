@@ -9,6 +9,7 @@ function wordpress_migrate_schema() {
   $schema = array();
   $schema['wordpress_migrate'] = wordpress_migrate_schema_wordpress();
   $schema['wordpress_migrate_attachment'] = wordpress_migrate_schema_attachment();
+  $schema['wordpress_migrate_linked_authors'] = wordpress_migrate_schema_linked_authors();
   return $schema;
 }
 
@@ -46,6 +47,12 @@ function wordpress_migrate_schema_wordpress() {
         'default' => 0,
         'description' => "User ID of the account initiating the import",
       ),
+      'wxr_version' => array(
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => TRUE,
+        'description' => 'WXR version of the imported file',
+      ),
     ),
     'primary key' => array('filename'),
   );
@@ -75,6 +82,27 @@ function wordpress_migrate_schema_attachment() {
       ),
     ),
     'primary key' => array('filename', 'original_url'),
+  );
+}
+
+function wordpress_migrate_schema_linked_authors() {
+  return array(
+    'description' => 'Track pre-existing user accounts',
+    'fields' => array(
+      'mail' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Email address of user account already in Drupal',
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => "User ID of the account in Drupal",
+      ),
+    ),
+    'primary key' => array('mail'),
   );
 }
 
@@ -169,4 +197,22 @@ function wordpress_migrate_update_7005() {
     throw new DrupalUpdateException(t('Unable to fix uri: @media_1 (fid: @fid_1), as it conflicts with uri: @media_2 (fid: @fid_2).', array('@media_1' => $errors[0], '@media_2' => $errors[2]->uri, '@fid_1' => $errors[1]->fid, '@fid_2' => $errors[2]->fid)));
   }
   return t('Fixed all malformed YouTube embeds.');
+}
+
+/**
+ * Add the wordpress_migrate_attachment table and wxr_version column..
+ */
+function wordpress_migrate_update_7006() {
+  db_add_field('wordpress_migrate', 'wxr_version', array(
+                            'type' => 'varchar',
+                            'length' => 10,
+                            'not null' => TRUE,
+                            'description' => 'WXR version of the imported file',
+      )
+  );
+  if (!db_table_exists('wordpress_migrate_linked_authors')) {
+    db_create_table('wordpress_migrate_linked_authors',
+                    wordpress_migrate_schema_linked_authors());
+  }
+  return t('Added the wordpress_migrate_linked_authors table and wxr_version column');
 }

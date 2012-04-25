@@ -9,6 +9,7 @@ files[] = wordpress_migrate.pages.inc
 files[] = wordpress_source.inc
 files[] = wordpress.inc
 files[] = wordpress_attachment.inc
+files[] = wordpress_author.inc
 files[] = wordpress_category.inc
 files[] = wordpress_comment.inc
 files[] = wordpress_item.inc

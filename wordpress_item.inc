@@ -125,6 +125,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
       }
     }
 
+    if ($this->blog->getWxrVersion() != '1.0') {
+      $this->dependencies[] = $this->generateMachineName('WordPressAuthor');
+    }
+
     // WordPress post type
     $this->postType = $arguments['post_type'];
     // Drupal content type (bundle)
@@ -153,8 +157,12 @@ abstract class WordPressItemMigration extends WordPressMigration {
          ->description('Empty dates handled in prepare()');
     $this->addFieldMapping('changed', 'post_date')
          ->description('Empty dates handled in prepare()');
-    $this->addFieldMapping('uid', 'creator')
+    // If we have a separate author migration, use it here
+    $uid_mapping = $this->addFieldMapping('uid', 'creator')
          ->description('Use matching username if any, otherwise current user');
+    if ($this->blog->getWxrVersion() != '1.0') {
+      $uid_mapping->sourceMigration($this->generateMachineName('WordPressAuthor'));
+    }
     $text_format = variable_get('wordpress_migrate_text_format', 'filtered_html');
     $arguments = MigrateTextFieldHandler::arguments(array('source_field' => 'excerpt'), $text_format);
     $this->addFieldMapping('body', 'content')
@@ -657,33 +665,36 @@ abstract class WordPressItemMigration extends WordPressMigration {
    * @param stdClass $row
    */
   public function prepare(stdClass $node, stdClass $row) {
-    // Match creator username to Drupal username if possible; otherwise, use
-    // the user that initiated the import
-    static $drupal_static_fast;
-    if (!isset($drupal_static_fast)) {
-      $drupal_static_fast['user_map'] = &drupal_static(__FUNCTION__);
-      $drupal_static_fast['default_user'] = &drupal_static(__FUNCTION__ . 'DefaultUser');
-    }
-    $user_map = &$drupal_static_fast['user_map'];
-    if (!isset($user_map[$row->creator])) {
-      $user_map[$row->creator] = db_select('users', 'u')
-                                 ->fields('u', array('uid'))
-                                 ->condition('name', $row->creator)
-                                 ->execute()
-                                 ->fetchField();
-      if (!$user_map[$row->creator]) {
-        $default_user = &$drupal_static_fast['default_user'];
-        if (!isset($default_user)) {
-          $default_user = db_select('wordpress_migrate', 'wpm')
-                          ->fields('wpm', array('uid'))
-                          ->condition('filename', $this->wxrFile)
-                          ->execute()
-                          ->fetchField();
-        }
-        $user_map[$row->creator] = $default_user;
+    // With WXR version 1.0, match creator username to Drupal username if
+    // possible; otherwise, use the user that initiated the import. With later
+    // versions, we've already got the right uid via the author migration.
+    if ($this->blog->getWxrVersion() == '1.0') {
+      static $drupal_static_fast;
+      if (!isset($drupal_static_fast)) {
+        $drupal_static_fast['user_map'] = &drupal_static(__FUNCTION__);
+        $drupal_static_fast['default_user'] = &drupal_static(__FUNCTION__ . 'DefaultUser');
       }
+      $user_map = &$drupal_static_fast['user_map'];
+      if (!isset($user_map[$row->creator])) {
+        $user_map[$row->creator] = db_select('users', 'u')
+                                   ->fields('u', array('uid'))
+                                   ->condition('name', $row->creator)
+                                   ->execute()
+                                   ->fetchField();
+        if (!$user_map[$row->creator]) {
+          $default_user = &$drupal_static_fast['default_user'];
+          if (!isset($default_user)) {
+            $default_user = db_select('wordpress_migrate', 'wpm')
+                            ->fields('wpm', array('uid'))
+                            ->condition('filename', $this->wxrFile)
+                            ->execute()
+                            ->fetchField();
+          }
+          $user_map[$row->creator] = $default_user;
+        }
+      }
+      $node->uid = $user_map[$row->creator];
     }
-    $node->uid = $user_map[$row->creator];
 
     // If we have an attached podcast, replace [powerpress] in the body with
     // a link to the audio file.

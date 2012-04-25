@@ -144,6 +144,10 @@ class WordPressBlog {
   public function getFilename() {
     return $this->filename;
   }
+  protected $wxrVersion = '1.0';
+  public function getWxrVersion() {
+    return $this->wxrVersion;
+  }
   protected $title;
   public function getTitle() {
     return $this->title;
@@ -166,7 +170,7 @@ class WordPressBlog {
   public function __construct($filename) {
     $this->filename = $filename;
     $row = db_select('wordpress_migrate', 'wm')
-           ->fields('wm', array('filename', 'title', 'blog_url', 'uid', 'link'))
+           ->fields('wm', array('filename', 'title', 'blog_url', 'uid', 'link', 'wxr_version'))
            ->condition('filename', $filename)
            ->execute()
            ->fetchObject();
@@ -175,6 +179,7 @@ class WordPressBlog {
       $this->blog_url = $row->blog_url;
       $this->uid = $row->uid;
       $this->link = $row->link;
+      $this->wxrVersion = $row->wxr_version;
     }
     else {
       // Suppress errors during parsing, so we can pick them up after
@@ -183,9 +188,7 @@ class WordPressBlog {
       $reader = new XMLReader;
       $status = $reader->open($this->filename);
       if ($status) {
-        $title = $wxr_version = $this->blog_url = '';
-        // Early versions had no wxr_version, default it
-        $wxr_version = '1.0';
+        $title = $this->blog_url = '';
         while ($reader->read()) {
           if ($reader->nodeType == XMLREADER::ELEMENT) {
             switch ($reader->name) {
@@ -193,7 +196,7 @@ class WordPressBlog {
                 $title = $reader->readString();
                 break;
               case 'wp:wxr_version':
-                $wxr_version = $reader->readString();
+                $this->wxrVersion = $reader->readString();
                 break;
               case 'wp:base_blog_url':
                 $this->blog_url = $reader->readString();
@@ -226,9 +229,14 @@ class WordPressBlog {
             'blog_url' => $this->blog_url,
             'uid' => $this->uid,
             'link' => $this->link,
+            'wxr_version' => $this->wxrVersion,
           ))
           ->execute();
         foreach ($this->migrationClasses() as $class) {
+          // Skip authors with WXR 1.0
+          if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
+            continue;
+          }
           // Skip comments if comment module is not enabled
           if ($class == 'WordPressComment' && !module_exists('comment')) {
             continue;
@@ -274,6 +282,7 @@ class WordPressBlog {
     return array(
       'WordPressCategory' => 'WordPressCategory',
       'WordPressTag' => 'WordPressTag',
+      'WordPressAuthor' => 'WordPressAuthor',
       'WordPressBlogEntry' => 'WordPressBlogEntry',
       'WordPressPage' => 'WordPressPage',
       'WordPressAttachment' => 'WordPressAttachment',
@@ -285,6 +294,10 @@ class WordPressBlog {
     if (empty($this->migrations)) {
       $this->migrations = array();
       foreach ($this->migrationClasses() as $class) {
+        // Skip authors with WXR 1.0
+        if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
+          continue;
+        }
         // Skip comments if comment module is not enabled
         if ($class == 'WordPressComment' && !module_exists('comment')) {
           continue;
