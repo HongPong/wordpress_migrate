@@ -174,15 +174,15 @@ function wordpress_migrate_import_form($form, &$form_state) {
     ),
   );
 
-  $filefields = array('' => t('Do not import'));
   if (isset($form_state['values'])) {
-    $filefields +=
-      wordpress_migrate_filefields($form_state['values']['wordpress_migrate_post_type']);
+    $selected_post_type = $form_state['values']['wordpress_migrate_post_type'];
   }
   else {
-    $filefields += wordpress_migrate_filefields($post_type);
+    $selected_post_type = $post_type;
   }
 
+  $filefields = array('' => t('Do not import'));
+  $filefields += wordpress_migrate_filefields($selected_post_type);
   if (count($filefields) > 1) {
     $form['settings']['wordpress_migrate_podcast_field'] = array(
       '#type' => 'select',
@@ -216,11 +216,10 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   // Select vocabularies for categories and tags
   if (module_exists('taxonomy')) {
-    // TODO: Get only those attached to destination content types
-    $vocabs = taxonomy_vocabulary_get_names();
+    $vocabs = wordpress_migrate_vocabularies($selected_post_type);
     $options = array('' => t('Do not import'));
-    foreach ($vocabs as $machine_name => $vocab) {
-      $options[$machine_name] = $vocab->name;
+    foreach ($vocabs as $machine_name => $name) {
+      $options[$machine_name] = $name;
     }
 
     $form['settings']['wordpress_migrate_tag_vocabulary'] = array(
@@ -625,6 +624,24 @@ function wordpress_migrate_filefields($node_type) {
     }
   }
   return $file_fields;
+}
+
+/**
+ * Return a list of vocabularies attached to a given node type (bundle).
+ *
+ * @param $node_type
+ * @return array
+ */
+function wordpress_migrate_vocabularies($node_type) {
+  $fields = field_info_instances('node', $node_type);
+  $term_fields = array();
+  foreach ($fields as $field_name => $instance_info) {
+    $field_info = field_info_field($field_name);
+    if ($field_info['type'] == 'taxonomy_term_reference') {
+      $term_fields[$field_name] = $instance_info['label'];
+    }
+  }
+  return $term_fields;
 }
 
 function wordpress_migrate_post_type_change($form, $form_state) {
