@@ -181,14 +181,31 @@ function wordpress_migrate_import_form($form, &$form_state) {
     $selected_post_type = $post_type;
   }
 
-  $filefields = array('' => t('Do not import'));
-  $filefields += wordpress_migrate_filefields($selected_post_type);
-  if (count($filefields) > 1) {
+  $file_fields = array('' => t('Do not import'));
+  $file_fields += wordpress_migrate_filefields($selected_post_type, 'file');
+  $file_image_fields = $file_fields +
+                       wordpress_migrate_filefields($selected_post_type, 'image');
+  if (count($file_image_fields) > 1) {
+    $form['settings']['wordpress_migrate_attachment_field'] = array(
+      '#type' => 'select',
+      '#title' => t('Field for attachments (if any)'),
+      '#default_value' => variable_get('wordpress_migrate_attachment_field', ''),
+      '#options' => $file_image_fields,
+      '#description' => t(''),
+    );
+  }
+  else {
+    $form['settings']['wordpress_migrate_attachment_field'] = array(
+        '#type' => 'value',
+        '#value' => '',
+      );
+  }
+  if (count($file_fields) > 1) {
     $form['settings']['wordpress_migrate_podcast_field'] = array(
       '#type' => 'select',
       '#title' => t('Field for Blubrry PowerPress podcasts (if any)'),
       '#default_value' => variable_get('wordpress_migrate_podcast_field', ''),
-      '#options' => $filefields,
+      '#options' => $file_fields,
       '#description' => t(''),
     );
   }
@@ -384,6 +401,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_drush', $values['wordpress_migrate_drush']);
 
   variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
+  variable_set('wordpress_migrate_attachment_field', $values['wordpress_migrate_attachment_field']);
   variable_set('wordpress_migrate_podcast_field', $values['wordpress_migrate_podcast_field']);
   variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
   variable_set('wordpress_migrate_page_type', $values['wordpress_migrate_page_type']);
@@ -616,14 +634,15 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
  * Return a list of file fields attached to a given node type (bundle).
  *
  * @param $node_type
+ * @param $file_type
  * @return array
  */
-function wordpress_migrate_filefields($node_type) {
+function wordpress_migrate_filefields($node_type, $file_type) {
   $fields = field_info_instances('node', $node_type);
   $file_fields = array();
   foreach ($fields as $field_name => $instance_info) {
     $field_info = field_info_field($field_name);
-    if ($field_info['type'] == 'file') {
+    if ($field_info['type'] == $file_type) {
       $file_fields[$field_name] = $instance_info['label'];
     }
   }

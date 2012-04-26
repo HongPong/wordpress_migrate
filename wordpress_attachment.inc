@@ -60,9 +60,7 @@ class WordPressAttachment extends WordPressMigration {
          ->description('Use matching username if any, otherwise current user');
     $this->addFieldMapping('timestamp', 'post_date');
     $this->addFieldMapping(NULL, 'post_parent')
-         ->description('TODO: find node we\'re attached to, see if it has filefield')
-         ->issueGroup(t('Open issues'))
-         ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
+         ->description('Mapping is handled dynamically');
 
     // Unmapped destination fields
     $this->addUnmigratedDestinations(array('path', 'destination_dir', 'destination_file',
@@ -97,6 +95,16 @@ class WordPressAttachment extends WordPressMigration {
     if ($row->post_date == '0000-00-00 00:00:00') {
       $row->post_date = time();
     }
+
+    // Sometimes URLs have doubled-up slashes - reduce to a single.
+    $pieces = explode('://', $row->attachment_url);
+    if (count($pieces) == 1) {
+      $row->attachment_url = str_replace('//', '/', $row->attachment_url);
+    }
+    else {
+      $row->attachment_url = $pieces[0] . '://' . str_replace('//', '/', $pieces[1]);
+    }
+
     return TRUE;
   }
 
@@ -148,6 +156,28 @@ class WordPressAttachment extends WordPressMigration {
       ->key(array('filename' => $this->wxrFile, 'original_url' => $row->attachment_url))
       ->fields(array('new_uri' => parse_url(file_create_url($file->uri), PHP_URL_PATH)))
       ->execute();
+
+    // Populate the parent node's attachment field, if applicable
+    $attachment_field = variable_get('wordpress_migrate_attachment_field', '');
+    if ($attachment_field && $row->post_parent && $file->fid) {
+      // Find the parent nid
+      $row->post_parent = $this->handleSourceMigration($this->dependencies, $row->post_parent);
+      if ($row->post_parent) {
+        $parent_node = node_load($row->post_parent);
+        if ($parent_node) {
+          $file->display = 1;
+          $file->description = '';
+          // node_load will give us an empty value here, so adding a value with
+          // [] will mess things up - remove it.
+          if (!is_array($parent_node->field_attachments[LANGUAGE_NONE][0])) {
+            unset($parent_node->field_attachments[LANGUAGE_NONE][0]);
+          }
+          $parent_node->field_attachments[LANGUAGE_NONE][] = (array)$file;
+          node_save($parent_node);
+          file_usage_add($file, 'file', 'node', $parent_node->nid);
+        }
+      }
+    }
 
     // If media_gallery is enabled, add this image to the user's gallery.
     // Lazy-create the gallery node if it doesn't already exist

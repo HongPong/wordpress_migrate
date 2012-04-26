@@ -275,6 +275,13 @@ abstract class WordPressItemMigration extends WordPressMigration {
            ->callbacks(array($this, 'handleEnclosure'));
     }
 
+    // If an attachment field is configured, document the mapping.
+    $attachment_field = variable_get('wordpress_migrate_attachment_field', '');
+    if ($attachment_field) {
+      $this->addFieldMapping($attachment_field)
+           ->description('Attachment field populated later by attachment migration');
+    }
+
     // Unmapped destination fields
     $this->addUnmigratedDestinations(array('is_new', 'revision', 'language',
                                      'promote', 'revision_uid', 'log', 'tnid'));
