@@ -101,6 +101,7 @@ abstract class WordPressMigration extends DynamicMigration {
           $type = 'warning';
           break;
       }
+      $numitems = $this->destination->getCreated();
     }
     else {
       switch ($result) {
@@ -121,8 +122,9 @@ abstract class WordPressMigration extends DynamicMigration {
           $type = 'warning';
           break;
       }
+      $numitems = $this->processed_since_feedback + $this->source->getIgnored();
     }
-    $numitems = $this->destination->getCreated();
+
     $message = t($basetext,
         array('!numitems' => $numitems,
               '!time' => $time,
