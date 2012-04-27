@@ -42,7 +42,7 @@ class WordPressAuthor extends WordPressMigration {
       'reader_class' => 'WordPressXMLReader',
       'cache_counts' => TRUE,
     );
-    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/author',
+    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/wp:author',
       'wp:author_login', $fields, $source_options);
     $this->destination = new WordPressAuthorDestination();
 
