@@ -182,13 +182,14 @@ function wordpress_migrate_import_form($form, &$form_state) {
   }
 
   $file_fields = array('' => t('Do not import'));
-  $file_fields += wordpress_migrate_filefields($selected_post_type, 'file');
+  $file_fields += wordpress_migrate_filefields($selected_post_type, 'file')
+    + wordpress_migrate_filefields($selected_post_type, 'media');
   $file_image_fields = $file_fields +
                        wordpress_migrate_filefields($selected_post_type, 'image');
   if (count($file_image_fields) > 1) {
     $form['settings']['wordpress_migrate_attachment_field'] = array(
       '#type' => 'select',
-      '#title' => t('Field for attachments (if any)'),
+      '#title' => t('Field for attachments'),
       '#default_value' => variable_get('wordpress_migrate_attachment_field', ''),
       '#options' => $file_image_fields,
       '#description' => t(''),
@@ -203,7 +204,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
   if (count($file_fields) > 1) {
     $form['settings']['wordpress_migrate_podcast_field'] = array(
       '#type' => 'select',
-      '#title' => t('Field for Blubrry PowerPress podcasts (if any)'),
+      '#title' => t('Field for Blubrry PowerPress podcasts'),
       '#default_value' => variable_get('wordpress_migrate_podcast_field', ''),
       '#options' => $file_fields,
       '#description' => t(''),
