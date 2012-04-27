@@ -169,10 +169,10 @@ class WordPressAttachment extends WordPressMigration {
           $file->description = '';
           // node_load will give us an empty value here, so adding a value with
           // [] will mess things up - remove it.
-          if (!is_array($parent_node->field_attachments[LANGUAGE_NONE][0])) {
-            unset($parent_node->field_attachments[LANGUAGE_NONE][0]);
+          if (!is_array($parent_node->{$attachment_field}[LANGUAGE_NONE][0])) {
+            unset($parent_node->{$attachment_field}[LANGUAGE_NONE][0]);
           }
-          $parent_node->field_attachments[LANGUAGE_NONE][] = (array)$file;
+          $parent_node->{$attachment_field}[LANGUAGE_NONE][] = (array)$file;
           node_save($parent_node);
           file_usage_add($file, 'file', 'node', $parent_node->nid);
         }
