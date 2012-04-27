@@ -103,11 +103,9 @@ class WordPressAuthorDestination extends MigrateDestinationUser {
              ->execute()
              ->fetchField();
       if ($uid) {
-        db_insert('wordpress_migrate_linked_authors')
-          ->fields(array(
-                    'mail' => $account->mail,
-                    'uid' => $uid,
-                   ))
+        db_merge('wordpress_migrate_linked_authors')
+          ->key(array('mail' => $account->mail))
+          ->fields(array('uid' => $uid))
           ->execute();
         $this->numCreated++;
         return array($uid);
