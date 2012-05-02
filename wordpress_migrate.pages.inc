@@ -700,6 +700,7 @@ function wordpress_migrate_review_form($form, &$form_state) {
   $header = array(
     'blog_url' => array('data' => t('Blog URL')),
     'status' => array('data' => t('Status')),
+    'WordPressAuthor' => array('data' => t('Authors')),
   );
   if (module_exists('taxonomy')) {
     if (variable_get('wordpress_migrate_category_vocabulary', '')) {
@@ -725,12 +726,16 @@ function wordpress_migrate_review_form($form, &$form_state) {
   }
   $rows = array();
   $blogs = call_user_func(array(wordpress_migrate_blog_class(), 'blogs'));
+  $author_found = FALSE;
   foreach ($blogs as $blog) {
     $classes = array_flip($blog->migrationClasses());
     $row['blog_url'] = $blog->getBlogUrl();
     $row['status'] = t('Complete');
     foreach ($blog->migrations() as $migration) {
       $class = $classes[get_class($migration)];
+      if ($class == 'WordPressAuthor') {
+        $author_found = TRUE;
+      }
       $row[$class] = $migration->importedCount();
       $status = $migration->getStatus();
       if ($status == MigrationBase::STATUS_IMPORTING) {
@@ -743,6 +748,9 @@ function wordpress_migrate_review_form($form, &$form_state) {
     $rows[$blog->getBlogUrl()] = $row;
   }
 
+  if (!$author_found) {
+    unset($header['WordPressAuthor']);
+  }
   $form['blogs'] = array(
     '#type' => 'tableselect',
     '#header' => $header,
