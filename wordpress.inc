@@ -282,9 +282,9 @@ class WordPressBlog {
    */
   public function migrationClasses() {
     return array(
+      'WordPressAuthor' => 'WordPressAuthor',
       'WordPressCategory' => 'WordPressCategory',
       'WordPressTag' => 'WordPressTag',
-      'WordPressAuthor' => 'WordPressAuthor',
       'WordPressBlogEntry' => 'WordPressBlogEntry',
       'WordPressPage' => 'WordPressPage',
       'WordPressAttachment' => 'WordPressAttachment',
@@ -295,27 +295,27 @@ class WordPressBlog {
   public function migrations() {
     if (empty($this->migrations)) {
       $this->migrations = array();
-      foreach ($this->migrationClasses() as $class) {
+      foreach ($this->migrationClasses() as $base_class => $actual_class) {
         // Skip authors with WXR 1.0
-        if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
+        if ($base_class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
           continue;
         }
         // Skip comments if comment module is not enabled
-        if ($class == 'WordPressComment' && !module_exists('comment')) {
+        if ($base_class == 'WordPressComment' && !module_exists('comment')) {
           continue;
         }
         // Skip tags/categories if taxonomy is not enabled
-        if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
+        if ($base_class == 'WordPressTag' || $base_class == 'WordPressCategory') {
           if (!module_exists('taxonomy')) {
             continue;
           }
         }
         // Skip tags/categories if there's no destination vocabulary
-        if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
-            $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
+        if ($base_class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
+            $base_class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
           continue;
         }
-        $this->migrations[$class] = MigrationBase::getInstance($this->machineName($class), $class,
+        $this->migrations[$actual_class] = MigrationBase::getInstance($this->machineName($actual_class), $actual_class,
           array('filename' => $this->filename));
       }
     }
