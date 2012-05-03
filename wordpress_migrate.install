@@ -51,6 +51,7 @@ function wordpress_migrate_schema_wordpress() {
         'type' => 'varchar',
         'length' => 10,
         'not null' => TRUE,
+        'default' => '1.1',
         'description' => 'WXR version of the imported file',
       ),
     ),
@@ -203,13 +204,16 @@ function wordpress_migrate_update_7005() {
  * Add the wordpress_migrate_attachment table and wxr_version column..
  */
 function wordpress_migrate_update_7006() {
-  db_add_field('wordpress_migrate', 'wxr_version', array(
-                            'type' => 'varchar',
-                            'length' => 10,
-                            'not null' => TRUE,
-                            'description' => 'WXR version of the imported file',
-      )
-  );
+  if (!db_field_exists('wordpress_migrate', 'wxr_version')) {
+    db_add_field('wordpress_migrate', 'wxr_version', array(
+                      'type' => 'varchar',
+                      'length' => 10,
+                      'not null' => TRUE,
+                      'default' => '1.1',
+                      'description' => 'WXR version of the imported file',
+        )
+    );
+  }
   if (!db_table_exists('wordpress_migrate_linked_authors')) {
     db_create_table('wordpress_migrate_linked_authors',
                     wordpress_migrate_schema_linked_authors());
