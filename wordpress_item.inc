@@ -164,10 +164,11 @@ abstract class WordPressItemMigration extends WordPressMigration {
       $uid_mapping->sourceMigration($this->generateMachineName('WordPressAuthor'));
     }
     $text_format = variable_get('wordpress_migrate_text_format', 'filtered_html');
-    $arguments = MigrateTextFieldHandler::arguments(array('source_field' => 'excerpt'), $text_format);
     $this->addFieldMapping('body', 'content')
          ->arguments($arguments);
-    $this->addFieldMapping(NULL, 'excerpt');
+    $this->addFieldMapping('body:summary', 'excerpt');
+    $this->addFieldMapping('body:format')
+         ->defaultValue($text_format);
     if (module_exists('comment')) {
       $this->addFieldMapping('comment', 'comment_status')
            ->description('WP "open" mapped to Drupal COMMENT_NODE_OPEN');
@@ -367,6 +368,16 @@ abstract class WordPressItemMigration extends WordPressMigration {
     // Interpret the [caption] tags
     $row->content = preg_replace_callback('|(\[caption.*?\])(.*?)(\[/caption\])|i',
       array($this, 'replaceCaptions'), $row->content);
+
+    // Handle [youtube] tags - convert them to <object> tags. If the media module is
+    // installed, the next step will then convert them to media tags
+    $replacement = '<object width="425" height="344">' .
+      '<param name="movie" value="http://www.youtube.com/v/$1&#038;fs=1" />' .
+      '<param name="allowFullScreen" value="true" />' .
+      '<param name="allowscriptaccess" value="always" />' .
+      '<embed src="http://www.youtube.com/v/$1&#038;fs=1" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="425" height="344">' .
+      '</embed></object>';
+    $row->content = preg_replace('|\[youtube (.+?)\]|i', $replacement, $row->content);
 
     // Rewrite embedded video references to media tags
     if (module_exists('media')) {

@@ -56,6 +56,8 @@ class WordPressAttachment extends WordPressMigration {
     );
 
     $this->addFieldMapping('value', 'attachment_url');
+    $this->addFieldMapping('destination_file', 'attachment_url')
+         ->callbacks(array($this, 'fixDestinationFile'));
     $this->addFieldMapping('uid', 'creator')
          ->description('Use matching username if any, otherwise current user');
     $this->addFieldMapping('timestamp', 'post_date');
@@ -63,7 +65,7 @@ class WordPressAttachment extends WordPressMigration {
          ->description('Mapping is handled dynamically');
 
     // Unmapped destination fields
-    $this->addUnmigratedDestinations(array('path', 'destination_dir', 'destination_file',
+    $this->addUnmigratedDestinations(array('path', 'destination_dir',
                                      'file_replace', 'preserve_files', 'source_dir'));
 
     // Unmapped source fields
@@ -79,6 +81,10 @@ class WordPressAttachment extends WordPressMigration {
          ->issueGroup(t('DNM'));
   }
 
+  protected function fixDestinationFile($value) {
+    $url_info = parse_url($value);
+    return $url_info['path'];
+  }
   /**
    * Data manipulations to be performed before migrate module applies mappings.
    *
