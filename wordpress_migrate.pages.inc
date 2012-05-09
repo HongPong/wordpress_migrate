@@ -265,10 +265,11 @@ function wordpress_migrate_import_form($form, &$form_state) {
     if (module_exists('pathauto')) {
       $options[2] = t('Have pathauto generate new aliases');
       if (!module_exists('migrate_extras')) {
-        $form['wordpress_migrate_pathauto_message'] = array(
+        $form['settings']['wordpress_migrate_pathauto_message'] = array(
           '#prefix' => '<p>',
-          '#markup' => t('<strong>If you do not have the migrate_extras module enabled, ' .
-            'pathauto will automatically generate aliases regardless of this setting.</strong>'),
+          '#markup' => t('<strong>To be able to change the <em>Path alias handling</em>, ' .
+            'you must have the <a href="@extras">Migrate Extras module</a> installed and enabled.</strong>',
+               array('@extras' => url('http://drupal.org/project/migrate_extras'))),
           '#suffix' => '</p>',
         );
         $attributes['disabled'] = TRUE;
