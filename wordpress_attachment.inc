@@ -158,11 +158,6 @@ class WordPressAttachment extends WordPressMigration {
    * @param stdClass $row
    */
   public function complete(stdClass $file, stdClass $row) {
-    db_merge('wordpress_migrate_attachment')
-      ->key(array('filename' => $this->wxrFile, 'original_url' => $row->attachment_url))
-      ->fields(array('new_uri' => parse_url(file_create_url($file->uri), PHP_URL_PATH)))
-      ->execute();
-
     // Populate the parent node's attachment field, if applicable
     $attachment_field = variable_get('wordpress_migrate_attachment_field', '');
     if ($attachment_field && $row->post_parent && $file->fid) {
@@ -185,6 +180,17 @@ class WordPressAttachment extends WordPressMigration {
         }
       }
     }
+
+    // Record the attachment, so we can fix up the parent bodies later
+    $fields['new_uri'] = parse_url(file_create_url($file->uri), PHP_URL_PATH);
+    if (isset($row->post_parent)) {
+      $fields['parent_nid'] = $row->post_parent;
+    }
+    db_merge('wordpress_migrate_attachment')
+      ->key(array('blog_id' => $this->blog->getBlogID(),
+                  'original_url' => $row->attachment_url))
+      ->fields($fields)
+      ->execute();
 
     // If media_gallery is enabled, add this image to the user's gallery.
     // Lazy-create the gallery node if it doesn't already exist
@@ -221,34 +227,39 @@ class WordPressAttachment extends WordPressMigration {
   public function postImport() {
     parent::postImport();
     migrate_instrument_start('WordPressAttachment postImport');
-    $source_migrations = array($this->generateMachineName('WordPressBlogEntry'),
-      $this->generateMachineName('WordPressPage'));
-    foreach ($source_migrations as $source_migration) {
-      $migration = Migration::getInstance($source_migration);
-      $map = $migration->getMap();
-      foreach ($map as $map_row) {
-        $nid = $map_row->destid1;
-        if ($nid) {
-          $node = node_load($nid);
-          $body = $node->body[LANGUAGE_NONE][0]['value'];
+    // We only want to load/save each distinct node once
+    $nids = db_select('wordpress_migrate_attachment', 'a')
+            ->fields('a', array('parent_nid'))
+            ->condition('blog_id', $this->blog->getBlogID())
+            ->isNotNull('parent_nid')
+            ->distinct()
+            ->execute();
+    foreach ($nids as $nid_row) {
+      $node = node_load($nid_row->parent_nid);
+      if ($node && is_array($node->body)) {
+        foreach ($node->body as $language => $body) {
+          $body = $body[0]['value'];
+          // Get the attachments for this node
           $result = db_select('wordpress_migrate_attachment', 'a')
-                    ->fields('a', array('original_url', 'new_uri'))
-                    ->condition('filename', $this->wxrFile)
-                    ->execute();
+                              ->fields('a', array('original_url', 'new_uri'))
+                              ->condition('parent_nid', $nid_row->parent_nid)
+                              ->execute();
           foreach ($result as $row) {
+            // @TODO: If media is installed, make media tags
             $body = str_replace($row->original_url, $row->new_uri, $body);
           }
-          $node->body[LANGUAGE_NONE][0]['value'] = $body;
-          // Maintain the original update datestamp
-          $changed = $node->changed;
-          node_save($node);
-          db_update('node')
-            ->fields(array('changed' => $changed))
-            ->condition('nid', $node->nid)
-            ->execute();
+          $node->body[$language][0]['value'] = $body;
         }
+        // Maintain the original update datestamp
+        $changed = $node->changed;
+        node_save($node);
+        db_update('node')
+          ->fields(array('changed' => $changed))
+          ->condition('nid', $node->nid)
+          ->execute();
       }
     }
+
     migrate_instrument_stop('WordPressAttachment postImport');
   }
 
@@ -257,7 +268,7 @@ class WordPressAttachment extends WordPressMigration {
    */
   public function postRollback() {
     db_delete('wordpress_migrate_attachment')
-    ->condition('filename', $this->wxrFile)
+    ->condition('blog_id', $this->blog->getBlogID())
     ->execute();
   }
 }

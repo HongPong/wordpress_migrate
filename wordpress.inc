@@ -142,6 +142,10 @@ abstract class WordPressMigration extends DynamicMigration {
 }
 
 class WordPressBlog {
+  protected $blogID;
+  public function getBlogID() {
+    return $this->blogID;
+  }
   protected $filename;
   public function getFilename() {
     return $this->filename;
@@ -172,11 +176,12 @@ class WordPressBlog {
   public function __construct($filename) {
     $this->filename = $filename;
     $row = db_select('wordpress_migrate', 'wm')
-           ->fields('wm', array('filename', 'title', 'blog_url', 'uid', 'link', 'wxr_version'))
+           ->fields('wm', array('blog_id', 'filename', 'title', 'blog_url', 'uid', 'link', 'wxr_version'))
            ->condition('filename', $filename)
            ->execute()
            ->fetchObject();
     if ($row) {
+      $this->blogID = $row->blog_id;
       $this->title = $row->title;
       $this->blog_url = $row->blog_url;
       $this->uid = $row->uid;
@@ -224,7 +229,7 @@ class WordPressBlog {
 
         global $user;
         $this->uid = $user->uid;
-        db_insert('wordpress_migrate')
+        $this->blogID = db_insert('wordpress_migrate')
           ->fields(array(
             'filename' => $filename,
             'title' => $this->title,
