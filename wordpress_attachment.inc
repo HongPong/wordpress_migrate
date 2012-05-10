@@ -111,7 +111,13 @@ class WordPressAttachment extends WordPressMigration {
       $row->attachment_url = $pieces[0] . '://' . str_replace('//', '/', $pieces[1]);
     }
 
-    return TRUE;
+    // Make sure we actually have a URL
+    if ($row->attachment_url) {
+      return TRUE;
+    }
+    else {
+      return FALSE;
+    }
   }
 
   /**
@@ -183,6 +189,7 @@ class WordPressAttachment extends WordPressMigration {
 
     // Record the attachment, so we can fix up the parent bodies later
     $fields['new_uri'] = parse_url(file_create_url($file->uri), PHP_URL_PATH);
+    $fields['new_fid'] = $file->fid;
     if (isset($row->post_parent)) {
       $fields['parent_nid'] = $row->post_parent;
     }
@@ -241,15 +248,22 @@ class WordPressAttachment extends WordPressMigration {
           $body = $body[0]['value'];
           // Get the attachments for this node
           $result = db_select('wordpress_migrate_attachment', 'a')
-                              ->fields('a', array('original_url', 'new_uri'))
+                              ->fields('a', array('original_url', 'new_uri', 'new_fid'))
                               ->condition('parent_nid', $nid_row->parent_nid)
                               ->execute();
           foreach ($result as $row) {
-            // @TODO: If media is installed, make media tags
-            $body = str_replace($row->original_url, $row->new_uri, $body);
+            // If we have the media module, rewrite the img tags to media tags
+            if (module_exists('media')) {
+              $body = preg_replace_callback('|<img +(.*?)>|i',
+                array($this, 'replaceImgs'), $body);
+            }
+            else {
+              $body = str_replace($row->original_url, $row->new_uri, $body);
+            }
           }
           $node->body[$language][0]['value'] = $body;
         }
+
         // Maintain the original update datestamp
         $changed = $node->changed;
         node_save($node);
@@ -261,6 +275,58 @@ class WordPressAttachment extends WordPressMigration {
     }
 
     migrate_instrument_stop('WordPressAttachment postImport');
+  }
+
+  /**
+   * If we have an image reference, replace it with media tags.
+   *
+   * @param array $matches
+   */
+  protected function replaceImgs(array $matches) {
+    // Default to the original <img> tag.
+    $result = $matches[0];
+
+    // The src parameter is required
+    if (preg_match('|src=[\'"](.*?)[\'"]|i', $result, $src_matches)) {
+      $src = $src_matches[1];
+    }
+    else {
+      return $result;
+    }
+
+    // Get the fid, if any. If none, let the img tag stand
+    $fid = db_select('wordpress_migrate_attachment', 'a')
+           ->fields('a', array('new_fid'))
+           ->condition('original_url', $src)
+           ->execute()
+           ->fetchField();
+    if (!$fid) {
+      return FALSE;
+    }
+
+    // Extract the width & height for the media tag, if present
+    $attributes = array(
+      'class' => 'media-image',
+      'typeof' => 'foaf:Image',
+      'style' => '',
+    );
+    if (preg_match('|width=[\'"](.*?)[\'"]|i', $result, $width_matches)) {
+      $attributes['width'] = $width_matches[1];
+    }
+    if (preg_match('|height=[\'"](.*?)[\'"]|i', $result, $height_matches)) {
+      $attributes['height'] = $height_matches[1];
+    }
+
+    // Build the media tag
+    $img_info = array(
+      'type' => 'media',
+      'view_mode' => 'media_large',
+      'fid' => $fid,
+      'attributes' => array($attributes),
+    );
+    $result = '[[' . drupal_json_encode($img_info) . ']]';
+
+    return $result;
   }
 
   /**

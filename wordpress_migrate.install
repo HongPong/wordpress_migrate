@@ -89,6 +89,12 @@ function wordpress_migrate_schema_attachment() {
         'not null' => TRUE,
         'description' => 'URI of attachment on Drupal',
       ),
+      'new_fid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'description' => 'File ID of the attachment',
+      ),
       'parent_nid' => array(
         'type' => 'int',
         'unsigned' => TRUE,
@@ -288,4 +294,19 @@ function wordpress_migrate_update_7007() {
     );
   }
   return t('Added blog_id key, parent node tracking for attachments.');
+}
+
+/**
+ * Track the fid of each attachment, for rewriting to media tags.
+ */
+function wordpress_migrate_update_7008() {
+  if (!db_field_exists('wordpress_migrate_attachment', 'new_fid')) {
+    db_add_field('wordpress_migrate_attachment', 'new_fid', array(
+                    'type' => 'int',
+                    'unsigned' => TRUE,
+                    'not null' => FALSE,
+                    'description' => 'File ID of the attachment',
+                  )
+    );
+  }
 }
