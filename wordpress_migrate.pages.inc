@@ -619,7 +619,6 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
         $log_file = '/tmp/' . $filename . '.import.log';
         $command = "$drush --uri=$uri wordpress-migrate-import --root=" .
                    DRUPAL_ROOT . " $destination >$log_file 2>&1 &";
-        drupal_set_message($command);
         exec($command);
         $spawned = TRUE;
         break;
