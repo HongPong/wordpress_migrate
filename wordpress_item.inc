@@ -111,6 +111,15 @@ abstract class WordPressItemMigration extends WordPressMigration {
   static protected $linksToFix = array();
 
   /**
+   * Track the fields for the term references, so we can fix up if necessary
+   * in prepare().
+   *
+   * @var string
+   */
+  protected $tagField = NULL;
+  protected $categoryField = NULL;
+
+  /**
    * Set it up
    */
   public function __construct(array $arguments = array()) {
@@ -238,11 +247,16 @@ abstract class WordPressItemMigration extends WordPressMigration {
           // a match is found, make the mapping
           foreach ($vocabs as $source_field => $vocab_name) {
             if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
+              $vocab = taxonomy_vocabulary_machine_name_load($vocab_name);
               if ($source_field == 'tag') {
                 $sourceMigration = $this->generateMachineName('WordPressTag');
+                $this->tagField = $machine_name;
+                $this->tagVid = $vocab->vid;
               }
               else {
                 $sourceMigration = $this->generateMachineName('WordPressCategory');
+                $this->categoryField = $machine_name;
+                $this->categoryVid = $vocab->vid;
               }
               $this->addFieldMapping($machine_name, $source_field)
                    ->arguments(array('source_type' => 'tid'))
@@ -712,6 +726,46 @@ abstract class WordPressItemMigration extends WordPressMigration {
         }
       }
       $node->uid = $user_map[$row->creator];
+    }
+
+    // If any term relationships were unresolved, create them the hard way
+    foreach (array('tag', 'category') as $term_type) {
+      $meta_field_name = $term_type . 'Field';
+      if ($this->$meta_field_name) {
+        $field_name = $this->$meta_field_name;
+        $value_name = $term_type . '_value';
+        // Shortcut - if the counts match, don't need to dig deeper
+        if (count($node->{$field_name}[LANGUAGE_NONE]) != count($row->$term_type)) {
+          $vid_field = $term_type . 'Vid';
+          $vid = $this->$vid_field;
+          // Get any terms already in the field
+          $done_terms = array();
+          if (is_array($node->{$field_name}[LANGUAGE_NONE])) {
+            foreach ($node->{$field_name}[LANGUAGE_NONE] as $value_array) {
+              $terms = taxonomy_term_load_multiple($value_array);
+              foreach ($terms as $term) {
+                $done_terms[] = $term->name;
+              }
+            }
+          }
+          $diff = array_diff($row->$value_name, $done_terms);
+          foreach ($diff as $new_term_name) {
+            // Let's see if the term already exists
+            $matches = taxonomy_term_load_multiple(array(),
+              array('name' => trim($new_term_name), 'vid' => $vid));
+            if ($matches) {
+              $node->{$field_name}[LANGUAGE_NONE][] = array('tid' => key($matches));
+            }
+            else {
+              $term = new stdClass;
+              $term->name = $new_term_name;
+              $term->vid = $vid;
+              taxonomy_term_save($term);
+              $node->{$field_name}[LANGUAGE_NONE][] = array('tid' => $term->tid);
+            }
+          }
+        }
+      }
     }
 
     // If we have an attached podcast, replace [powerpress] in the body with

@@ -24,13 +24,15 @@ class WordPressXMLReader extends MigrateXMLReader {
           $attributes = $value->attributes();
           $domain = $attributes['domain'];
           $nicename = $attributes['nicename'];
-          // Note we can have multiples tags, but only one category
+          // Capture the nicename attribute and the value
           if ($domain == 'category') {
             $currentRow->category[] = (string)$nicename;
+            $currentRow->category_value[] = (string)$value;
           }
           // 'tag' for WXR 1.0, 'post_tag' for WXR 1.1
           else if ($domain == 'tag' || $domain == 'post_tag') {
             $currentRow->tag[] = (string)$nicename;
+            $currentRow->tag_value[] = (string)$value;
           }
         }
         else {
