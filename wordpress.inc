@@ -175,6 +175,10 @@ class WordPressBlog {
 
   public function __construct($filename) {
     $this->filename = $filename;
+
+    // Make sure the upload directory is properly protected
+    file_create_htaccess('wordpress://', TRUE);
+
     $row = db_select('wordpress_migrate', 'wm')
            ->fields('wm', array('blog_id', 'filename', 'title', 'blog_url', 'uid', 'link', 'wxr_version'))
            ->condition('filename', $filename)

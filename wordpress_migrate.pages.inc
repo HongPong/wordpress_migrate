@@ -28,7 +28,8 @@ function wordpress_migrate_import_form($form, &$form_state) {
   }
 
   // Make sure we have a private directory configured
-  if (!variable_get('file_private_path', '')) {
+  if (!variable_get('wordpress_migrate_private_path', '') &&
+      !variable_get('file_private_path', '')) {
     $message = t('A private file system path must be <a href="@config">configured</a>
       to securely store your uploaded WordPress file.',
       array('@config' => url('admin/config/media/file-system')));
