@@ -400,7 +400,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   $values = $form_state['values'];
 
   // First, save all the settings.
-  // TODO: Verify drush command file exists
+  // TODO: Verify drush is on the path
   variable_set('wordpress_migrate_drush', $values['wordpress_migrate_drush']);
 
   variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
@@ -486,7 +486,8 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     // Login successful? Grab the export
     if (strpos($login_result, 'Set-Cookie: wordpress_logged_in')) {
       $filename = $domain . '.xml';
-      $destination = $directory . '/' . $filename;
+      // The "domain" may have included a subdirectory - flatten things out
+      $destination = $directory . '/' . str_replace('/', '_', $filename);
       $tmpfile = tempnam(sys_get_temp_dir(), 'wp_');
       $export_url = 'http://' . $domain;
       if ($wordpress_version == 2) {
