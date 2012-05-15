@@ -190,7 +190,7 @@ class WordPressAttachment extends WordPressMigration {
     // Record the attachment, so we can fix up the parent bodies later
     $fields['new_uri'] = parse_url(file_create_url($file->uri), PHP_URL_PATH);
     $fields['new_fid'] = $file->fid;
-    if (isset($row->post_parent)) {
+    if ($row->post_parent) {
       $fields['parent_nid'] = $row->post_parent;
     }
     db_merge('wordpress_migrate_attachment')
