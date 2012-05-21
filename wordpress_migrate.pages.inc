@@ -297,78 +297,6 @@ function wordpress_migrate_import_form($form, &$form_state) {
     );
   }
 
-  // Select mechanism for running import (Batch API, spawned drush process...)
-  $form['settings']['import_method'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Import method'),
-    '#description' => t('You may choose to have your import run immediately in
-      the browser, or if your server has Drush installed you may have the import
-      run in the background and notify you by email when it is complete. The
-      background method will be faster and more reliable for importing very large
-      blogs, but requires familiarity with the web server configuration.'),
-  );
-  $form['settings']['import_method']['method_select'] = array(
-    '#type' => 'radios',
-    '#options' => array(t('Immediate'), t('Background')),
-    '#default_value' => variable_get('wordpress_migrate_import_method', 0),
-    '#attributes' => array('class' => array('container-inline')),
-  );
-
-  $form['settings']['import_method']['drush'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Background configuration'),
-    '#states' => array(
-      'visible' => array(
-        ':input[name="method_select"]' => array('value' => 1),
-      ),
-    ),
-  );
-  $form['settings']['import_method']['drush']['wordpress_migrate_drush'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Location of drush command on server'),
-    '#default_value' => variable_get('wordpress_migrate_drush', ''),
-    '#description' => t('Larger blogs need to be imported by spawning a drush
-      command. Please enter the full path of the drush command on the server
-      to enable this functionality.'),
-  );
-  $form['settings']['import_method']['drush']['notification_select'] = array(
-    '#type' => 'radios',
-    '#options' => array(t('No notification'), t('Email notification')),
-    '#default_value' => variable_get('wordpress_migrate_notification', 0),
-    '#attributes' => array('class' => array('container-inline')),
-  );
-  $form['settings']['import_method']['drush']['notification'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('Notification configuration'),
-      '#states' => array(
-        'visible' => array(
-          ':input[name="notification_select"]' => array('value' => 1),
-        ),
-      ),
-    );
-
-  $form['settings']['import_method']['drush']['notification']['wordpress_migrate_notification_subject'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Subject for email notifications'),
-    '#default_value' => variable_get('wordpress_migrate_notification_subject',
-      t('Wordpress import status')),
-    '#description' => t(''),
-  );
-
-  $form['settings']['import_method']['drush']['notification']['wordpress_migrate_notification_body'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Body for email notifications of import success'),
-    '#default_value' => variable_get('wordpress_migrate_notification_body',
-      t("Your WordPress import is complete! Any messages generated are below.\n\n!output")),
-  );
-
-  $form['settings']['import_method']['drush']['notification']['wordpress_migrate_notification_failure_body'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Body for email notifications of import failure'),
-    '#default_value' => variable_get('wordpress_migrate_notification_failure_body',
-      t('Your WordPress import failed. Any messages generated are below.\n\n!output')),
-  );
-
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Import WordPress blog'),
@@ -400,9 +328,6 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   $values = $form_state['values'];
 
   // First, save all the settings.
-  // TODO: Verify drush is on the path
-  variable_set('wordpress_migrate_drush', $values['wordpress_migrate_drush']);
-
   variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
   variable_set('wordpress_migrate_attachment_field', $values['wordpress_migrate_attachment_field']);
   variable_set('wordpress_migrate_podcast_field', $values['wordpress_migrate_podcast_field']);
@@ -418,11 +343,6 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   if (module_exists('redirect')) {
     variable_set('wordpress_migrate_generate_redirects', $values['wordpress_migrate_generate_redirects']);
   }
-  variable_set('wordpress_migrate_notification_subject', $values['wordpress_migrate_notification_subject']);
-  variable_set('wordpress_migrate_notification_body', $values['wordpress_migrate_notification_body']);
-  variable_set('wordpress_migrate_notification_failure_body', $values['wordpress_migrate_notification_failure_body']);
-  variable_set('wordpress_migrate_import_method', $values['method_select']);
-  variable_set('wordpress_migrate_notification', $values['notification_select']);
 
   if ($_FILES['files']['error']['wxr_file'] && empty($form_state['values']['domain'])) {
     form_set_error('wxr_file', t('The file could not be uploaded, most likely

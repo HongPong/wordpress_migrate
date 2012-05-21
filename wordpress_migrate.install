@@ -310,3 +310,10 @@ function wordpress_migrate_update_7008() {
     );
   }
 }
+
+/**
+ * Reset default import method to Immediate.
+ */
+function wordpress_migrate_update_7009() {
+  variable_set('wordpress_migrate_import_method', 0);
+}
