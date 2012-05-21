@@ -68,9 +68,23 @@ function wordpress_migrate_import_form($form, &$form_state) {
   );
   $form['source']['source_select'] = array(
     '#type' => 'radios',
-    '#options' => array(t('Import from a URL'), t('Import from a file')),
+    '#options' => array(t('Import from a file'), t('Import from a URL')),
     '#default_value' => 0,
     '#attributes' => array('class' => array('container-inline')),
+  );
+
+  $form['#attributes'] = array('enctype' => 'multipart/form-data');
+  $form['source']['wxr_file'] = array(
+    '#type' => 'file',
+    '#title' => t('WordPress exported (WXR) file to import into Drupal'),
+    '#description' => t('If you have exported your WordPress blog to your local filesystem,
+      choose the downloaded file here. The largest file size you can import is !size',
+      array('!size' => format_size(file_upload_max_size()))),
+    '#states' => array(
+      'visible' => array(
+        ':input[name="source_select"]' => array('value' => 0),
+      ),
+    ),
   );
 
   $form['source']['credentials'] = array(
@@ -78,7 +92,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#title' => t('WordPress credentials'),
     '#states' => array(
       'visible' => array(
-        ':input[name="source_select"]' => array('value' => 0),
+        ':input[name="source_select"]' => array('value' => 1),
       ),
     ),
   );
@@ -99,20 +113,6 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#type' => 'password',
     '#title' => t('Password to your WordPress account'),
     '#description' => t(''),
-  );
-
-  $form['#attributes'] = array('enctype' => 'multipart/form-data');
-  $form['source']['wxr_file'] = array(
-    '#type' => 'file',
-    '#title' => t('WordPress exported (WXR) file to import into Drupal'),
-    '#description' => t('If you have exported your WordPress blog to your local filesystem,
-      choose the downloaded file here. The largest file size you can import is !size',
-      array('!size' => format_size(file_upload_max_size()))),
-    '#states' => array(
-      'visible' => array(
-        ':input[name="source_select"]' => array('value' => 1),
-      ),
-    ),
   );
 
   // If they haven't yet configured their import, open up the field set. Or, if
