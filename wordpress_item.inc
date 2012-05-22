@@ -391,7 +391,11 @@ abstract class WordPressItemMigration extends WordPressMigration {
       '<param name="allowscriptaccess" value="always" />' .
       '<embed src="http://www.youtube.com/v/$1&#038;fs=1" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="425" height="344">' .
       '</embed></object>';
+    // One form is [youtube dQw4w9WgXcQ]
     $row->content = preg_replace('|\[youtube (.+?)\]|i', $replacement, $row->content);
+
+    // Another form is [youtube=https://www.youtube.com/watch?v=dQw4w9WgXcQ]
+    $row->content = preg_replace('|\[youtube=.+?=([a-z0-9_-]+)[^\]]*\]|i', $replacement, $row->content);
 
     // Rewrite embedded video references to media tags
     if (module_exists('media')) {
@@ -468,7 +472,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     // Default to the original <object> tag.
     $result = $matches[0];
 
-    // If an <embed> tag is present, atttempt to parse it.
+    // If an <embed> tag is present, attempt to parse it.
     if ($matches[1]) {
       if (preg_match('|src=[\'"](.*?)[\'"]|i', $matches[1], $src_matches)) {
         $src = $src_matches[1];
