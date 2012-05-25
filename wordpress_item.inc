@@ -739,7 +739,19 @@ abstract class WordPressItemMigration extends WordPressMigration {
         $field_name = $this->$meta_field_name;
         $value_name = $term_type . '_value';
         // Shortcut - if the counts match, don't need to dig deeper
-        if (count($node->{$field_name}[LANGUAGE_NONE]) != count($row->$term_type)) {
+        if (isset($node->{$field_name}[LANGUAGE_NONE])) {
+          $node_count = count($node->{$field_name}[LANGUAGE_NONE]);
+        }
+        else {
+          $node_count = 0;
+        }
+        if (isset($row->$term_type)) {
+          $row_count = count($row->$term_type);
+        }
+        else {
+          $row_count = 0;
+        }
+        if ($node_count != $row_count) {
           $vid_field = $term_type . 'Vid';
           $vid = $this->$vid_field;
           // Get any terms already in the field
