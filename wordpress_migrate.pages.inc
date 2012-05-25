@@ -288,13 +288,29 @@ function wordpress_migrate_import_form($form, &$form_state) {
   }
 
   if (module_exists('redirect')) {
-    $form['settings']['wordpress_migrate_generate_redirects'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Generate redirects'),
-      '#description' => t('If this box is checked, redirects will be set up from
-        the former WordPress blog URLs to the new URLs on your Drupal site'),
-      '#default_value' => variable_get('wordpress_migrate_generate_redirects', FALSE),
-    );
+    if (class_exists('MigrateRedirectEntityHandler')) {
+      $form['settings']['wordpress_migrate_generate_redirects'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Generate redirects'),
+        '#description' => t('If this box is checked, redirects will be set up from
+          the former WordPress blog URLs to the new URLs on your Drupal site'),
+        '#default_value' => variable_get('wordpress_migrate_generate_redirects', FALSE),
+      );
+    }
+    else {
+      $form['settings']['wordpress_migrate_generate_redirects'] = array(
+        '#type' => 'value',
+        '#value' => 0,
+      );
+      $form['settings']['wordpress_migrate_generate_redirects_info'] = array(
+        '#prefix' => '<p>',
+        '#markup' => t('You have the Redirect module enabled. To be able to '
+          . 'generate redirects for your imported WordPress content, you need '
+          . 'to <a href="@link">patch Redirect</a>.',
+          array('@link' => 'http://drupal.org/node/1116408#comment-6040494')),
+        '#suffix' => '</p>',
+      );
+    }
   }
 
   $form['submit'] = array(
