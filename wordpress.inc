@@ -65,7 +65,6 @@ abstract class WordPressMigration extends DynamicMigration {
       ->execute();
   }
 
-
   /**
    * Outputs a progress message, reflecting the current status of a migration process.
    *
@@ -131,7 +130,6 @@ abstract class WordPressMigration extends DynamicMigration {
               '!perminute' => $perminute,
               '!name' => $this->machineName));
     self::displayMessage($message, $type);
-
     if ($result == Migration::RESULT_INCOMPLETE) {
       $this->lastfeedback = time();
       $this->processed_since_feedback = $this->successes_since_feedback = 0;

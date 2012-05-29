@@ -230,6 +230,13 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#options' => $options,
     '#description' => t(''),
   );
+  $form['settings']['wordpress_migrate_text_format_comment'] = array(
+    '#type' => 'select',
+    '#title' => t('Default format for comment text fields'),
+    '#default_value' => variable_get('wordpress_migrate_text_format_comment', 'filtered_html'),
+    '#options' => $options,
+    '#description' => t(''),
+  );
 
   // TODO: Select user to own blog
 
@@ -348,6 +355,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   variable_set('wordpress_migrate_attachment_field', $values['wordpress_migrate_attachment_field']);
   variable_set('wordpress_migrate_podcast_field', $values['wordpress_migrate_podcast_field']);
   variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
+  variable_set('wordpress_migrate_text_format_comment', $values['wordpress_migrate_text_format_comment']);
   variable_set('wordpress_migrate_page_type', $values['wordpress_migrate_page_type']);
   if (module_exists('taxonomy')) {
     variable_set('wordpress_migrate_tag_vocabulary', $values['wordpress_migrate_tag_vocabulary']);
@@ -520,7 +528,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     foreach ($blog->migrations() as $migration) {
        $operations[] = array('migrate_ui_batch',
                               array('import', $migration->getMachineName(),
-                                    array('unit' => 'items', 'value' => '')));
+                                    array('unit' => 'items', 'value' => ''), FALSE));
     }
 
     $batch = array(
