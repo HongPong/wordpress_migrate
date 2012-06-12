@@ -137,6 +137,16 @@ abstract class WordPressMigration extends DynamicMigration {
       $this->destination->resetStats();
     }
   }
+
+  /**
+   * Work-around for http://drupal.org/node/936222 - make sure our node_save()
+   * calls not governed by the node destination class do not overwrite aliases.
+   *
+   * @param $node
+   */
+  protected function disablePathauto($node) {
+    $node->path['pathauto'] = 0;
+  }
 }
 
 class WordPressBlog {

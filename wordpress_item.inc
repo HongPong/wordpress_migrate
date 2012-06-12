@@ -856,6 +856,7 @@ class WordPressPage extends WordPressItemMigration {
       // Maintain the original update datestamp
       $changed = $node->changed;
       $node->body[LANGUAGE_NONE][0]['value'] = $this->fixLocalLinks($node->body[LANGUAGE_NONE][0]['value']);
+      $this->disablePathauto($node);
       node_save($node);
       db_update('node')
         ->fields(array('changed' => $changed))

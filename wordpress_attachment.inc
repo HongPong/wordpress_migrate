@@ -181,7 +181,14 @@ class WordPressAttachment extends WordPressMigration {
             unset($parent_node->{$attachment_field}[LANGUAGE_NONE][0]);
           }
           $parent_node->{$attachment_field}[LANGUAGE_NONE][] = (array)$file;
+          $this->disablePathauto($parent_node);
+          // Maintain the original update datestamp
+          $changed = $parent_node->changed;
           node_save($parent_node);
+          db_update('node')
+            ->fields(array('changed' => $changed))
+            ->condition('nid', $parent_node->nid)
+            ->execute();
           file_usage_add($file, 'file', 'node', $parent_node->nid);
         }
       }
@@ -223,6 +230,7 @@ class WordPressAttachment extends WordPressMigration {
         $gallery_node->language = LANGUAGE_NONE;
       }
       $gallery_node->media_gallery_media[LANGUAGE_NONE][] = array('fid' => $file->fid);
+      $this->disablePathauto($gallery_node);
       node_save($gallery_node);
     }
   }
@@ -266,6 +274,7 @@ class WordPressAttachment extends WordPressMigration {
 
         // Maintain the original update datestamp
         $changed = $node->changed;
+        $this->disablePathauto($node);
         node_save($node);
         db_update('node')
           ->fields(array('changed' => $changed))
