@@ -62,7 +62,7 @@ function wordpress_migrate_schema_wordpress() {
     ),
     'primary key' => array('blog_id'),
     'unique keys' => array(
-      'filename' => array('blog_url'),
+      'blog_url' => array('blog_url'),
     ),
   );
 }
@@ -316,4 +316,14 @@ function wordpress_migrate_update_7008() {
  */
 function wordpress_migrate_update_7009() {
   variable_set('wordpress_migrate_import_method', 0);
+}
+
+/**
+ * Fix blog_url index name to make sense.
+ */
+function wordpress_migrate_update_7010() {
+  if (db_index_exists('wordpress_migrate', 'filename')) {
+    db_drop_index('wordpress_migrate', 'filename');
+    db_add_unique_key('wordpress_migrate', 'blog_url', array('blog_url'));
+  }
 }

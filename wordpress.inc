@@ -187,97 +187,93 @@ class WordPressBlog {
     // Make sure the upload directory is properly protected
     file_create_htaccess('wordpress://', TRUE);
 
-    $row = db_select('wordpress_migrate', 'wm')
-           ->fields('wm', array('blog_id', 'filename', 'title', 'blog_url', 'uid', 'link', 'wxr_version'))
-           ->condition('filename', $filename)
-           ->execute()
-           ->fetchObject();
-    if ($row) {
-      $this->blogID = $row->blog_id;
-      $this->title = $row->title;
-      $this->blog_url = $row->blog_url;
-      $this->uid = $row->uid;
-      $this->link = $row->link;
-      $this->wxrVersion = $row->wxr_version;
+    // Suppress errors during parsing, so we can pick them up after
+    libxml_use_internal_errors(TRUE);
+
+    // Get the blog_url, which is our unique determiner of which blog we're
+    // talking about
+    $title = '';
+    $reader = new XMLReader;
+    $status = $reader->open($this->filename);
+    if ($status) {
+      $this->blog_url = '';
+      while ($reader->read()) {
+        if ($reader->nodeType == XMLREADER::ELEMENT) {
+          switch ($reader->name) {
+            case 'title':
+              $title = $reader->readString();
+              break;
+            case 'wp:wxr_version':
+              $this->wxrVersion = $reader->readString();
+              break;
+            case 'wp:base_blog_url':
+              $this->blog_url = $reader->readString();
+              break;
+            case 'link':
+              $this->link = $reader->readString();
+              break;
+          }
+        }
+        if (!empty($title) && !empty($this->blog_url) && !empty($this->link)) {
+          break;
+        }
+      }
     }
     else {
-      // Suppress errors during parsing, so we can pick them up after
-      libxml_use_internal_errors(TRUE);
+      throw new Exception(t('Could not open XML file !url',
+                            array('!url' => $this->filename)));
+    }
 
-      $reader = new XMLReader;
-      $status = $reader->open($this->filename);
-      if ($status) {
-        $title = $this->blog_url = '';
-        while ($reader->read()) {
-          if ($reader->nodeType == XMLREADER::ELEMENT) {
-            switch ($reader->name) {
-              case 'title':
-                $title = $reader->readString();
-                break;
-              case 'wp:wxr_version':
-                $this->wxrVersion = $reader->readString();
-                break;
-              case 'wp:base_blog_url':
-                $this->blog_url = $reader->readString();
-                break;
-              case 'link':
-                $this->link = $reader->readString();
-                break;
-            }
-          }
-          if (!empty($title) && !empty($this->blog_url) && !empty($this->link)) {
-            break;
-          }
-        }
-        // Validate that it really is a WXR file
-        if (empty($this->blog_url)) {
-          throw new Exception(t('The uploaded file is not a valid WordPress export'));
-        }
-        // Keep only alphabetic characters
-        $this->title = preg_replace('/[^A-Za-z]/', '', $title);
-        if (!$this->title) {
-          $this->title = preg_replace('/[^A-Za-z]/', '', $this->blog_url);
-        }
+    // Validate that it really is a WXR file
+    if (empty($this->blog_url)) {
+      throw new Exception(t('The uploaded file is not a valid WordPress export'));
+    }
+    // Keep only alphabetic characters
+    $this->title = preg_replace('/[^A-Za-z]/', '', $title);
+    if (!$this->title) {
+      $this->title = preg_replace('/[^A-Za-z]/', '', $this->blog_url);
+    }
 
-        global $user;
-        $this->uid = $user->uid;
-        $this->blogID = db_insert('wordpress_migrate')
-          ->fields(array(
-            'filename' => $filename,
-            'title' => $this->title,
-            'blog_url' => $this->blog_url,
-            'uid' => $this->uid,
-            'link' => $this->link,
-            'wxr_version' => $this->wxrVersion,
-          ))
-          ->execute();
-        foreach ($this->migrationClasses() as $class) {
-          // Skip authors with WXR 1.0
-          if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
-            continue;
-          }
-          // Skip comments if comment module is not enabled
-          if ($class == 'WordPressComment' && !module_exists('comment')) {
-            continue;
-          }
-          // Skip tags/categories if taxonomy is not enabled
-          if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
-            if (!module_exists('taxonomy')) {
-              continue;
-            }
-          }
-          // Skip tags/categories if there's no destination vocabulary
-          if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
-              $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
-            continue;
-          }
-          Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
+    global $user;
+    $this->uid = $user->uid;
+
+    $status = db_merge('wordpress_migrate')
+      ->key(array('blog_url' => $this->blog_url))
+      ->fields(array(
+                'title' => $this->title,
+                'uid' => $this->uid,
+                'link' => $this->link,
+                'filename' => $this->filename,
+                'wxr_version' => $this->wxrVersion,
+               ))
+      ->execute();
+    $this->blogID = db_select('wordpress_migrate', 'wm')
+                    ->fields('wm', array('blog_id'))
+                    ->condition('blog_url', $this->blog_url)
+                    ->execute()
+                    ->fetchField();
+
+    foreach ($this->migrationClasses() as $class) {
+      // Skip authors with WXR 1.0
+      if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
+        continue;
+      }
+      // Skip comments if comment module is not enabled
+      if ($class == 'WordPressComment' && !module_exists('comment')) {
+        continue;
+      }
+      // Skip tags/categories if taxonomy is not enabled
+      if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
+        if (!module_exists('taxonomy')) {
+          continue;
         }
       }
-      else {
-        throw new Exception(t('Could not open XML file !url',
-                              array('!url' => $this->filename)));
+      // Skip tags/categories if there's no destination vocabulary
+      if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
+          $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
+        continue;
       }
+      Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
     }
   }
 
