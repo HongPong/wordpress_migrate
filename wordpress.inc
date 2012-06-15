@@ -146,6 +146,9 @@ abstract class WordPressMigration extends DynamicMigration {
    */
   protected function disablePathauto($node) {
     $node->path['pathauto'] = 0;
+    if (!isset($node->path['alias'])) {
+      $node->path['alias'] = '';
+    }
   }
 }
 
