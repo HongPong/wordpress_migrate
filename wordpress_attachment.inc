@@ -332,7 +332,7 @@ class WordPressAttachment extends WordPressMigration {
       'type' => 'media',
       'view_mode' => 'media_large',
       'fid' => $fid,
-      'attributes' => array($attributes),
+      'attributes' => $attributes,
     );
 
     $result = '[[' . drupal_json_encode($img_info) . ']]';
