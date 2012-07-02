@@ -265,9 +265,7 @@ class WordPressAttachment extends WordPressMigration {
               $body = preg_replace_callback('|<img +(.*?)>|i',
                 array($this, 'replaceImgs'), $body);
             }
-            else {
-              $body = str_replace($row->original_url, $row->new_uri, $body);
-            }
+            $body = str_replace($row->original_url, $row->new_uri, $body);
           }
           $node->body[$language][0]['value'] = $body;
         }
@@ -313,7 +311,7 @@ class WordPressAttachment extends WordPressMigration {
       return FALSE;
     }
 
-    // Extract the width & height for the media tag, if present
+    // Extract the width, height, and classes for the media tag, if present
     $attributes = array(
       'class' => 'media-image',
       'typeof' => 'foaf:Image',
@@ -325,6 +323,9 @@ class WordPressAttachment extends WordPressMigration {
     if (preg_match('|height=[\'"](.*?)[\'"]|i', $result, $height_matches)) {
       $attributes['height'] = $height_matches[1];
     }
+    if (preg_match('|class=[\'"](.*?)[\'"]|i', $result, $class_matches)) {
+      $attributes['class'] .= ' ' . $class_matches[1];
+    }
 
     // Build the media tag
     $img_info = array(
@@ -333,6 +334,7 @@ class WordPressAttachment extends WordPressMigration {
       'fid' => $fid,
       'attributes' => array($attributes),
     );
+
     $result = '[[' . drupal_json_encode($img_info) . ']]';
 
     return $result;
