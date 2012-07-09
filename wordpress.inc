@@ -58,6 +58,7 @@ abstract class WordPressMigration extends DynamicMigration {
    * Called after completion of each migration.
    */
   public function postImport() {
+    parent::postImport();
     // Clear ignored rows from the map, so as not to confuse reporting.
     $map_table = $this->map->getMapTable();
     db_delete($map_table)
