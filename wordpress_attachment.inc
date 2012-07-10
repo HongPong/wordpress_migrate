@@ -308,7 +308,24 @@ class WordPressAttachment extends WordPressMigration {
            ->execute()
            ->fetchField();
     if (!$fid) {
-      return FALSE;
+      // We have an image that wasn't pulled over as an attachment - if it's not
+      // on the existing WordPress site, leave it be; if it is, copy it directly
+      // and create the file entity.
+      $blog_url = $this->blog->getBlogUrl();
+      $prefix_pattern = '|^' . $blog_url. '/|';
+      if (preg_match($prefix_pattern, $src)) {
+        $file = array(
+          'destination_file' => preg_replace($prefix_pattern, '', $src),
+          'file_replace' => FILE_EXISTS_RENAME,
+        );
+        $source = new MigrateFileUri($file);
+        // @todo: uid from parent node
+        $file = $source->processFile($src, 1);
+        $fid = $file->fid;
+      }
+      else {
+        return $result;
+      }
     }
 
     // Extract the width, height, and classes for the media tag, if present
