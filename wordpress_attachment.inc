@@ -340,6 +340,12 @@ class WordPressAttachment extends WordPressMigration {
     if (preg_match('|height=[\'"](.*?)[\'"]|i', $result, $height_matches)) {
       $attributes['height'] = $height_matches[1];
     }
+    if (preg_match('|title=[\'"](.*?)[\'"]|i', $result, $title_matches)) {
+      $attributes['title'] = $title_matches[1];
+    }
+    if (preg_match('|alt=[\'"](.*?)[\'"]|i', $result, $alt_matches)) {
+      $attributes['alt'] = $alt_matches[1];
+    }
     if (preg_match('|class=[\'"](.*?)[\'"]|i', $result, $class_matches)) {
       $attributes['class'] .= ' ' . $class_matches[1];
     }
