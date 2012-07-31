@@ -242,29 +242,31 @@ class WordPressAttachment extends WordPressMigration {
   public function postImport() {
     parent::postImport();
     migrate_instrument_start('WordPressAttachment postImport');
-    // We only want to load/save each distinct node once
-    $nids = db_select('wordpress_migrate_attachment', 'a')
-            ->fields('a', array('parent_nid'))
-            ->condition('blog_id', $this->blog->getBlogID())
-            ->isNotNull('parent_nid')
-            ->distinct()
+    // We'd like to just go through nodes with attachments (i.e., loop
+    // through wordpress_migrate_attachment), but a node may reference
+    // other posts' attachments without having any itself.
+    $map_table = 'migrate_map_' . strtolower($this->generateMachineName('WordPressBlogEntry'));
+    $nids = db_select($map_table, 'be')
+            ->fields('be', array('destid1'))
+            ->isNotNull('destid1')
             ->execute();
     foreach ($nids as $nid_row) {
-      $node = node_load($nid_row->parent_nid);
+      $node = node_load($nid_row->destid1);
       if ($node && is_array($node->body)) {
         foreach ($node->body as $language => $body) {
           $body = $body[0]['value'];
-          // Get the attachments for this node
+          // If we have the media module, rewrite the img tags to media tags if
+          // we can.
+          if (module_exists('media')) {
+            $body = preg_replace_callback('|<img +(.*?)>|i',
+              array($this, 'replaceImgs'), $body);
+          }
+          // See if any remaining images can be directly replaced.
           $result = db_select('wordpress_migrate_attachment', 'a')
                               ->fields('a', array('original_url', 'new_uri', 'new_fid'))
-                              ->condition('parent_nid', $nid_row->parent_nid)
+                              ->condition('parent_nid', $nid_row->destid1)
                               ->execute();
           foreach ($result as $row) {
-            // If we have the media module, rewrite the img tags to media tags
-            if (module_exists('media')) {
-              $body = preg_replace_callback('|<img +(.*?)>|i',
-                array($this, 'replaceImgs'), $body);
-            }
             $body = str_replace($row->original_url, $row->new_uri, $body);
           }
           $node->body[$language][0]['value'] = $body;
