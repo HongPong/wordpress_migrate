@@ -52,16 +52,6 @@ function wordpress_migrate_menu() {
   return $items;
 }
 
-/*
- * Implementation of hook_migrate_api().
- */
-function wordpress_migrate_migrate_api() {
-  $api = array(
-    'api' => 2,
-  );
-  return $api;
-}
-
 /**
  * Implements hook_stream_wrappers().
  */
