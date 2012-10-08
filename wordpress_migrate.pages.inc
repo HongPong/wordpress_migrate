@@ -261,11 +261,12 @@ function wordpress_migrate_import_form($form, &$form_state) {
       $options[$machine_name] = $name;
     }
 
-
+    // If a vocabulary called "tags" exists on the site, default to it.
+    $tags_default = (isset($options['tags']) ? 'tags' : '');
     $form['settings']['wordpress_migrate_taxonomy']['wordpress_migrate_tag_vocabulary'] = array(
       '#type' => 'select',
       '#title' => t('Convert WordPress tags to the vocabulary'),
-      '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', ''),
+      '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', $tags_default),
       '#options' => $options,
     );
 
