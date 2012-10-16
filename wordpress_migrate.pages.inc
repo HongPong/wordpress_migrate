@@ -144,17 +144,17 @@ function wordpress_migrate_import_form($form, &$form_state) {
     $default = '';
   }
 
-  $form['settings']['wordpress_migrate_content_mapping'] = array(
+  $form['wordpress_migrate_content_mapping'] = array(
     '#type' => 'fieldset',
     '#title' => t('Map content'),
+    '#group' => 'settings',
   );
-  $form['settings']['wordpress_migrate_content_mapping']['wordpress_migrate_page_type'] = array(
+  $form['wordpress_migrate_content_mapping']['wordpress_migrate_page_type'] = array(
     '#type' => 'select',
     '#title' => t('Convert WordPress pages to'),
     '#default_value' => variable_get('wordpress_migrate_page_type', $default),
     '#options' => $options,
     '#description' => t(''),
-    '#group' => 'settings',
   );
 
   if (isset($options['blog'])) {
@@ -165,7 +165,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
   }
 
   $post_type = variable_get('wordpress_migrate_post_type', $default);
-  $form['settings']['wordpress_migrate_content_mapping']['wordpress_migrate_post_type'] = array(
+  $form['wordpress_migrate_content_mapping']['wordpress_migrate_post_type'] = array(
     '#type' => 'select',
     '#title' => t('Convert WordPress posts to'),
     '#default_value' => $post_type,
@@ -191,7 +191,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
   $file_image_fields = $file_fields +
                        wordpress_migrate_filefields($selected_post_type, 'image');
   if (count($file_image_fields) > 1) {
-    $form['settings']['wordpress_migrate_content_mapping']['wordpress_migrate_attachment_field'] = array(
+    $form['wordpress_migrate_content_mapping']['wordpress_migrate_attachment_field'] = array(
       '#type' => 'select',
       '#title' => t('Field for attachments'),
       '#default_value' => variable_get('wordpress_migrate_attachment_field', ''),
@@ -200,13 +200,13 @@ function wordpress_migrate_import_form($form, &$form_state) {
     );
   }
   else {
-    $form['settings']['wordpress_migrate_content_mapping']['wordpress_migrate_attachment_field'] = array(
+    $form['wordpress_migrate_content_mapping']['wordpress_migrate_attachment_field'] = array(
         '#type' => 'value',
         '#value' => '',
       );
   }
   if (count($file_fields) > 1) {
-    $form['settings']['wordpress_migrate_content_mapping']['wordpress_migrate_podcast_field'] = array(
+    $form['wordpress_migrate_content_mapping']['wordpress_migrate_podcast_field'] = array(
       '#type' => 'select',
       '#title' => t('Field for Blubrry PowerPress podcasts'),
       '#default_value' => variable_get('wordpress_migrate_podcast_field', ''),
@@ -215,30 +215,31 @@ function wordpress_migrate_import_form($form, &$form_state) {
     );
   }
   else {
-    $form['settings']['wordpress_migrate_content_mapping']['wordpress_migrate_podcast_field'] = array(
+    $form['wordpress_migrate_content_mapping']['wordpress_migrate_podcast_field'] = array(
       '#type' => 'value',
       '#value' => '',
     );
   }
 
   // Select default text format for bodies etc.
-  $form['settings']['wordpress_migrate_text_formats'] = array(
+  $form['wordpress_migrate_text_formats'] = array(
     '#type' => 'fieldset',
     '#title' => t('Text formats'),
+    '#group' => 'settings',
   );
 
   $options = array();
   foreach (filter_formats() as $format_id => $format) {
     $options[$format_id] = $format->name;
   }
-  $form['settings']['wordpress_migrate_text_formats']['wordpress_migrate_text_format'] = array(
+  $form['wordpress_migrate_text_formats']['wordpress_migrate_text_format'] = array(
     '#type' => 'select',
     '#title' => t('Default format for text fields'),
     '#default_value' => variable_get('wordpress_migrate_text_format', 'filtered_html'),
     '#options' => $options,
     '#description' => t(''),
   );
-  $form['settings']['wordpress_migrate_text_formats']['wordpress_migrate_text_format_comment'] = array(
+  $form['wordpress_migrate_text_formats']['wordpress_migrate_text_format_comment'] = array(
     '#type' => 'select',
     '#title' => t('Default format for comment text fields'),
     '#default_value' => variable_get('wordpress_migrate_text_format_comment', 'filtered_html'),
@@ -250,9 +251,10 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   // Select vocabularies for categories and tags
   if (module_exists('taxonomy')) {
-    $form['settings']['wordpress_migrate_taxonomy'] = array(
+    $form['wordpress_migrate_taxonomy'] = array(
       '#type' => 'fieldset',
       '#title' => t('Map taxonomy'),
+      '#group' => 'settings',
     );
 
     $vocabs = wordpress_migrate_vocabularies($selected_post_type);
@@ -263,14 +265,14 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
     // If a vocabulary called "tags" exists on the site, default to it.
     $tags_default = (isset($options['tags']) ? 'tags' : '');
-    $form['settings']['wordpress_migrate_taxonomy']['wordpress_migrate_tag_vocabulary'] = array(
+    $form['wordpress_migrate_taxonomy']['wordpress_migrate_tag_vocabulary'] = array(
       '#type' => 'select',
       '#title' => t('Convert WordPress tags to the vocabulary'),
       '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', $tags_default),
       '#options' => $options,
     );
 
-    $form['settings']['wordpress_migrate_taxonomy']['wordpress_migrate_category_vocabulary'] = array(
+    $form['wordpress_migrate_taxonomy']['wordpress_migrate_category_vocabulary'] = array(
       '#type' => 'select',
       '#title' => t('Convert WordPress categories to the vocabulary'),
       '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
@@ -279,9 +281,10 @@ function wordpress_migrate_import_form($form, &$form_state) {
   }
 
   if (module_exists('path')) {
-    $form['settings']['wordpress_migrate_path_aliases'] = array(
+    $form['wordpress_migrate_path_aliases'] = array(
       '#type' => 'fieldset',
       '#title' => t('Path aliases'),
+      '#group' => 'settings',
     );
 
     $options = array(
@@ -293,7 +296,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
     if (module_exists('pathauto')) {
       $options[2] = t('Have pathauto generate new aliases');
       if (!module_exists('migrate_extras')) {
-        $form['settings']['wordpress_migrate_path_aliases']['wordpress_migrate_pathauto_message'] = array(
+        $form['wordpress_migrate_path_aliases']['wordpress_migrate_pathauto_message'] = array(
           '#prefix' => '<p>',
           '#markup' => t('<strong>To be able to change the <em>Path alias handling</em>, ' .
             'you must have the <a href="@extras">Migrate Extras module</a> installed and enabled.</strong>',
@@ -304,7 +307,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
         $default_value = 2;
       }
     }
-    $form['settings']['wordpress_migrate_path_aliases']['wordpress_migrate_path_action'] = array(
+    $form['wordpress_migrate_path_aliases']['wordpress_migrate_path_action'] = array(
       '#type' => 'radios',
       '#title' => t('Path alias handling'),
       '#description' => t('Select how path aliases for imported nodes will be set.'),
@@ -316,7 +319,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   if (module_exists('redirect')) {
     if (class_exists('MigrateRedirectEntityHandler')) {
-      $form['settings']['wordpress_migrate_path_aliases']['wordpress_migrate_generate_redirects'] = array(
+      $form['wordpress_migrate_path_aliases']['wordpress_migrate_generate_redirects'] = array(
         '#type' => 'checkbox',
         '#title' => t('Generate redirects'),
         '#description' => t('If this box is checked, redirects will be set up from
@@ -325,11 +328,11 @@ function wordpress_migrate_import_form($form, &$form_state) {
       );
     }
     else {
-      $form['settings']['wordpress_migrate_path_aliases']['wordpress_migrate_generate_redirects'] = array(
+      $form['wordpress_migrate_path_aliases']['wordpress_migrate_generate_redirects'] = array(
         '#type' => 'value',
         '#value' => 0,
       );
-      $form['settings']['wordpress_migrate_path_aliases']['wordpress_migrate_generate_redirects_info'] = array(
+      $form['wordpress_migrate_path_aliases']['wordpress_migrate_generate_redirects_info'] = array(
         '#prefix' => '<p>',
         '#markup' => t('You have the Redirect module enabled. To be able to '
           . 'generate redirects for your imported WordPress content, you need '
