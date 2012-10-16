@@ -676,7 +676,7 @@ function wordpress_migrate_review_form($form, &$form_state) {
     }
     if (variable_get('wordpress_migrate_tag_vocabulary', '')) {
       $header += array(
-        'WordPressCategory' => array('data' => t('Tags')),
+        'WordPressTag' => array('data' => t('Tags')),
       );
     }
   }
