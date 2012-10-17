@@ -543,18 +543,18 @@ abstract class WordPressItemMigration extends WordPressMigration {
   /**
    * Replace a kml_flashembed tag with an HTML <object> tag.
    *
-   [kml_flashembed movie="http://s3.amazonaws.com/wholefoods/video/wpf/mariajuracan/soundslider.swf"
+   [kml_flashembed movie="http://example.com/video/soundslider.swf"
     FVARS="size=0" height="368" width="420" /]
    <object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
    			id="fm_soundslider_1640275925"
    			class="flashmovie"
    			width="420"
    			height="368">
-   	<param name="movie" value="http://s3.amazonaws.com/wholefoods/video/wpf/mariajuracan/soundslider.swf" />
+   	<param name="movie" value="http://example.com/video/soundslider.swf"" />
    	<param name="flashvars" value="size=0" />
    	<!--[if !IE]>-->
    	<object	type="application/x-shockwave-flash"
-   			data="http://s3.amazonaws.com/wholefoods/video/wpf/mariajuracan/soundslider.swf"
+   			data="http://example.com/video/soundslider.swf""
    			name="fm_soundslider_1640275925"
    			width="420"
    			height="368">
