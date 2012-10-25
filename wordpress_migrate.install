@@ -128,6 +128,27 @@ function wordpress_migrate_schema_linked_authors() {
 }
 
 /**
+ * Implements hook_requirements().
+ *
+ * @param $phase
+ *
+ * @return array
+ */
+function wordpress_migrate_requirements($phase) {
+  $requirements = array();
+  // Make sure the XMLReader extension is available.
+  if (!extension_loaded('xmlreader')) {
+    $t = get_t();
+    $requirements['xmlreader']['severity'] = REQUIREMENT_ERROR;
+    $requirements['xmlreader']['title'] = $t('XMLReader extension');
+    $requirements['xmlreader']['description'] =
+      $t('WordPress Migrate requires the PHP XMLReader extension.');
+  }
+
+  return $requirements;
+}
+
+/**
  * Add uid field to wordpress_migrate table.
  */
 function wordpress_migrate_update_7001() {
