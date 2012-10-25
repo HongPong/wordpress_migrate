@@ -387,6 +387,12 @@ abstract class WordPressItemMigration extends WordPressMigration {
       }
     }
 
+    // Pull out teasers out based on <!--more--> tags
+    $broken = explode('<!--more-->', $row->content);
+    if (count($broken) == 2) {
+      $row->excerpt = $broken[0];
+    }
+
     // Interpret the [caption] tags
     $row->content = preg_replace_callback('|(\[caption.*?\])(.*?)(\[/caption\])|i',
       array($this, 'replaceCaptions'), $row->content);
