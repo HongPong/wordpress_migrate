@@ -340,8 +340,16 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // Only publish those with wp:status == 'publish'
-    if (isset($row->status) && $row->status == 'publish') {
-      $row->status = NODE_PUBLISHED;
+    if (isset($row->status)) {
+      switch ($row->status) {
+        case 'publish':
+          $row->status = NODE_PUBLISHED;
+          break;
+        case 'trash':
+          return FALSE;
+        default:
+          $row->status = NODE_NOT_PUBLISHED;
+      }
     }
     else {
       $row->status = NODE_NOT_PUBLISHED;
