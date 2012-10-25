@@ -149,6 +149,27 @@ function wordpress_migrate_requirements($phase) {
 }
 
 /**
+ * Implements hook_uninstall().
+ */
+function wordpress_migrate_uninstall() {
+  variable_del('wordpress_migrate_attachment_field');
+  variable_del('wordpress_migrate_category_vocabulary');
+  variable_del('wordpress_migrate_generate_redirects');
+  variable_del('wordpress_migrate_import_method');
+  variable_del('wordpress_migrate_notification');
+  variable_del('wordpress_migrate_notification_body');
+  variable_del('wordpress_migrate_notification_failure_body');
+  variable_del('wordpress_migrate_notification_subject');
+  variable_del('wordpress_migrate_page_type');
+  variable_del('wordpress_migrate_path_action');
+  variable_del('wordpress_migrate_podcast_field');
+  variable_del('wordpress_migrate_post_type');
+  variable_del('wordpress_migrate_tag_vocabulary');
+  variable_del('wordpress_migrate_text_format');
+  variable_del('wordpress_migrate_text_format_comment');
+}
+
+/**
  * Add uid field to wordpress_migrate table.
  */
 function wordpress_migrate_update_7001() {
