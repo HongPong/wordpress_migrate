@@ -215,6 +215,10 @@ class WordPressBlog {
               break;
             case 'link':
               $this->link = WordPressBlog::readString($reader);
+              // Catch only the first link
+              if (empty($this->link)) {
+                $this->link = $reader->readString();
+              };
               break;
           }
         }
@@ -230,7 +234,13 @@ class WordPressBlog {
 
     // Validate that it really is a WXR file
     if (empty($this->blog_url)) {
-      throw new Exception(t('The uploaded file is not a valid WordPress export'));
+      // Older WP versions did not have a blog_url but used link instead.
+      if (!empty($this->link)) {
+        $this->blog_url = $this->link;
+      }
+      else {
+        throw new Exception(t('The uploaded file is not a valid WordPress export'));
+      };
     }
     // Keep only alphabetic characters
     $this->title = preg_replace('/[^A-Za-z]/', '', $title);
