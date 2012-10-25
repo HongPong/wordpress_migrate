@@ -739,8 +739,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
         $field_name = $this->$meta_field_name;
         $value_name = $term_type . '_value';
         // Shortcut - if the counts match, don't need to dig deeper
-        if (isset($node->{$field_name}[LANGUAGE_NONE])) {
-          $node_count = count($node->{$field_name}[LANGUAGE_NONE]);
+        $field_values = field_get_items('node', $node, $field_name);
+        if (!empty($field_values)) {
+          $node_count = count($field_values);
         }
         else {
           $node_count = 0;
@@ -756,8 +757,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
           $vid = $this->$vid_field;
           // Get any terms already in the field
           $done_terms = array();
-          if (is_array($node->{$field_name}[LANGUAGE_NONE])) {
-            foreach ($node->{$field_name}[LANGUAGE_NONE] as $value_array) {
+          if (is_array($field_values)) {
+            foreach ($field_values as $value_array) {
               $terms = taxonomy_term_load_multiple($value_array);
               foreach ($terms as $term) {
                 $done_terms[] = $term->name;
@@ -765,19 +766,20 @@ abstract class WordPressItemMigration extends WordPressMigration {
             }
           }
           $diff = array_diff($row->$value_name, $done_terms);
+          $field_language = field_language('node', $node, $field_name);
           foreach ($diff as $new_term_name) {
             // Let's see if the term already exists
             $matches = taxonomy_term_load_multiple(array(),
               array('name' => trim($new_term_name), 'vid' => $vid));
             if ($matches) {
-              $node->{$field_name}[LANGUAGE_NONE][] = array('tid' => key($matches));
+              $node->{$field_name}[$field_language][] = array('tid' => key($matches));
             }
             else {
               $term = new stdClass;
               $term->name = $new_term_name;
               $term->vid = $vid;
               taxonomy_term_save($term);
-              $node->{$field_name}[LANGUAGE_NONE][] = array('tid' => $term->tid);
+              $node->{$field_name}[$field_language][] = array('tid' => $term->tid);
             }
           }
         }
@@ -799,8 +801,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
           $url = str_replace($GLOBALS['base_url'] . '/', '/', $url);
           $link = '<p><a href="' . $url .
                   '"><img src="/modules/file/icons/audio-x-generic.png" /></a></p>';
-          $node->body[LANGUAGE_NONE][0]['value'] = str_replace('[powerpress]',
-            $link, $node->body[LANGUAGE_NONE][0]['value']);
+          $body_language = field_language('node', $node, 'body');
+          $node->body[$body_language][0]['value'] = str_replace('[powerpress]',
+            $link, $node->body[$body_language][0]['value']);
         }
       }
     }
