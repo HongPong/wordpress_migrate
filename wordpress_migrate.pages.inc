@@ -451,7 +451,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
     curl_close($ch);
 
     // Login successful? Grab the export
-    if (strpos($login_result, 'Set-Cookie: wordpress_logged_in')) {
+    if ((strpos($login_result, 'Set-Cookie: wordpress_logged_in')) || (strpos($login_result, 'Set-Cookie: wordpressuser_'))) {
       $filename = $domain . '.xml';
       // The "domain" may have included a subdirectory - flatten things out
       $destination = $directory . '/' . str_replace('/', '_', $filename);
