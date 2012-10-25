@@ -592,7 +592,8 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
         drupal_set_message($migration_in_progress);
         $uri = 'http://' . $_SERVER['HTTP_HOST'];
         $log_file = '/tmp/' . $filename . '.import.log';
-        $command = "$drush --uri=$uri wordpress-migrate-import --root=" .
+        $uid = $GLOBALS['user']->uid;
+        $command = "$drush --user=$uid --uri=$uri wordpress-migrate-import --root=" .
                    DRUPAL_ROOT . " $destination >$log_file 2>&1 &";
         exec($command);
         $spawned = TRUE;
