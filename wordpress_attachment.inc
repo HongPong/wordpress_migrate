@@ -246,6 +246,8 @@ class WordPressAttachment extends WordPressMigration {
     // through wordpress_migrate_attachment), but a node may reference
     // other posts' attachments without having any itself.
     $map_table = 'migrate_map_' . strtolower($this->generateMachineName('WordPressBlogEntry'));
+    // Replicate the Migrate truncation to make sure we match the real map name.
+    $map_table = drupal_substr($map_table, 0, 63);
     $nids = db_select($map_table, 'be')
             ->fields('be', array('destid1'))
             ->isNotNull('destid1')
