@@ -205,16 +205,16 @@ class WordPressBlog {
         if ($reader->nodeType == XMLREADER::ELEMENT) {
           switch ($reader->name) {
             case 'title':
-              $title = $reader->readString();
+              $title = WordPressBlog::readString($reader);
               break;
             case 'wp:wxr_version':
-              $this->wxrVersion = $reader->readString();
+              $this->wxrVersion = WordPressBlog::readString($reader);
               break;
             case 'wp:base_blog_url':
-              $this->blog_url = $reader->readString();
+              $this->blog_url = WordPressBlog::readString($reader);
               break;
             case 'link':
-              $this->link = $reader->readString();
+              $this->link = WordPressBlog::readString($reader);
               break;
           }
         }
@@ -348,5 +348,25 @@ class WordPressBlog {
       $blogs[] = wordpress_migrate_blog($row->filename);
     }
     return $blogs;
+  }
+
+
+  /**
+   * With earlier versions of libxml, XMLReader has no readString() method -
+   * mock it up if necessary.
+   *
+   * @param $reader
+   *  XMLReader instance being iterated for XML parsing.
+   *
+   * @return string
+   */
+  static public function readString(XMLReader $reader) {
+    if (method_exists('XMLReader', 'redString')) {
+      return $reader->readString();
+    }
+    else {
+      $node = $reader->expand();
+      return $node->textContent;
+    }
   }
 }

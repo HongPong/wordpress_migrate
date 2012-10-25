@@ -34,7 +34,7 @@ class WordPressCommentXMLReader extends MigrateXMLReader {
         $this->currentPath[$this->reader->depth] = $this->reader->localName;
         // Save the last post_id, so comments can use it to find their parent
         if ($this->reader->name == 'wp:post_id') {
-          $this->postId = $this->reader->readString();
+          $this->postId = WordPressBlog::readString($this->reader);
         }
         if ($this->currentPath == $this->elementsToMatch) {
           // We're positioned to the right element path - if filtering on an
