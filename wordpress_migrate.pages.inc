@@ -568,9 +568,18 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   }
   else {
     $spawned = FALSE;
+    $force_drush = variable_get('wordpress_migrate_force_drush', FALSE);
+    // Set up informational messages depending on Drush configuration.
+    if ($force_drush) {
+      $migration_in_progress = t('Your blog is being imported. You will receive an email when the import is complete.');
+    }
+    else {
+      $migration_in_progress = t('The blog is too large to completely import immediately.
+        The rest of the import will be run in the background and you will receive an email
+        when it is complete.');
+    }
     foreach ($blog->migrations() as $migration) {
-      $result = $migration->processImport();
-      if ($result == MigrationBase::RESULT_INCOMPLETE) {
+      if ($force_drush || (($result = $migration->processImport()) && $result == MigrationBase::RESULT_INCOMPLETE)) {
         $drush = variable_get('wordpress_migrate_drush', '');
         if (!$drush) {
           $message = t('The blog was too large to import through the browser - please
@@ -580,9 +589,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
           form_set_error('wxr_file', $message);
           break;
         }
-        drupal_set_message(t('The blog is too large to completely import immediately -
-          the rest of the import will be run in the background and you will receive an email
-          when it is complete'));
+        drupal_set_message($migration_in_progress);
         $uri = 'http://' . $_SERVER['HTTP_HOST'];
         $log_file = '/tmp/' . $filename . '.import.log';
         $command = "$drush --uri=$uri wordpress-migrate-import --root=" .
