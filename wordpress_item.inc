@@ -779,21 +779,23 @@ abstract class WordPressItemMigration extends WordPressMigration {
               }
             }
           }
-          $diff = array_diff($row->$value_name, $done_terms);
-          $field_language = field_language('node', $node, $field_name);
-          foreach ($diff as $new_term_name) {
-            // Let's see if the term already exists
-            $matches = taxonomy_term_load_multiple(array(),
-              array('name' => trim($new_term_name), 'vid' => $vid));
-            if ($matches) {
-              $node->{$field_name}[$field_language][] = array('tid' => key($matches));
-            }
-            else {
-              $term = new stdClass;
-              $term->name = $new_term_name;
-              $term->vid = $vid;
-              taxonomy_term_save($term);
-              $node->{$field_name}[$field_language][] = array('tid' => $term->tid);
+          if (isset($row->$value_name)) {
+            $diff = array_diff($row->$value_name, $done_terms);
+            $field_language = field_language('node', $node, $field_name);
+            foreach ($diff as $new_term_name) {
+              // Let's see if the term already exists
+              $matches = taxonomy_term_load_multiple(array(),
+                array('name' => trim($new_term_name), 'vid' => $vid));
+              if ($matches) {
+                $node->{$field_name}[$field_language][] = array('tid' => key($matches));
+              }
+              else {
+                $term = new stdClass;
+                $term->name = $new_term_name;
+                $term->vid = $vid;
+                taxonomy_term_save($term);
+                $node->{$field_name}[$field_language][] = array('tid' => $term->tid);
+              }
             }
           }
         }
