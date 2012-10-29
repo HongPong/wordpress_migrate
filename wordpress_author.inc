@@ -102,6 +102,15 @@ class WordPressAuthorDestination extends MigrateDestinationUser {
              ->condition('mail', $account->mail)
              ->execute()
              ->fetchField();
+      if (!$uid) {
+        // This user does not yet exist on the site. See if we're supposed to
+        // create it.
+        $create_new_users = variable_get('wordpress_migrate_create_new_users', 1);
+        if (!$create_new_users) {
+          // Link this content to the default user chosen in the import settings.
+          $uid = variable_get('wordpress_migrate_default_author_uid', 1);
+        }
+      }
       if ($uid) {
         db_merge('wordpress_migrate_linked_authors')
           ->key(array('mail' => $account->mail))
@@ -111,7 +120,7 @@ class WordPressAuthorDestination extends MigrateDestinationUser {
         return array($uid);
       }
     }
-    // If there's no linkage, do the normal thing
+    // If there's no linkage, do the normal thing and create a new user.
     return parent::import($account, $row);
   }
 

@@ -178,6 +178,29 @@ function wordpress_migrate_import_form($form, &$form_state) {
     ),
   );
 
+  // Let the admin choose between creating new users on the fly and mapping
+  // content to an existing user.
+  $form['wordpress_migrate_content_mapping']['wordpress_migrate_create_new_users'] = array(
+    '#type' => 'radios',
+    '#title' => t('Create new users for existing WordPress content authors?'),
+    '#options' => array(1 => t('Yes'), 0 => t('No')),
+    '#default_value' => variable_get('wordpress_migrate_create_new_users', 1),
+  );
+
+  $uid = variable_get('wordpress_migrate_default_author_uid', $GLOBALS['user']->uid);
+  $account = user_load($uid);
+  $form['wordpress_migrate_content_mapping']['wordpress_migrate_default_author_uid'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Default content author:'),
+    '#default_value' => $account->name,
+    '#autocomplete_path' => 'user/autocomplete',
+    '#states' => array(
+      'invisible' => array(
+        'input[name="wordpress_migrate_create_new_users"]' => array('value' => 1),
+      ),
+    ),
+  );
+
   if (isset($form_state['values'])) {
     $selected_post_type = $form_state['values']['wordpress_migrate_post_type'];
   }
@@ -246,8 +269,6 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#options' => $options,
     '#description' => t(''),
   );
-
-  // TODO: Select user to own blog
 
   // Select vocabularies for categories and tags
   if (module_exists('taxonomy')) {
@@ -375,6 +396,9 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
 
   // First, save all the settings.
   variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
+  variable_set('wordpress_migrate_create_new_users', $values['wordpress_migrate_create_new_users']);
+  $account = user_load_by_name($values['wordpress_migrate_default_author_uid']);
+  variable_set('wordpress_migrate_default_author_uid', $account->uid);
   variable_set('wordpress_migrate_attachment_field', $values['wordpress_migrate_attachment_field']);
   variable_set('wordpress_migrate_podcast_field', $values['wordpress_migrate_podcast_field']);
   variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
