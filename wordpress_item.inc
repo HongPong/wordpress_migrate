@@ -126,10 +126,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
     parent::__construct($arguments);
 
     if (module_exists('taxonomy')) {
-      if (variable_get('wordpress_migrate_category_vocabulary', '')) {
+      if ($this->arguments['category_vocabulary']) {
         $this->dependencies[] = $this->generateMachineName('WordPressCategory');
       }
-      if (variable_get('wordpress_migrate_tag_vocabulary', '')) {
+      if ($this->arguments['tag_vocabulary']) {
         $this->dependencies[] = $this->generateMachineName('WordPressTag');
       }
     }
@@ -139,9 +139,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // WordPress post type
-    $this->postType = $arguments['post_type'];
+    $this->postType = $this->arguments['post_type'];
     // Drupal content type (bundle)
-    $bundle = $arguments['bundle'];
+    $bundle = $this->arguments['bundle'];
 
     // post_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
@@ -172,12 +172,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
     if ($this->blog->getWxrVersion() != '1.0') {
       $uid_mapping->sourceMigration($this->generateMachineName('WordPressAuthor'));
     }
-    $text_format = variable_get('wordpress_migrate_text_format', 'filtered_html');
-    $this->addFieldMapping('body', 'content')
-         ->arguments($arguments);
+    $this->addFieldMapping('body', 'content');
     $this->addFieldMapping('body:summary', 'excerpt');
     $this->addFieldMapping('body:format')
-         ->defaultValue($text_format);
+         ->defaultValue($this->arguments['text_format']);
     if (module_exists('comment')) {
       $this->addFieldMapping('comment', 'comment_status')
            ->description('WP "open" mapped to Drupal COMMENT_NODE_OPEN');
@@ -188,7 +186,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
          ->description('Only applies to attachments');
     $this->addFieldMapping('sticky', 'is_sticky');
     if (module_exists('path')) {
-      switch (variable_get('wordpress_migrate_path_action', 1)) {
+      switch ($this->arguments['path_action']) {
         // Do not set path aliases
         case 0:
           $this->addFieldMapping('path');
@@ -223,7 +221,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     if (module_exists('redirect')) {
-      if (variable_get('wordpress_migrate_generate_redirects', 0)) {
+      if ($this->arguments['generate_redirects']) {
         $this->addFieldMapping('migrate_redirects', 'link');
       }
       else {
@@ -235,8 +233,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
     if (module_exists('taxonomy')) {
       // Map the source fields to the configured vocabularies
       $vocabs = array(
-        'tag' => variable_get('wordpress_migrate_tag_vocabulary', ''),
-        'category' => variable_get('wordpress_migrate_category_vocabulary', ''),
+        'tag' => $this->arguments['tag_vocabulary'],
+        'category' => $this->arguments['category_vocabulary'],
       );
 
       // Look through this content type's fields for term references
@@ -284,14 +282,14 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // If podcast migration is requested, add the mapping.
-    $podcast_field = variable_get('wordpress_migrate_podcast_field', '');
+    $podcast_field = $this->arguments['podcast_field'];
     if ($podcast_field) {
       $this->addFieldMapping($podcast_field, 'enclosure')
            ->callbacks(array($this, 'handleEnclosure'));
     }
 
     // If an attachment field is configured, document the mapping.
-    $attachment_field = variable_get('wordpress_migrate_attachment_field', '');
+    $attachment_field = $this->arguments['attachment_field'];
     if ($attachment_field) {
       $this->addFieldMapping($attachment_field)
            ->description('Attachment field populated later by attachment migration');
@@ -804,7 +802,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
 
     // If we have an attached podcast, replace [powerpress] in the body with
     // a link to the audio file.
-    $podcast_field = variable_get('wordpress_migrate_podcast_field', '');
+    $podcast_field = $this->arguments['podcast_field'];
     if ($podcast_field && isset($node->$podcast_field)) {
       $podcast_fid = $node->{$podcast_field}[LANGUAGE_NONE][0]['fid'];
       if ($podcast_fid) {
@@ -846,8 +844,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
  */
 class WordPressBlogEntry extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
+    $arguments['bundle'] = $arguments['post_type'];
     $arguments['post_type'] = 'post';
-    $arguments['bundle'] = variable_get('wordpress_migrate_post_type', '');
     parent::__construct($arguments);
   }
 }
@@ -857,8 +855,8 @@ class WordPressBlogEntry extends WordPressItemMigration {
  */
 class WordPressPage extends WordPressItemMigration {
   public function __construct(array $arguments = array()) {
+    $arguments['bundle'] = $arguments['page_type'];
     $arguments['post_type'] = 'page';
-    $arguments['bundle'] = variable_get('wordpress_migrate_page_type', '');
     parent::__construct($arguments);
     $this->dependencies += array($this->generateMachineName('WordPressBlogEntry'));
   }

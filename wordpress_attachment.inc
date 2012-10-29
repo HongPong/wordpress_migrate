@@ -167,7 +167,7 @@ class WordPressAttachment extends WordPressMigration {
     // Find the parent nid
     $row->post_parent = $this->handleSourceMigration($this->dependencies, $row->post_parent);
     // Populate the parent node's attachment field, if applicable
-    $attachment_field = variable_get('wordpress_migrate_attachment_field', '');
+    $attachment_field = $this->arguments['attachment_field'];
     if ($attachment_field && $row->post_parent && $file->fid) {
       if ($row->post_parent) {
         $parent_node = node_load($row->post_parent);
