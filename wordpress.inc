@@ -371,7 +371,7 @@ class WordPressBlog {
    * @return string
    */
   static public function readString(XMLReader $reader) {
-    if (method_exists('XMLReader', 'redString')) {
+    if (method_exists('XMLReader', 'readString')) {
       return $reader->readString();
     }
     else {
