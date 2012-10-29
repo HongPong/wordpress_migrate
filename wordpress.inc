@@ -360,6 +360,75 @@ class WordPressBlog {
     return $blogs;
   }
 
+  /**
+   * WXR files typically need some cleanup to be successfully parsed - perform
+   * that here.
+   *
+   * @param $sourcefile
+   *  The raw WXR file as uploaded.
+   * @param $destination
+   *  Filespec to which to write the cleaned-up WXR file.
+   */
+  static public function preprocessFile($sourcefile, $destination) {
+    // Cleanup some stuff in the process of moving the file to its final
+    // destination
+    $source_handle = fopen($sourcefile, 'r');
+    $dest_handle = fopen($destination, 'w');
+
+    // Create a translation table between HTML entities and XML entities; some WP
+    // blogs use HTML entities in XML...
+    $trans_entities_from_html_to_xml = array_map(
+      'utf8_encode',
+      array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS)))
+    );
+
+    // First, get the header (everything before the <channel> element) to
+    // rewrite the namespaces
+    $header = '';
+    while ($line = fgets($source_handle)) {
+      $header .= $line;
+      if (strpos($line, '<channel>') !== FALSE) {
+        break;
+      }
+    }
+
+    // The excerpt namespace is sometimes omitted, stuff it in if necessary
+    $excerpt_ns = 'xmlns:excerpt="http://wordpress.org/export/1.0/excerpt/"';
+    $excerpt_signature = 'xmlns:excerpt="http://wordpress.org/export/';
+    $content_ns = 'xmlns:content="http://purl.org/rss/1.0/modules/content/"';
+    if (!strpos($header, $excerpt_signature)) {
+      $header = str_replace($content_ns, $excerpt_ns . "\n\t" . $content_ns, $header);
+    }
+    // Add the Atom namespace, in case it's referenced
+    $atom_ns = 'xmlns:atom="http://www.w3.org/2005/Atom"';
+    $header = str_replace($content_ns, $atom_ns . "\n\t" . $content_ns, $header);
+
+    // What the hell, throw in iTunes too
+    $itunes_ns = 'xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"';
+    $header = str_replace($content_ns, $itunes_ns . "\n\t" . $content_ns, $header);
+
+    // Replace HTML entities with XML entities
+    $header = strtr($header, $trans_entities_from_html_to_xml);
+    fputs($dest_handle, $header);
+
+    // Now, do some line-by-line fix-ups fix unencoded ampersands and bogus characters on a line-by-line basis
+    while ($line = fgets($source_handle)) {
+      // Handle unencoded ampersands
+      $line = preg_replace('/&(?![\w\d#]+;)/', '&amp;', $line);
+      // Remove control characters (the regex removes the newline, so tack it back on)
+      $line = preg_replace('~\p{C}+~u', '', $line) . "\n";
+      // WordPress export doesn't properly format embedded CDATA sections - our
+      // quick-and-dirty fix is to remove the terminator of the embedded section
+      $line = preg_replace('|// \]\]|', '', $line);
+      // Replace HTML entities with XML entities
+      $line = strtr($line, $trans_entities_from_html_to_xml);
+      fputs($dest_handle, $line);
+    }
+
+    fclose($dest_handle);
+    fclose($source_handle);
+    unlink($sourcefile);
+  }
 
   /**
    * With earlier versions of libxml, XMLReader has no readString() method -
@@ -371,7 +440,7 @@ class WordPressBlog {
    * @return string
    */
   static public function readString(XMLReader $reader) {
-    if (method_exists('XMLReader', 'redString')) {
+    if (method_exists('XMLReader', 'readString')) {
       return $reader->readString();
     }
     else {
