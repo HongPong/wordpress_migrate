@@ -538,6 +538,7 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
 
   try {
     $blog = wordpress_migrate_blog($destination, $arguments);
+    $blog->register();
   }
   catch (Exception $e) {
     form_set_error('wxr_file', $e->getMessage());
@@ -646,9 +647,6 @@ function wordpress_migrate_vocabularies($node_type) {
   return $term_fields;
 }
 
-function wordpress_migrate_post_type_change($form, $form_state) {
-  return $form['settings'];
-}
 
 /**
  * Menu callback: Returns a page for reviewing WordPress migrations.

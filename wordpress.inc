@@ -45,6 +45,7 @@ abstract class WordPressMigration extends DynamicMigration {
    * Construct the machine name from the blog title
    */
   protected function generateMachineName($class_name = NULL) {
+    return $this->arguments['machine_name'];
     if (!$class_name) {
       $class_name = get_class($this);
     }
@@ -185,17 +186,14 @@ class WordPressBlog {
     return $this->uid;
   }
 
+  protected $arguments = array();
+
   protected $migrations = array();
 
   public function __construct($filename, $arguments = array()) {
-    if (!empty($arguments)) {
-      $register = TRUE;
-    }
-    else {
-      $register = FALSE;
-    }
     $this->filename = $filename;
     $arguments['filename'] = $filename;
+    $this->arguments = $arguments;
 
     // Make sure the upload directory is properly protected
     file_create_htaccess('wordpress://', TRUE);
@@ -275,30 +273,30 @@ class WordPressBlog {
                     ->condition('blog_url', $this->blog_url)
                     ->execute()
                     ->fetchField();
+  }
 
-    if ($register) {
-      foreach ($this->migrationClasses() as $class) {
-        // Skip authors with WXR 1.0
-        if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
-          continue;
-        }
-        // Skip comments if comment module is not enabled
-        if ($class == 'WordPressComment' && !module_exists('comment')) {
-          continue;
-        }
-        // Skip tags/categories if taxonomy is not enabled
-        if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
-          if (!module_exists('taxonomy')) {
-            continue;
-          }
-        }
-        // Skip tags/categories if there's no destination vocabulary
-        if ($class == 'WordPressTag' && !$arguments['tag_vocabulary'] ||
-            $class == 'WordPressCategory' && !$arguments['category_vocabulary']) {
-          continue;
-        }
-        Migration::registerMigration($class, $this->machineName($class), $arguments);
+  public function registerClasses() {
+    foreach ($this->migrationClasses() as $class) {
+      // Skip authors with WXR 1.0
+      if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
+        continue;
       }
+      // Skip comments if comment module is not enabled
+      if ($class == 'WordPressComment' && !module_exists('comment')) {
+        continue;
+      }
+      // Skip tags/categories if taxonomy is not enabled
+      if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
+        if (!module_exists('taxonomy')) {
+          continue;
+        }
+      }
+      // Skip tags/categories if there's no destination vocabulary
+      if ($class == 'WordPressTag' && !$this->arguments['tag_vocabulary'] ||
+          $class == 'WordPressCategory' && !$this->arguments['category_vocabulary']) {
+        continue;
+      }
+      Migration::registerMigration($class, $this->machineName($class), $this->arguments);
     }
   }
 

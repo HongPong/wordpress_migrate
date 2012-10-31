@@ -124,7 +124,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
    */
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
-
+/*
     if (module_exists('taxonomy')) {
       if ($this->arguments['category_vocabulary']) {
         $this->dependencies[] = $this->generateMachineName('WordPressCategory');
@@ -133,7 +133,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
         $this->dependencies[] = $this->generateMachineName('WordPressTag');
       }
     }
-
+*/
     if ($this->blog->getWxrVersion() != '1.0') {
       $this->dependencies[] = $this->generateMachineName('WordPressAuthor');
     }
@@ -858,7 +858,7 @@ class WordPressPage extends WordPressItemMigration {
     $arguments['bundle'] = $arguments['page_type'];
     $arguments['post_type'] = 'page';
     parent::__construct($arguments);
-    $this->dependencies += array($this->generateMachineName('WordPressBlogEntry'));
+//    $this->dependencies += array($this->generateMachineName('WordPressBlogEntry'));
   }
 
   /**

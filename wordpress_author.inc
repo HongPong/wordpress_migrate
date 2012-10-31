@@ -44,7 +44,7 @@ class WordPressAuthor extends WordPressMigration {
     );
     $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/wp:author',
       'wp:author_login', $fields, $source_options);
-    $this->destination = new WordPressAuthorDestination();
+    $this->destination = new WordPressAuthorDestination($arguments);
 
     // The basic mappings
     $this->addFieldMapping('name', 'author_login')
