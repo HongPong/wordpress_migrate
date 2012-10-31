@@ -12,17 +12,35 @@ function wordpress_migrate_migrate_api() {
 }
 
 class WordPressMigrateWizard extends MigrateUIWizard {
+  protected $filename;
+
+  /**
+   * Whether to perform author migration.
+   *
+   * @var bool
+   */
+  protected $authorMigration = TRUE;
+
+  /**
+   * User ID of the account to assign as author of any orphaned content.
+   *
+   * @var int
+   */
+  protected $defaultAuthorUid = 1;
+
+  protected $blogPostType;
+  protected $pageType;
+
+  protected $contentValues = array();
+
   /**
    * Lay out the basic steps of the wizard.
    */
   public function __construct() {
     parent::__construct();
     $this->addStep(t('Overview'), 'overviewForm');
-    $this->addStep(t('Credentials'), 'sourceDataForm');
-    return;
-    $this->addStep(t('Users'), 'userForm');
-    $this->addStep(t('Taxonomy'), 'taxonomyForm');
-    $this->addStep(t('Content Types'), 'contentTypeForm');
+    $this->addStep(t('Upload blog'), 'sourceDataForm');
+    $this->addStep(t('Select content to import'), 'contentSelectForm');
     $this->addStep(t('Review'), 'reviewForm');
   }
 
@@ -41,7 +59,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    *
    * @return array
    */
-  protected function overviewForm() {
+  protected function overviewForm(&$form_state) {
     $form['overview'] = array(
       '#prefix' => '<p>',
       '#markup' => t('This wizard supports importing into your Drupal site from ' .
@@ -90,7 +108,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   /**
    * Second step - find out how to get the source data.
    */
-  public function sourceDataForm() {
+  public function sourceDataForm(&$form_state) {
     // Make sure we have a private directory configured
     if (!variable_get('wordpress_migrate_private_path', '') &&
         !variable_get('file_private_path', '')) {
@@ -128,8 +146,8 @@ class WordPressMigrateWizard extends MigrateUIWizard {
 
     $form['source']['source_select'] = array(
       '#type' => 'radios',
-      '#options' => array(1 => t('Import from a URL'), 0 => t('Import from a file')),
-      '#default_value' => 1,
+      '#options' => array(0 => t('Import from a file'), 1 => t('Import from a URL')),
+      '#default_value' => 0,
       '#attributes' => array('class' => array('container-inline')),
     );
 
@@ -183,87 +201,155 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   }
 
   /**
-   * Preprocess the uploaded WXR file.
+   * Fetch and preprocess the uploaded WXR file.
    *
    * @param array $form_state
    */
   protected function sourceDataFormValidate(&$form_state) {
+    if ($_FILES['files']['error']['wxr_file'] && empty($form_state['values']['domain'])) {
+      form_set_error('wxr_file', t('The file could not be uploaded, most likely
+        because the file size exceeds the configured limit of !filesize',
+        array('!filesize' => format_size(file_upload_max_size()))));
+      return;
+    }
+    $directory = 'wordpress://';
+    if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+      form_set_error('wxr_file',
+        t('Could not prepare directory %directory - make sure your Drupal files directory exists and is writable',
+          array('%directory' => $directory)));
+      return;
+    }
+
+    $tmpfile = $_FILES['files']['tmp_name']['wxr_file'];
+    // Note that for either path we take here, $tmpfile will be the name of
+    // the uploaded/retrieved file, and $destination will be the name of the
+    // desired final destination.
+    if ($tmpfile) {
+      // Handle uploaded file
+      $filename = $_FILES['files']['name']['wxr_file'];
+      $this->filename = $directory . str_replace(' ', '%20', $filename);
+    }
+    else {
+      // Export the WordPress blog directly
+      $domain = preg_replace('/http[s]?\:\/\//', '', $form_state['values']['domain']);
+
+      // Login to the WordPress site
+      $wordpress_version = 3;
+      $login_url = 'http://' . $domain . '/wp-login.php';
+      if (!($handle = fopen($login_url, 'r'))) {
+        $wordpress_version = 2;
+        $login_url = 'http://' . $domain . '/blog/wp-login.php';
+        $handle = fopen($login_url, 'r');
+      }
+      if (!$handle) {
+        form_set_error('credentials][domain', t('Could not find login page for !domain',
+            array('!domain' => $domain)));
+      }
+      fclose($handle);
+
+      // Use a temp file for cookies.
+      $cookie_file = file_directory_temp() . '/wpimport-cookie.txt';
+
+      $username = $form_state['values']['username'];
+      $password = $form_state['values']['password'];
+      $ch = curl_init();
+      curl_setopt($ch, CURLOPT_URL, $login_url);
+      curl_setopt($ch, CURLOPT_HEADER, 1);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+      curl_setopt($ch, CURLOPT_USERAGENT, 'Importer');
+      curl_setopt($ch, CURLOPT_COOKIESESSION, 1);
+      curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie_file);
+      curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie_file);
+      curl_setopt($ch, CURLOPT_POST, 1);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, "log=$username&pwd=$password&testcookie=1");
+      $login_result = curl_exec($ch);
+      curl_close($ch);
+
+      // Login successful? Grab the export
+      if ((strpos($login_result, 'Set-Cookie: wordpress_logged_in')) || (strpos($login_result, 'Set-Cookie: wordpressuser_'))) {
+        $filename = $domain . '.xml';
+        // The "domain" may have included a subdirectory - flatten things out
+        $this->filename = $directory . '/' . str_replace('/', '_', $filename);
+        $tmpfile = tempnam(sys_get_temp_dir(), 'wp_');
+        $export_url = 'http://' . $domain;
+        if ($wordpress_version == 2) {
+          $export_url .= '/blog';
+        }
+        $export_url .= '/wp-admin/export.php?mm_start=all&mm_end=all&author=all' .
+          '&export_taxonomy[category]=0&export_taxonomy[post_tag]=0&export_post_type=all' .
+          '&export_post_status=all&download=true';
+        $fp = fopen($tmpfile, 'w');
+        if ($fp) {
+          $ch = curl_init();
+          curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+          curl_setopt($ch, CURLOPT_FILE, $fp);
+          curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie_file);
+          curl_setopt($ch, CURLOPT_URL, $export_url);
+          curl_exec($ch);
+          curl_close($ch);
+          fclose($fp);
+          unlink($cookie_file);
+        }
+        else {
+          form_set_error('credentials][domain', t('Could not create destination file !filename',
+            array('!filename' => $tmpfile)));
+          return;
+        }
+      }
+      else {
+        form_set_error('credentials][domain', t('Could not login at !login_url',
+          array('!login_url' => $login_url)));
+        return;
+      }
+    }
+
+    WordPressBlog::preprocessFile($tmpfile, $this->filename);
+
+    // Only include the author step if we have author data (which was introduced
+    // in WXR 1.1)
+    $blog = wordpress_migrate_blog($this->filename);
+    if ($blog->getWxrVersion() != '1.0') {
+      $this->addStep(t('Authors'), 'authorForm', $this->currentStep);
+    }
+    else {
+      $this->authorMigration = FALSE;
+      global $user;
+      $this->defaultAuthorUid = $user->uid;
+    }
   }
 
   /**
    * Present information and options around user migration.
    */
-  protected function userForm() {
+  protected function authorForm(&$form_state) {
     $form['overview'] = array(
       '#prefix' => '<p>',
-      '#markup' => t('User accounts other than the admin account (user ID 1)
-         may be imported to this site.'),
+      '#markup' => t('User accounts for authors in the WordPress blog may be
+        imported to Drupal. Note that their passwords are not migrated - they
+        must be reset after import.'),
       '#suffix' => '</p>',
     );
-    $form['#tree'] = TRUE;
-    if (!isset($this->userCount)) {
-      $this->userCount = $this->connection()->select('users', 'u')
-                  ->condition('uid', 1, '>')
-                  ->countQuery()
-                  ->execute()
-                  ->fetchField();
-    }
-    $form['users'] = array(
-      '#prefix' => '<div>',
-      '#markup' => t('Number of users available to be migrated from your Drupal !version site: !count',
-                     array('!version' => $this->sourceVersion, '!count' => $this->userCount)),
-      '#postfix' => '</div>',
-    );
+
     $form['do_migration'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Perform import of users'),
-      '#default_value' => TRUE,
+      '#type' => 'radios',
+      '#title' => t('Create new users for existing WordPress content authors?'),
+      '#options' => array(1 => t('Yes'), 0 => t('No')),
+      '#default_value' => 1,
     );
 
-    $form['todo'] = array(
-      '#prefix' => '<div>',
-      '#markup' => t('TODO: Option to import roles, and map source roles to D7 roles'),
-      '#postfix' => '</div>',
+    global $user;
+    $form['default_author'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Default content author:'),
+      '#default_value' => $user->name,
+      '#autocomplete_path' => 'user/autocomplete',
+      '#states' => array(
+        'invisible' => array(
+          'input[name="do_migration"]' => array('value' => 1),
+        ),
+      ),
     );
-    return $form;
 
-    $result = $this->connection()->select('role', 'r')
-              ->fields('r', array('rid', 'name'))
-              ->condition('name', array('anonymous user', 'authenticated user'), 'NOT IN')
-              ->execute();
-    $candidates = array();
-    foreach ($result as $row) {
-      $d7_rid = db_select('role', 'r')
-                ->fields('r', array('rid'))
-                ->condition('name', $row->name)
-                ->execute()
-                ->fetchField();
-      if (!$d7_rid) {
-        $candidates[$row->rid] = $row->name;
-      }
-    }
-    if (!empty($candidates)) {
-      // Description
-      $form['role'] = array(
-        '#type' => 'fieldset',
-        '#description' => t('Select each user role you want created in the destination site:'),
-      );
-      foreach ($candidates as $rid => $name) {
-        $form['role'][$rid] = array(
-          '#type' => 'checkbox',
-          '#title' => $name,
-          '#default_value' => 1,
-        );
-      }
-    }
-    else {
-      $form['role'] = array(
-        '#prefix' => '<div>',
-        '#markup' =>t('There are no user roles in the source site that are not already
-          in the destination site'),
-        '#suffix' => '</div>',
-      );
-    }
     return $form;
   }
 
@@ -272,193 +358,222 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    *
    * @param array $form_state
    */
-  protected function userFormValidate(&$form_state) {
+  protected function authorFormValidate(&$form_state) {
     if ($form_state['values']['do_migration']) {
-      $arguments = array(
-        'description' => t('Migration of users from Drupal @version',
-                 array('@version' => $this->sourceVersion)),
-      );
-      $this->addMigration($this->groupName . 'User',
-        "DrupalUser{$this->sourceVersion}Migration", $arguments);
-      $this->userMigration = TRUE;
+      $this->authorMigration = TRUE;
     }
     else {
-      $this->userMigration = FALSE;
+      $this->authorMigration = FALSE;
     }
+    $account = user_load_by_name($form_state['values']['default_author']);
+    $this->defaultAuthorUid = $account->uid;
   }
 
-  /**
-   * Choose what source vocabularies to import into what destination vocabularies.
-   */
-  protected function taxonomyForm() {
-    if ($this->connection()->schema()->tableExists('taxonomy_vocabulary')) {
-      $vocab_table = 'taxonomy_vocabulary';
-      $term_table = 'taxonomy_term_data';
+  protected function contentSelectForm(&$form_state) {
+    // Get destination node type(s)
+    $node_types = node_type_get_types();
+    $options = array('' => t('Do not import'));
+    foreach ($node_types as $node_type => $info) {
+      $options[$node_type] = $info->name;
     }
-    elseif ($this->connection()->schema()->tableExists('vocabulary')) {
-      $vocab_table = 'vocabulary';
-      $term_table = 'term_data';
+
+    if (isset($options['blog'])) {
+      $default = 'blog';
     }
     else {
-      $vocab_table = '';
-      $term_table = '';
-      $vocab_count = 0;
+      $default = '';
     }
 
-    if ($vocab_table) {
-      $vocab_count = $this->connection()->select($vocab_table, 'v')
-                     ->fields('v', array('vid'))
-                     ->countQuery()
-                     ->execute()
-                     ->fetchField();
-    }
-    if (!$vocab_count) {
-      $form['description'] = array(
-        '#prefix' => '<div>',
-        '#markup' => t('There is no vocabulary data to be migrated from the source database.'),
-        '#suffix' => '</div>',
-      );
-      return $form;
-    }
-    $form['#tree'] = TRUE;
-    $form['description'] = array(
-      '#prefix' => '<div>',
-      '#markup' => t('For each vocabulary on the source site, choose the destination
-        site vocabulary to import its terms. You may also choose not to import a given
-        vocabulary, or automatically create a new vocabulary of the same name if
-        one does not already exist.'),
-      '#suffix' => '</div>',
+    $form['blog_post_type'] = array(
+      '#type' => 'select',
+      '#title' => t('Import WordPress blog posts as'),
+      '#default_value' => $default,
+      '#options' => $options,
+      '#description' => t(''),
     );
 
-    if (empty($this->termCounts)) {
-      $get_term_counts = TRUE;
+    if (isset($options['page'])) {
+      $default = 'page';
     }
     else {
-      $get_term_counts = FALSE;
+      $default = '';
     }
-    $base_options = array(
-      -1 => t('--Do not import--'),
-      0 => t('--Create vocabulary--'),
+
+    $form['page_type'] = array(
+      '#type' => 'select',
+      '#title' => t('Import WordPress pages as'),
+      '#default_value' => $default,
+      '#options' => $options,
+      '#description' => t(''),
     );
-    $vocab_options = array();
-    $local_vocabs = taxonomy_get_vocabularies();
-    foreach ($local_vocabs as $vocab) {
-      $vocab_options[$vocab->machine_name] = $vocab->name;
-    }
-    $result = $this->connection()->select($vocab_table, 'v')
-              ->fields('v', array('vid', 'name'))
-              ->execute();
-    foreach ($result as $vocab) {
-      $options = $base_options + $vocab_options;
-      // If we have a match on vocabulary name, default the mapping to that match
-      // and remove the option to create a new vocabulary of that name.
-      if ($vid = array_search($vocab->name, $vocab_options)) {
-        $default_value = $vid;
-        unset($options[0]);
-      }
-      else {
-        $default_value = -1;
-      }
-
-      if ($get_term_counts) {
-        $this->termCounts[$vocab->vid] = $this->connection()->select($term_table, 't')
-                      ->condition('vid', $vocab->vid)
-                      ->countQuery()
-                      ->execute()
-                      ->fetchField();
-      }
-      $title = t('@name: @count', array('@name' => $vocab->name,
-        '@count' => format_plural($this->termCounts[$vocab->vid], '1 term', '@count terms')));
-      $form['vocab'][$vocab->vid] = array(
-        '#type' => 'select',
-        '#title' => $title,
-        '#options' => $options,
-        '#default_value' => $default_value,
-      );
-    }
-
     return $form;
   }
 
-  /**
-   * Save the selected vocabulary mappings, as an array keyed by source vid and
-   * containing the destination machine_name (bundle).
-   */
-  protected function taxonomyFormValidate(&$form_state) {
-    $this->vocabularyMappings = $form_state['values']['vocab'];
+  protected function contentSelectFormValidate(&$form_state) {
+    $this->contentValues['page']['page_type'] = $form_state['values']['page_type'];
+    if ($this->contentValues['page']['page_type']) {
+      $this->addStep(t('Pages'), 'contentPageForm', $this->currentStep);
+    }
+    $this->contentValues['blog']['post_type'] = $form_state['values']['blog_post_type'];
+    if ($this->contentValues['blog']['post_type']) {
+      $this->addStep(t('Blog posts'), 'contentBlogPostForm', $this->currentStep);
+    }
+  }
+
+  protected function contentBlogPostForm(&$form_state) {
+    return $this->contentForm($form_state, $this->contentValues['blog']['post_type']);
+  }
+
+  protected function contentPageForm(&$form_state) {
+    return $this->contentForm($form_state, $this->contentValues['page']['page_type']);
   }
 
   /**
    * Form for mapping source content (node) types to destination types.
    */
-  protected function contentTypeForm() {
-    $type_count = $this->connection()->select('node_type', 't')
-                    ->fields('t', array('type', 'name'))
-                    ->countQuery()
-                    ->execute()
-                    ->fetchField();
-    if (!$type_count) {
-      $form['description'] = array(
-        '#prefix' => '<div>',
-        '#markup' => t('There is no node data to be migrated from the source database.'),
-        '#suffix' => '</div>',
-      );
-      return $form;
-    }
-    $form['#tree'] = TRUE;
-    $form['description'] = array(
-      '#prefix' => '<div>',
-      '#markup' => t('For each content type on the source site, choose the destination
-        site content type to import its content. You may also choose not to import a given
-        content type, or automatically create a new content type of the same name if
-        one does not already exist.'),
-      '#suffix' => '</div>',
-    );
+  protected function contentForm(&$form_state, $selected_post_type) {
+    $form = array();
 
-    if (empty($this->nodeCounts)) {
-      $get_node_counts = TRUE;
+    $vocabs = $this->vocabularies($selected_post_type);
+    if (!empty($vocabs)) {
+      $options = array('' => t('Do not import'));
+      foreach ($vocabs as $machine_name => $name) {
+        $options[$machine_name] = $name;
+      }
+
+      // If a vocabulary called "tags" exists on the site, default to it.
+      $tags_default = (isset($options['tags']) ? 'tags' : '');
+      $form['tag_vocabulary'] = array(
+        '#type' => 'select',
+        '#title' => t('Convert WordPress tags to the vocabulary'),
+        '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', $tags_default),
+        '#options' => $options,
+      );
+
+      $form['category_vocabulary'] = array(
+        '#type' => 'select',
+        '#title' => t('Convert WordPress categories to the vocabulary'),
+        '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
+        '#options' => $options,
+      );
+    }
+
+    $file_fields = array('' => t('Do not import'));
+    $file_fields += $this->fileFields($selected_post_type, 'file')
+      + $this->fileFields($selected_post_type, 'media');
+    $file_image_fields = $file_fields +
+                         $this->fileFields($selected_post_type, 'image');
+    if (count($file_image_fields) > 1) {
+      $form['attachment_field'] = array(
+        '#type' => 'select',
+        '#title' => t('Field for attachments (including images)'),
+        '#default_value' => '',
+        '#options' => $file_image_fields,
+        '#description' => t(''),
+        '#states' => array(
+          'visible' => array(
+            'input[name="destination_type"]' => array('value' => 'blog'),
+          ),
+        ),
+
+      );
     }
     else {
-      $get_node_counts = FALSE;
+      $form['attachment_field'] = array(
+          '#type' => 'value',
+          '#value' => '',
+        );
     }
-    $base_options = array(
-      '-1' => t('--Do not import--'),
-      '0' => t('--Create content type--'),
-    );
-    $node_options = array();
-    $local_types = node_type_get_types();
-    foreach ($local_types as $type => $info) {
-      $node_options[$type] = $info->name;
-    }
-    $result = $this->connection()->select('node_type', 't')
-              ->fields('t', array('type', 'name'))
-              ->execute();
-    foreach ($result as $row) {
-      $options = $base_options + $node_options;
-      // If we have a match on type name, default the mapping to that match
-      // and remove the option to create a new type of that name.
-      if (isset($node_options[$row->type])) {
-        $default_value = $row->type;
-        unset($options['0']);
-      }
-      else {
-        $default_value = '-1';
-      }
-      if ($get_node_counts) {
-        $this->nodeCounts[$row->type] = $this->connection()->select('node', 'n')
-                      ->condition('type', $row->type)
-                      ->countQuery()
-                      ->execute()
-                      ->fetchField();
-      }
-      $title = t('@name: @count', array('@name' => $row->name,
-        '@count' => format_plural($this->nodeCounts[$row->type], '1 node', '@count nodes')));
-      $form['type'][$row->type] = array(
+    if (count($file_fields) > 1) {
+      $form['podcast_field'] = array(
         '#type' => 'select',
-        '#title' => $title,
+        '#title' => t('Field for Blubrry PowerPress podcasts'),
+        '#default_value' => '',
+        '#options' => $file_fields,
+        '#description' => t(''),
+      );
+    }
+    else {
+      $form['podcast_field'] = array(
+        '#type' => 'value',
+        '#value' => '',
+      );
+    }
+
+    $options = array();
+    foreach (filter_formats() as $format_id => $format) {
+      $options[$format_id] = $format->name;
+    }
+    $form['text_format'] = array(
+      '#type' => 'select',
+      '#title' => t('Default format for text fields'),
+      '#default_value' => 'filtered_html',
+      '#options' => $options,
+      '#description' => t(''),
+    );
+    $form['text_format_comment'] = array(
+      '#type' => 'select',
+      '#title' => t('Default format for comment text fields'),
+      '#default_value' => 'filtered_html',
+      '#options' => $options,
+      '#description' => t(''),
+    );
+
+    if (module_exists('path')) {
+      $options = array(
+        0 => t('Do not set path aliases'),
+        1 => t('Set path aliases to their original WordPress values'),
+      );
+      $attributes = array();
+      $default_value = 1;
+      if (module_exists('pathauto')) {
+        $options[2] = t('Have pathauto generate new aliases');
+        if (!module_exists('migrate_extras')) {
+          $form['pathauto_message'] = array(
+            '#prefix' => '<p>',
+            '#markup' => t('<strong>To be able to change the <em>Path alias handling</em>, ' .
+              'you must have the <a href="@extras">Migrate Extras module</a> installed and enabled.</strong>',
+                 array('@extras' => url('http://drupal.org/project/migrate_extras'))),
+            '#suffix' => '</p>',
+          );
+          $attributes['disabled'] = TRUE;
+          $default_value = 2;
+        }
+      }
+      $form['path_action'] = array(
+        '#type' => 'radios',
+        '#title' => t('Path alias handling'),
+        '#description' => t('Select how path aliases for imported nodes will be set.'),
         '#options' => $options,
         '#default_value' => $default_value,
+        '#attributes' => $attributes,
       );
+    }
+
+    if (module_exists('redirect')) {
+      if (class_exists('MigrateRedirectEntityHandler')) {
+        $form['generate_redirects'] = array(
+          '#type' => 'checkbox',
+          '#title' => t('Generate redirects'),
+          '#description' => t('If this box is checked, redirects will be set up from
+            the former WordPress blog URLs to the new URLs on your Drupal site'),
+          '#default_value' => FALSE,
+        );
+      }
+      else {
+        $form['generate_redirects'] = array(
+          '#type' => 'value',
+          '#value' => 0,
+        );
+        $form['generate_redirects_info'] = array(
+          '#prefix' => '<p>',
+          '#markup' => t('You have the Redirect module enabled. To be able to '
+            . 'generate redirects for your imported WordPress content, you need '
+            . 'to <a href="@link">patch Redirect</a>.',
+            array('@link' => 'http://drupal.org/node/1116408#comment-6040494')),
+          '#suffix' => '</p>',
+        );
+      }
     }
 
     return $form;
@@ -468,108 +583,23 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    * Save the selected type mappings, as an array keyed by source type and
    * containing the destination type (bundle).
    */
-  protected function contentTypeFormValidate(&$form_state) {
-    // Start with ourselves
-    /* @todo: Skip field mappings for now
-    $after = $this->currentStep;
-    foreach ($form_state['values']['type'] as $source_type => $dest_type) {
-      // For each content type to be migrated, add a step to the wizard.
-      if ($dest_type != '0' && $dest_type != '-1') {
-        $context = array('source_type' => $source_type, 'dest_type' => $dest_type);
-        $after = $this->addStep(t('Field mappings for @type',
-          array('@type' => $source_type)), 'fieldsForm', $after, $context);
-      }
-    }*/
-    $this->typeMappings = $form_state['values']['type'];
+  protected function contentBlogPostFormValidate(&$form_state) {
+    $this->contentValues['blog'] += $form_state['values'];
   }
 
   /**
-   * Form for mapping fields between two specific content types.
+   * Save the selected type mappings, as an array keyed by source type and
+   * containing the destination type (bundle).
    */
-  function fieldsForm() {
-    $type_mapping = $this->currentStep->getContext();
-    $source_type = $type_mapping['source_type'];
-    $dest_type = $type_mapping['dest_type'];
-
-    // Temporarily register a migration, as a lazy way to get the available fields.
-    $source_class = "DrupalNode{$this->sourceVersion}Migration";
-    $temp_machine_name = md5('temp');
-    $arguments = array(
-      'source_connection' => $this->groupName . '_legacy',
-      'source_database' => $this->database,
-      'source_version' => $this->sourceVersion,
-      'class_name' => $source_class,
-      'description' => t('Temp migration to fetch fields'),
-      'machine_name' => $temp_machine_name,
-      'source_type' => $source_type,
-      'destination_type' => $dest_type,
-    );
-    Migration::registerMigration($source_class, $temp_machine_name, $arguments);
-    $migration = Migration::getInstance($temp_machine_name);
-    $source_fields = $migration->getSource()->fields();
-    $dest_fields = $migration->getDestination()->fields();
-    Migration::deregisterMigration($temp_machine_name);
-
-    $form['#tree'] = TRUE;
-    $form['description'] = array(
-      '#prefix' => '<div>',
-      '#markup' => t('For each field in the source type %source, choose the destination
-        site field from the destination type %destination to import its content.
-        You may also choose not to import a given field, or automatically create
-        the field with the same name if it does not already exist.',
-        array('%source' => $source_type, '%destination' => $dest_type)),
-      '#suffix' => '</div>',
-    );
-
-    $base_options = array(
-      '-1' => t('--Do not import--'),
-      '0' => t('--Create field--'),
-    );
-    $field_options = array();
-    foreach ($dest_fields as $name => $description) {
-      $field_options[$name] = strip_tags($description);
-    }
-    foreach ($source_fields as $name => $description) {
-      if (is_array($description)) {
-        $description = reset($description);
-      }
-      $options = $base_options + $field_options;
-      // If we have a match on field name, default the mapping to that match
-      // and remove the option to create a new field of that name.
-      if (isset($field_options[$name])) {
-        $default_value = $name;
-        unset($options['0']);
-      }
-      else {
-        $default_value = '-1';
-      }
-      $form['field'][$name] = array(
-        '#type' => 'select',
-        '#title' => $description,
-        '#options' => $options,
-        '#default_value' => $default_value,
-      );
-    }
-
-    return $form;
-  }
-
-  /**
-   * Save away the chosen field mappings.
-   *
-   * @param array $form_state
-   */
-  protected function fieldsFormValidate(&$form_state) {
-    $type_mapping = $this->currentStep->getContext();
-    $source_type = $type_mapping['source_type'];
-    $this->fieldMappings[$source_type] = $form_state['values']['field'];
+  protected function contentPageFormValidate(&$form_state) {
+    $this->contentValues['page'] += $form_state['values'];
   }
 
   /**
    * Show the user what they've chosen to migrate, and give them one last chance
    * to say yay or nay.
    */
-  protected function reviewForm() {
+  protected function reviewForm(&$form_state) {
     $message = t('<p>Please review your migration configuration. When you submit this
       form, migration processes will be created and you will be left at the
       migration dashboard.</p>');
@@ -579,80 +609,37 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       '#markup' => $message,
       '#suffix' => '</div>',
     );
-
     $migrations = '';
-    if ($this->userMigration) {
-      $admin_name = $this->connection()->select('users', 'u')
-                    ->fields('u', array('name'))
-                    ->condition('uid', 1)
-                    ->execute()
-                    ->fetchField();
-      $migrations .= t('<li>%count user accounts (omitting the administrative account ' .
-        '%admin) will be imported.</li>',
-        array('%admin' => $admin_name, '%count' => $this->userCount));
+    $account = user_load($this->defaultAuthorUid);
+    if ($this->authorMigration) {
+      $migrations .= t('<li>WordPress authors will be imported.</li>');
     }
     else {
-      $migrations .= t('<li>User accounts will not be migrated</li>');
+      $migrations .= t('<li>WordPress authors will not be imported. The default ' .
+        'author for any content whose author can\'t be identified will be %default.</li>',
+                       array('%default' => $account->name));
     }
+    $arguments = array(
+      'default_author_uid' => $this->defaultAuthorUid,
+      'import_users' => $this->authorMigration,
+    );
+    $this->addMigration('Author', 'WordPressAuthor', $arguments);
 
-    if ($this->connection()->schema()->tableExists('taxonomy_vocabulary')) {
-      $vocab_table = 'taxonomy_vocabulary';
+    if ($this->contentValues['blog']['post_type']) {
+      $migrations .= t('<li>WordPress blog posts will be imported to %type nodes.</li>',
+        array('%type' => $this->contentValues['blog']['post_type']));
+      $this->addMigration('BlogPost', 'WordPressBlogEntry', $this->contentValues['blog']);
     }
-    elseif ($this->connection()->schema()->tableExists('vocabulary')) {
-      $vocab_table = 'vocabulary';
+    else {
+      $migrations .= t('<li>WordPress blog posts will not be imported.</li>');
     }
-
-    foreach ($this->vocabularyMappings as $source_vid => $destination_name) {
-      $source_vocabulary = $this->connection()->select($vocab_table, 'v')
-                           ->fields('v', array('name'))
-                           ->condition('vid', $source_vid)
-                           ->execute()
-                           ->fetchField();
-      $count = format_plural($this->termCounts[$source_vid], '1 term', '@count terms');
-      if ($destination_name == '-1') {
-        $migrations .= t('<li>The %vocabulary vocabulary will not be imported.</li>',
-          array('%vocabulary' => $source_vocabulary));
-      }
-      elseif ($destination_name == '0') {
-        $migrations .= t('<li>The %vocabulary vocabulary will be created with %count.</li>',
-          array('%vocabulary' => $source_vocabulary, '%count' => $count));
-      }
-      else {
-        $destination_vocabulary = db_select('taxonomy_vocabulary', 'v')
-                                  ->fields('v', array('name'))
-                                  ->condition('machine_name', $destination_name)
-                                  ->execute()
-                                  ->fetchField();
-        $migrations .= t('<li>%count from %source will be imported into the %destination vocabulary.</li>',
-          array('%source' => $source_vocabulary, '%destination' => $destination_vocabulary,
-            '%count' => $count));
-      }
+    if ($this->contentValues['page']['page_type']) {
+      $migrations .= t('<li>WordPress pages will be imported to %type nodes.</li>',
+        array('%type' => $this->contentValues['page']['page_type']));
+      $this->addMigration('Page', 'WordPressPage', $this->contentValues['page']);
     }
-
-    foreach ($this->typeMappings as $source_type => $destination_type) {
-      $source_name = $this->connection()->select('node_type', 'nt')
-                           ->fields('nt', array('name'))
-                           ->condition('type', $source_type)
-                           ->execute()
-                           ->fetchField();
-      $count = format_plural($this->nodeCounts[$source_type], '1 node', '@count nodes');
-      if ($destination_type == '-1') {
-        $migrations .= t('<li>The %type content type will not be imported.</li>',
-          array('%type' => $source_name));
-      }
-      elseif ($destination_type == '0') {
-        $migrations .= t('<li>The %type content type will be created with %count.</li>',
-          array('%type' => $source_name, '%count' => $count));
-      }
-      else {
-        $destination_type = db_select('node_type', 'nt')
-                                  ->fields('nt', array('name'))
-                                  ->condition('type', $destination_type)
-                                  ->execute()
-                                  ->fetchField();
-        $migrations .= t('<li>%count from %source will be imported into the %destination content type.</li>',
-          array('%count' => $count, '%source' => $source_name, '%destination' => $destination_type));
-      }
+    else {
+      $migrations .= t('<li>WordPress pages will not be imported.</li>');
     }
 
     $form['migration_list'] = array(
@@ -662,59 +649,43 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     );
 
     return $form;
-    $types_created = $types_ignored = $types_mapped = '';
-    foreach ($form_state['storage']['type'] as $source_type => $destination_type) {
-      $source_name = $this->connection()->select('node_type', 't')
-                     ->fields('t', array('name'))
-                     ->condition('type', $source_type)
-                     ->execute()
-                     ->fetchField();
-      if ($destination_type == '-1') {
-        $types_ignored .= '<p><em>' . $source_name . '</em></p>';
-      }
-      elseif ($destination_type == '0') {
-        $types_created .= '<p><em>' . $source_name . '</em></p>';
-      }
-      else {
-        $destination_name = db_select('node_type', 't')
-                            ->fields('t', array('name'))
-                            ->condition('type', $destination_type)
-                            ->execute()
-                            ->fetchField();
-        $types_mapped .= t('<p>Nodes of source type %source will be imported as nodes of destination type %destination.</p>',
-          array('%source' => $source_name, '%destination' => $destination_name));
+  }
+  /**
+   * Return a list of vocabularies attached to a given node type (bundle).
+   *
+   * @param $node_type
+   * @return array
+   */
+  function vocabularies($node_type) {
+    $fields = field_info_instances('node', $node_type);
+    $term_fields = array();
+    foreach ($fields as $field_name => $instance_info) {
+      $field_info = field_info_field($field_name);
+      if ($field_info['type'] == 'taxonomy_term_reference') {
+        $term_fields[$field_info['settings']['allowed_values'][0]['vocabulary']] =
+          $instance_info['label'];
       }
     }
-    if (count($types_ignored) > 0) {
-      $message .= t('<p>The following node types will not be imported:</p>');
-      $message .= $types_ignored;
-    }
-    if (count($types_created) > 0) {
-      $message .= t('<p>The following node types will be created:</p>');
-      $message .= $types_created;
-    }
-    $message .= $types_mapped;
-
-    return $form;
+    return $term_fields;
   }
 
   /**
-   * Gets a connection to the source Drupal database, based on the database
-   * information saved by the sourceDataForm.
+   * Return a list of file fields attached to a given node type (bundle).
    *
-   * @return DatabaseConnection
+   * @param $node_type
+   * @param $file_type
+   * @return array
    */
-  protected function connection() {
-    // The Wizard class must be serializable so it can be saved between steps.
-    // Thus, the connection cannot be a member of the class - we need to
-    // keep it in memory.
-    static $connection;
-    if (!isset($connection)) {
-      $connection_key = $this->groupName . '_legacy';
-      Database::addConnectionInfo($connection_key, 'default', $this->database);
-      $connection = Database::getConnection('default', $connection_key);
+  function fileFields($node_type, $file_type) {
+    $fields = field_info_instances('node', $node_type);
+    $file_fields = array();
+    foreach ($fields as $field_name => $instance_info) {
+      $field_info = field_info_field($field_name);
+      if ($field_info['type'] == $file_type) {
+        $file_fields[$field_name] = $instance_info['label'];
+      }
     }
-    return $connection;
+    return $file_fields;
   }
 
   /**
@@ -730,10 +701,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    */
   protected function addMigration($machine_name, $class_name, $arguments) {
     $arguments += array(
-        'source_version' => $this->sourceVersion,
-        'source_connection' => $this->groupName . '_legacy',
-        'source_database' => $this->database,
-      );
+      'filename' => $this->filename,
+    );
+    // prepend group top machine name
     parent::addMigration($machine_name, $class_name, $arguments);
   }
 }
