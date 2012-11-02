@@ -24,6 +24,7 @@ function wordpress_migrate_permission() {
  */
 function wordpress_migrate_menu() {
   $items = array();
+  return $items;
 
   $items['admin/content/wordpress'] = array(
     'title' => 'WordPress migration',
