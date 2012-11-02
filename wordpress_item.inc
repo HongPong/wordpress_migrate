@@ -124,19 +124,6 @@ abstract class WordPressItemMigration extends WordPressMigration {
    */
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
-/*
-    if (module_exists('taxonomy')) {
-      if ($this->arguments['category_vocabulary']) {
-        $this->dependencies[] = $this->generateMachineName('WordPressCategory');
-      }
-      if ($this->arguments['tag_vocabulary']) {
-        $this->dependencies[] = $this->generateMachineName('WordPressTag');
-      }
-    }
-*/
-    if ($this->blog->getWxrVersion() != '1.0') {
-      $this->dependencies[] = $this->generateMachineName('WordPressAuthor');
-    }
 
     // WordPress post type
     $this->postType = $this->arguments['post_type'];
@@ -170,7 +157,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $uid_mapping = $this->addFieldMapping('uid', 'creator')
          ->description('Use matching username if any, otherwise current user');
     if ($this->blog->getWxrVersion() != '1.0') {
-      $uid_mapping->sourceMigration($this->generateMachineName('WordPressAuthor'));
+      $uid_mapping->sourceMigration($this->group->getName() . 'Author');
     }
     $this->addFieldMapping('body', 'content');
     $this->addFieldMapping('body:summary', 'excerpt');
@@ -233,51 +220,18 @@ abstract class WordPressItemMigration extends WordPressMigration {
     if (module_exists('taxonomy')) {
       // Map the source fields to the configured vocabularies
       $vocabs = array(
-        'tag' => $this->arguments['tag_vocabulary'],
-        'category' => $this->arguments['category_vocabulary'],
+        'tag' => $arguments['tag_vocabulary'],
+        'category' => $arguments['category_vocabulary'],
       );
-
-      // Look through this content type's fields for term references
-      foreach ($this->destination->fields() as $machine_name => $description) {
-        if (preg_match('/\(taxonomy_term_reference\)$/', $description)) {
-          $field_info = field_info_field($machine_name);
-          // Check this field against each of the configured vocabularies - if
-          // a match is found, make the mapping
-          foreach ($vocabs as $source_field => $vocab_name) {
-            if ($vocab_name == $field_info['settings']['allowed_values'][0]['vocabulary']) {
-              $vocab = taxonomy_vocabulary_machine_name_load($vocab_name);
-              if ($source_field == 'tag') {
-                $sourceMigration = $this->generateMachineName('WordPressTag');
-                $this->tagField = $machine_name;
-                $this->tagVid = $vocab->vid;
-              }
-              else {
-                $sourceMigration = $this->generateMachineName('WordPressCategory');
-                $this->categoryField = $machine_name;
-                $this->categoryVid = $vocab->vid;
-              }
-              $this->addFieldMapping($machine_name, $source_field)
-                   ->arguments(array('source_type' => 'tid'))
-                   ->sourceMigration($sourceMigration);
-              unset($vocabs[$source_field]);
-            }
-          }
-        }
-      }
-
-      // If we didn't map one or both of the tag/category fields, indicate so with
-      // a DNM mapping.
-      foreach ($vocabs as $source_field => $vocab_name) {
-        if ($vocab_name) {
-          $message = t('!vocab_name vocabulary is not assigned to node type !bundle',
-            array('!vocab_name' => $vocab_name, '!bundle' => $bundle));
+      foreach ($vocabs as $source_field => $field_name) {
+        if ($field_name) {
+          $this->addFieldMapping($field_name, $source_field);
+          $this->addFieldMapping($field_name . ':create_term')
+               ->defaultValue(TRUE);
         }
         else {
-          $message = t('No vocabulary assigned for this field');
+          $this->addFieldMapping(NULL, $source_field);
         }
-        $this->addFieldMapping(NULL, $source_field)
-             ->description($message)
-             ->issueGroup(t('DNM'));
       }
     }
 
@@ -858,7 +812,6 @@ class WordPressPage extends WordPressItemMigration {
     $arguments['bundle'] = $arguments['page_type'];
     $arguments['post_type'] = 'page';
     parent::__construct($arguments);
-//    $this->dependencies += array($this->generateMachineName('WordPressBlogEntry'));
   }
 
   /**

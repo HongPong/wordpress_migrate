@@ -117,8 +117,6 @@ class WordPressComment extends WordPressMigration {
    */
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
-    $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'));
-    $this->softDependencies = array($this->generateMachineName('WordPressPage'));
 
     // comment_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
@@ -159,7 +157,7 @@ class WordPressComment extends WordPressMigration {
 
     // The basic mappings
     $this->addFieldMapping('nid', 'post_id')
-         ->sourceMigration(array($this->generateMachineName('WordPressBlogEntry'), $this->generateMachineName('WordPressPage')));
+         ->sourceMigration(array($this->group->getName() . 'BlogPost', $this->group->getName() . 'Page'));
     $this->addFieldMapping('pid', 'comment_parent')
          ->sourceMigration($this->generateMachineName('WordPressComment'));
     $this->addFieldMapping('uid')

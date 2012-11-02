@@ -32,13 +32,14 @@ abstract class WordPressMigration extends DynamicMigration {
     }
 
     $this->arguments = $arguments;
+    if (isset($arguments['dependencies'])) {
+      $this->dependencies = $arguments['dependencies'];
+    }
 
-    // Must be set before calling the parent constructor, which will call
-    // generateMachineName() below.
     $filename = $arguments['filename'];
     $this->wxrFile = $filename;
     $this->blog = wordpress_migrate_blog($filename);
-    parent::__construct(MigrateGroup::getInstance($this->blog->getTitle()));
+    parent::__construct(MigrateGroup::getInstance($arguments['group']));
   }
 
   /**
@@ -46,15 +47,6 @@ abstract class WordPressMigration extends DynamicMigration {
    */
   protected function generateMachineName($class_name = NULL) {
     return $this->arguments['machine_name'];
-    if (!$class_name) {
-      $class_name = get_class($this);
-    }
-
-    // The machine name is the cleansed blog title, followed by the portion
-    // of the class name after WordPress. For example, for
-    // category migration (class WordPressCategory) of "Mike's Blog",
-    // the generated machine name will be MikesBlogCategory.
-    return $this->blog->machineName($class_name);
   }
 
   /**

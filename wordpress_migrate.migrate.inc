@@ -325,8 +325,14 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     $form['overview'] = array(
       '#prefix' => '<p>',
       '#markup' => t('User accounts for authors in the WordPress blog may be
-        imported to Drupal. Note that their passwords are not migrated - they
-        must be reset after import.'),
+        imported to Drupal. If you select <strong>Yes</strong>, any authors in
+        the WordPress file who do not match existing Drupal accounts (based on
+        email address) will have new Drupal accounts automatically created.
+        Note that their passwords are not imported - they must be reset after
+        import.<br/>
+        If you select <strong>No</strong>, you must choose an existing Drupal
+        account which will be the author of any WordPress content whose author
+        is not imported. '),
       '#suffix' => '</p>',
     );
 
@@ -370,6 +376,15 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   }
 
   protected function contentSelectForm(&$form_state) {
+    $form['overview'] = array(
+      '#prefix' => '<p>',
+      '#markup' => t('WordPress blogs contain two primary kinds of content,
+        blog posts and pages. Here you may choose what types of Drupal nodes
+        to create from each of those content types, or omit one or both from
+        the import entirely.'),
+      '#suffix' => '</p>',
+    );
+
     // Get destination node type(s)
     $node_types = node_type_get_types();
     $options = array('' => t('Do not import'));
@@ -421,11 +436,23 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   }
 
   protected function contentBlogPostForm(&$form_state) {
-    return $this->contentForm($form_state, $this->contentValues['blog']['post_type']);
+    $form['overview'] = array(
+      '#prefix' => '<p>',
+      '#markup' => t('There are several options you may set for the import of
+        WordPress blog posts.'),
+      '#suffix' => '</p>',
+    );
+    return $form + $this->contentForm($form_state, $this->contentValues['blog']['post_type']);
   }
 
   protected function contentPageForm(&$form_state) {
-    return $this->contentForm($form_state, $this->contentValues['page']['page_type']);
+    $form['overview'] = array(
+      '#prefix' => '<p>',
+      '#markup' => t('There are several options you may set for the import of
+        WordPress pages.'),
+      '#suffix' => '</p>',
+    );
+    return $form + $this->contentForm($form_state, $this->contentValues['page']['page_type']);
   }
 
   /**
@@ -434,6 +461,11 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   protected function contentForm(&$form_state, $selected_post_type) {
     $form = array();
 
+    $empty_field = array(
+       '#type' => 'value',
+       '#value' => '',
+     );
+
     $vocabs = $this->vocabularies($selected_post_type);
     if (!empty($vocabs)) {
       $options = array('' => t('Do not import'));
@@ -441,22 +473,32 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         $options[$machine_name] = $name;
       }
 
-      // If a vocabulary called "tags" exists on the site, default to it.
-      $tags_default = (isset($options['tags']) ? 'tags' : '');
+      // If field_tags exists, default to it.
+      $tags_default = (isset($options['field_tags']) ? 'field_tags' : '');
       $form['tag_vocabulary'] = array(
         '#type' => 'select',
-        '#title' => t('Convert WordPress tags to the vocabulary'),
+        '#title' => t('Import WordPress tags to the term reference field'),
         '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', $tags_default),
         '#options' => $options,
       );
 
       $form['category_vocabulary'] = array(
         '#type' => 'select',
-        '#title' => t('Convert WordPress categories to the vocabulary'),
+        '#title' => t('Import WordPress categories to the term reference field'),
         '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
         '#options' => $options,
       );
     }
+    else {
+      $form['tag_vocabulary'] = $form['category_vocabulary'] = $empty_field;
+    }
+
+    $form['comments'] = array(
+      '#type' => 'radios',
+      '#title' => t('Import comments?'),
+      '#options' => array(1 => t('Yes'), 0 => t('No')),
+      '#default_value' => 1,
+    );
 
     $file_fields = array('' => t('Do not import'));
     $file_fields += $this->fileFields($selected_post_type, 'file')
@@ -479,10 +521,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       );
     }
     else {
-      $form['attachment_field'] = array(
-          '#type' => 'value',
-          '#value' => '',
-        );
+      $form['attachment_field'] = $empty_field;
     }
     if (count($file_fields) > 1) {
       $form['podcast_field'] = array(
@@ -494,10 +533,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       );
     }
     else {
-      $form['podcast_field'] = array(
-        '#type' => 'value',
-        '#value' => '',
-      );
+      $form['podcast_field'] = $empty_field;
     }
 
     $options = array();
@@ -517,6 +553,11 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       '#default_value' => 'filtered_html',
       '#options' => $options,
       '#description' => t(''),
+      '#states' => array(
+        'invisible' => array(
+          'input[name="comments"]' => array('value' => 0),
+        ),
+      ),
     );
 
     if (module_exists('path')) {
@@ -549,6 +590,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         '#attributes' => $attributes,
       );
     }
+    else {
+      $form['path_action'] = $empty_field;
+    }
 
     if (module_exists('redirect')) {
       if (class_exists('MigrateRedirectEntityHandler')) {
@@ -574,6 +618,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
           '#suffix' => '</p>',
         );
       }
+    }
+    else {
+      $form['generate_redirects'] = $empty_field;
     }
 
     return $form;
@@ -625,22 +672,79 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     );
     $this->addMigration('Author', 'WordPressAuthor', $arguments);
 
+    $attachment_dependencies = array();
+
     if ($this->contentValues['blog']['post_type']) {
       $migrations .= t('<li>WordPress blog posts will be imported to %type nodes.</li>',
         array('%type' => $this->contentValues['blog']['post_type']));
+      $arguments = array(
+        'dependencies' => array('Author'),
+        'post_type' => $this->contentValues['blog']['post_type'],
+        'tag_vocabulary' => $this->contentValues['blog']['tag_vocabulary'],
+        'category_vocabulary' => $this->contentValues['blog']['category_vocabulary'],
+        'attachment_field' => $this->contentValues['blog']['attachment_field'],
+        'podcast_field' => $this->contentValues['blog']['podcast_field'],
+        'text_format' => $this->contentValues['blog']['text_format'],
+        'path_action' => $this->contentValues['blog']['path_action'],
+        'generate_redirects' => $this->contentValues['blog']['generate_redirects'],
+      );
       $this->addMigration('BlogPost', 'WordPressBlogEntry', $this->contentValues['blog']);
+      $attachment_dependencies[] = 'BlogPost';
+      if ($this->contentValues['blog']['comments']) {
+        $migrations .= t('<li>WordPress blog post comments will be imported.</li>');
+        $arguments = array(
+          'post_type' => $this->contentValues['blog']['post_type'],
+          'dependencies' => array('BlogPost'),
+          'text_format_comment' => $this->contentValues['blog']['text_format_comment'],
+        );
+        $this->addMigration('BlogPostComment', 'WordPressComment', $arguments);
+      }
+      else {
+        $migrations .= t('<li>WordPress blog post comments will not be imported.</li>');
+      }
     }
     else {
-      $migrations .= t('<li>WordPress blog posts will not be imported.</li>');
+      $migrations .= t('<li>WordPress blog posts and their comments will not be imported.</li>');
     }
     if ($this->contentValues['page']['page_type']) {
       $migrations .= t('<li>WordPress pages will be imported to %type nodes.</li>',
         array('%type' => $this->contentValues['page']['page_type']));
-      $this->addMigration('Page', 'WordPressPage', $this->contentValues['page']);
+      $arguments = array(
+        'dependencies' => array('Author'),
+        'post_type' => $this->contentValues['page']['page_type'],
+        'page_type' => $this->contentValues['page']['page_type'],
+        'tag_vocabulary' => $this->contentValues['page']['tag_vocabulary'],
+        'category_vocabulary' => $this->contentValues['page']['category_vocabulary'],
+        'attachment_field' => $this->contentValues['page']['attachment_field'],
+        'podcast_field' => $this->contentValues['page']['podcast_field'],
+        'text_format' => $this->contentValues['page']['text_format'],
+        'path_action' => $this->contentValues['page']['path_action'],
+        'generate_redirects' => $this->contentValues['page']['generate_redirects'],
+      );
+
+      $this->addMigration('Page', 'WordPressPage', $arguments);
+      $attachment_dependencies[] = 'Page';
+      if ($this->contentValues['page']['comments']) {
+        $migrations .= t('<li>WordPress page comments will be imported.</li>');
+        $arguments = array(
+          'post_type' => $this->contentValues['page']['post_type'],
+          'dependencies' => array('Page'),
+          'text_format_comment' => $this->contentValues['page']['text_format_comment'],
+        );
+        $this->addMigration('PageComment', 'WordPressComment', $arguments);
+      }
+      else {
+        $migrations .= t('<li>WordPress page comments will not be imported.</li>');
+      }
     }
     else {
-      $migrations .= t('<li>WordPress pages will not be imported.</li>');
+      $migrations .= t('<li>WordPress pages and their comments will not be imported.</li>');
     }
+    $arguments = array(
+      'dependencies' => $attachment_dependencies,
+      $this->contentValues['blog']['attachment_field'], // @todo: assumption
+    );
+    $this->addMigration('Attachment', 'WordPressAttachment', $arguments);
 
     $form['migration_list'] = array(
       '#prefix' => '<ol>',
@@ -650,6 +754,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
 
     return $form;
   }
+
   /**
    * Return a list of vocabularies attached to a given node type (bundle).
    *
@@ -662,8 +767,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     foreach ($fields as $field_name => $instance_info) {
       $field_info = field_info_field($field_name);
       if ($field_info['type'] == 'taxonomy_term_reference') {
-        $term_fields[$field_info['settings']['allowed_values'][0]['vocabulary']] =
-          $instance_info['label'];
+        $term_fields[$field_name] = $instance_info['label'];
       }
     }
     return $term_fields;
