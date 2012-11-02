@@ -958,6 +958,6 @@ function wordpress_migrate_batch_clear($blogs, &$context) {
     }
   }
   $context['finished'] = 1;
-  $context['results'][] = format_plural(count($blogs), 'Deleted 1 WordPress blog.',
-    'Deleted @count WordPress blogs.');
+  $context['results'][] = format_plural(count($blogs), 'Removed migration information for your WordPress blog.',
+    'Removed migration information for @count WordPress blogs.');
 }
