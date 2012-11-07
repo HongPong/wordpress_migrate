@@ -24,6 +24,7 @@ function wordpress_migrate_permission() {
  */
 function wordpress_migrate_menu() {
   $items = array();
+  return $items;
 
   $items['admin/content/wordpress'] = array(
     'title' => 'WordPress migration',
@@ -99,7 +100,13 @@ function wordpress_migrate_blog_class() {
   return variable_get('wordpress_migrate_blog_class', 'WordPressBlog');
 }
 
-function wordpress_migrate_blog($filename) {
+/**
+ * @param $filename
+ * @param array $arguments
+ *
+ * @return WordPressBlog
+ */
+function wordpress_migrate_blog($filename, $arguments = array()) {
   $blog_class = wordpress_migrate_blog_class();
-  return new $blog_class($filename);
+  return new $blog_class($filename, $arguments);
 }

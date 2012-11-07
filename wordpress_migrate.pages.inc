@@ -405,26 +405,48 @@ function wordpress_migrate_import_form_validate($form, &$form_state) {
  */
 function wordpress_migrate_import_form_submit($form, &$form_state) {
   $values = $form_state['values'];
+  $arguments = array();
 
   // First, save all the settings.
   variable_set('wordpress_migrate_post_type', $values['wordpress_migrate_post_type']);
+  $arguments['post_type'] = $values['wordpress_migrate_post_type'];
   variable_set('wordpress_migrate_create_new_users', $values['wordpress_migrate_create_new_users']);
+  $arguments['import_users'] = $values['wordpress_migrate_create_new_users'];
   $account = user_load_by_name($values['wordpress_migrate_default_author_uid']);
   variable_set('wordpress_migrate_default_author_uid', $account->uid);
+  $arguments['default_author_uid'] = $account->uid;
   variable_set('wordpress_migrate_attachment_field', $values['wordpress_migrate_attachment_field']);
+  $arguments['attachment_field'] = $values['wordpress_migrate_attachment_field'];
   variable_set('wordpress_migrate_podcast_field', $values['wordpress_migrate_podcast_field']);
+  $arguments['podcast_field'] = $values['wordpress_migrate_podcast_field'];
   variable_set('wordpress_migrate_text_format', $values['wordpress_migrate_text_format']);
+  $arguments['text_format'] = $values['wordpress_migrate_text_format'];
   variable_set('wordpress_migrate_text_format_comment', $values['wordpress_migrate_text_format_comment']);
+  $arguments['text_format_comment'] = $values['wordpress_migrate_text_format_comment'];
   variable_set('wordpress_migrate_page_type', $values['wordpress_migrate_page_type']);
+  $arguments['page_type'] = $values['wordpress_migrate_page_type'];
   if (module_exists('taxonomy')) {
     variable_set('wordpress_migrate_tag_vocabulary', $values['wordpress_migrate_tag_vocabulary']);
+    $arguments['tag_vocabulary'] = $values['wordpress_migrate_tag_vocabulary'];
     variable_set('wordpress_migrate_category_vocabulary', $values['wordpress_migrate_category_vocabulary']);
+    $arguments['category_vocabulary'] = $values['wordpress_migrate_category_vocabulary'];
+  }
+  else {
+    $arguments['tag_vocabulary'] = $arguments['category_vocabulary'] = '';
   }
   if (module_exists('path')) {
     variable_set('wordpress_migrate_path_action', $values['wordpress_migrate_path_action']);
+    $arguments['path_action'] = $values['wordpress_migrate_path_action'];
+  }
+  else {
+    $arguments['path_action'] = '';
   }
   if (module_exists('redirect')) {
     variable_set('wordpress_migrate_generate_redirects', $values['wordpress_migrate_generate_redirects']);
+    $arguments['generate_redirects'] = $values['wordpress_migrate_generate_redirects'];
+  }
+  else {
+    $arguments['generate_redirects'] = '';
   }
 
   if ($_FILES['files']['error']['wxr_file'] && empty($form_state['values']['domain'])) {
@@ -527,7 +549,8 @@ function wordpress_migrate_import_form_submit($form, &$form_state) {
   WordPressBlog::preprocessFile($tmpfile, $destination);
 
   try {
-    $blog = wordpress_migrate_blog($destination);
+    $blog = wordpress_migrate_blog($destination, $arguments);
+    $blog->register();
   }
   catch (Exception $e) {
     form_set_error('wxr_file', $e->getMessage());
@@ -636,9 +659,6 @@ function wordpress_migrate_vocabularies($node_type) {
   return $term_fields;
 }
 
-function wordpress_migrate_post_type_change($form, $form_state) {
-  return $form['settings'];
-}
 
 /**
  * Menu callback: Returns a page for reviewing WordPress migrations.

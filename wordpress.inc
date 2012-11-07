@@ -31,27 +31,22 @@ abstract class WordPressMigration extends DynamicMigration {
       throw new Exception(t('Filename is a required parameter for WordPress migrations'));
     }
 
-    // Must be set before calling the parent constructor, which will call
-    // generateMachineName() below.
+    $this->arguments = $arguments;
+    if (isset($arguments['dependencies'])) {
+      $this->dependencies = $arguments['dependencies'];
+    }
+
     $filename = $arguments['filename'];
     $this->wxrFile = $filename;
     $this->blog = wordpress_migrate_blog($filename);
-    parent::__construct(MigrateGroup::getInstance($this->blog->getTitle()));
+    parent::__construct(MigrateGroup::getInstance($arguments['group']));
   }
 
   /**
    * Construct the machine name from the blog title
    */
   protected function generateMachineName($class_name = NULL) {
-    if (!$class_name) {
-      $class_name = get_class($this);
-    }
-
-    // The machine name is the cleansed blog title, followed by the portion
-    // of the class name after WordPress. For example, for
-    // category migration (class WordPressCategory) of "Mike's Blog",
-    // the generated machine name will be MikesBlogCategory.
-    return $this->blog->machineName($class_name);
+    return $this->arguments['machine_name'];
   }
 
   /**
@@ -183,10 +178,14 @@ class WordPressBlog {
     return $this->uid;
   }
 
+  protected $arguments = array();
+
   protected $migrations = array();
 
-  public function __construct($filename) {
+  public function __construct($filename, $arguments = array()) {
     $this->filename = $filename;
+    $arguments['filename'] = $filename;
+    $this->arguments = $arguments;
 
     // Make sure the upload directory is properly protected
     file_create_htaccess('wordpress://', TRUE);
@@ -266,7 +265,9 @@ class WordPressBlog {
                     ->condition('blog_url', $this->blog_url)
                     ->execute()
                     ->fetchField();
+  }
 
+  public function registerClasses() {
     foreach ($this->migrationClasses() as $class) {
       // Skip authors with WXR 1.0
       if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
@@ -283,11 +284,11 @@ class WordPressBlog {
         }
       }
       // Skip tags/categories if there's no destination vocabulary
-      if ($class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
-          $class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
+      if ($class == 'WordPressTag' && !$this->arguments['tag_vocabulary'] ||
+          $class == 'WordPressCategory' && !$this->arguments['category_vocabulary']) {
         continue;
       }
-      Migration::registerMigration($class, $this->machineName($class), array('filename' => $filename));
+      Migration::registerMigration($class, $this->machineName($class), $this->arguments);
     }
   }
 
@@ -323,27 +324,13 @@ class WordPressBlog {
     if (empty($this->migrations)) {
       $this->migrations = array();
       foreach ($this->migrationClasses() as $base_class => $actual_class) {
-        // Skip authors with WXR 1.0
-        if ($base_class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
-          continue;
+        try {
+          $this->migrations[$actual_class] =
+            MigrationBase::getInstance($this->machineName($actual_class));
         }
-        // Skip comments if comment module is not enabled
-        if ($base_class == 'WordPressComment' && !module_exists('comment')) {
-          continue;
+        catch (Exception $e) {
+          // Simply ignore non-existent migrations
         }
-        // Skip tags/categories if taxonomy is not enabled
-        if ($base_class == 'WordPressTag' || $base_class == 'WordPressCategory') {
-          if (!module_exists('taxonomy')) {
-            continue;
-          }
-        }
-        // Skip tags/categories if there's no destination vocabulary
-        if ($base_class == 'WordPressTag' && !variable_get('wordpress_migrate_tag_vocabulary', '') ||
-            $base_class == 'WordPressCategory' && !variable_get('wordpress_migrate_category_vocabulary', '')) {
-          continue;
-        }
-        $this->migrations[$actual_class] = MigrationBase::getInstance($this->machineName($actual_class), $actual_class,
-          array('filename' => $this->filename));
       }
     }
     return $this->migrations;

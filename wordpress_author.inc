@@ -44,7 +44,7 @@ class WordPressAuthor extends WordPressMigration {
     );
     $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/wp:author',
       'wp:author_login', $fields, $source_options);
-    $this->destination = new WordPressAuthorDestination();
+    $this->destination = new WordPressAuthorDestination($arguments);
 
     // The basic mappings
     $this->addFieldMapping('name', 'author_login')
@@ -70,6 +70,27 @@ class WordPressAuthor extends WordPressMigration {
 }
 
 class WordPressAuthorDestination extends MigrateDestinationUser {
+  /**
+   * Whethere we will create new user accounts from authors with email
+   * addresses not already registered.
+   *
+   * @var bool
+   */
+  protected $importUsers = TRUE;
+
+  /**
+   * The user ID of the account to use for any unimported authors.
+   *
+   * @var int
+   */
+  protected $defaultAuthorUid = 1;
+
+  public function __construct($options = array()) {
+    parent::__construct($options);
+    $this->importUsers = $options['import_users'];
+    $this->defaultAuthorUid = $options['default_author_uid'];
+  }
+
   /**
    * Override of MigrateDestinationUser::import().
    *
@@ -105,10 +126,10 @@ class WordPressAuthorDestination extends MigrateDestinationUser {
       if (!$uid) {
         // This user does not yet exist on the site. See if we're supposed to
         // create it.
-        $create_new_users = variable_get('wordpress_migrate_create_new_users', 1);
+        $create_new_users = $this->importUsers;
         if (!$create_new_users) {
           // Link this content to the default user chosen in the import settings.
-          $uid = variable_get('wordpress_migrate_default_author_uid', 1);
+          $uid = $this->defaultAuthorUid;
         }
       }
       if ($uid) {

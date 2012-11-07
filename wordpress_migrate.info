@@ -5,8 +5,7 @@ core = 7.x
 dependencies[] = migrate
 dependencies[] = migrate_ui
 
-files[] = wordpress_migrate.module
-files[] = wordpress_migrate.pages.inc
+files[] = wordpress_migrate.migrate.inc
 files[] = wordpress_source.inc
 files[] = wordpress.inc
 files[] = wordpress_attachment.inc
