@@ -43,10 +43,7 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['overview'] = array(
     '#prefix' => '<div>',
-    '#markup' => t('WordPress blogs can be imported into Drupal using this form.
-      You may either provide the necessary credentials for Drupal to retrieve
-      your WordPress blog data directly, or you may export the blog yourself
-      and upload the exported WXR file.'),
+    '#markup' => t('Import content from a WordPress site.'),
     '#suffix' => '</div>',
   );
 
@@ -67,6 +64,8 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#options' => array(1 => t('Import from a URL'), 0 => t('Import from a file')),
     '#default_value' => 1,
     '#attributes' => array('class' => array('container-inline')),
+    // Add some space between the two radio buttons.
+    '#attached' => array('css' => array('#edit-source-select .form-item-source-select {padding-right: 1em;}' => array('type' => 'inline'))),
   );
 
   $form['#attributes'] = array('enctype' => 'multipart/form-data');
@@ -84,8 +83,8 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['source']['credentials']['domain'] = array(
     '#type' => 'textfield',
-    '#title' => t('Blog URL'),
-    '#description' => t('Enter the URL of the blog to import (e.g. example.wordpress.com).'),
+    '#title' => t('WordPress URL'),
+    '#description' => t('Enter the URL of the site you want to import (e.g. example.wordpress.com).'),
     '#field_prefix' => 'http://',
     '#states' => array(
       'visible' => array(
@@ -96,8 +95,8 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['source']['credentials']['username'] = array(
     '#type' => 'textfield',
-    '#title' => t('Blog username'),
-    '#description' => t(''),
+    '#title' => t('WordPress username'),
+    '#description' => t('Enter the username of an account with admin permissions.'),
     '#states' => array(
       'visible' => array(
         ':input[name="source_select"]' => array('value' => 1),
@@ -107,8 +106,8 @@ function wordpress_migrate_import_form($form, &$form_state) {
 
   $form['source']['credentials']['password'] = array(
     '#type' => 'password',
-    '#title' => t('Blog password'),
-    '#description' => t(''),
+    '#title' => t('WordPress password'),
+    '#description' => t('Enter the password for the admin account.'),
     '#states' => array(
       'visible' => array(
         ':input[name="source_select"]' => array('value' => 1),
@@ -149,6 +148,11 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#title' => t('Map content'),
     '#group' => 'settings',
   );
+
+  $form['wordpress_migrate_content_mapping']['header'] = array(
+    '#markup' => '<p>' . t('Select how WordPress pages and posts map to content on your Drupal site.') . '</p>',
+  );
+
   $form['wordpress_migrate_content_mapping']['wordpress_migrate_page_type'] = array(
     '#type' => 'select',
     '#title' => t('Convert WordPress pages to'),
@@ -251,20 +255,24 @@ function wordpress_migrate_import_form($form, &$form_state) {
     '#group' => 'settings',
   );
 
+  $form['wordpress_migrate_text_formats']['header'] = array(
+    '#markup' => '<p>' . t('Select the default format for text and comment fields on your Drupal site.') . '</p>',
+  );
+
   $options = array();
   foreach (filter_formats() as $format_id => $format) {
     $options[$format_id] = $format->name;
   }
   $form['wordpress_migrate_text_formats']['wordpress_migrate_text_format'] = array(
     '#type' => 'select',
-    '#title' => t('Default format for text fields'),
+    '#title' => t('Text fields'),
     '#default_value' => variable_get('wordpress_migrate_text_format', 'filtered_html'),
     '#options' => $options,
     '#description' => t(''),
   );
   $form['wordpress_migrate_text_formats']['wordpress_migrate_text_format_comment'] = array(
     '#type' => 'select',
-    '#title' => t('Default format for comment text fields'),
+    '#title' => t('Comment text fields'),
     '#default_value' => variable_get('wordpress_migrate_text_format_comment', 'filtered_html'),
     '#options' => $options,
     '#description' => t(''),
@@ -278,6 +286,10 @@ function wordpress_migrate_import_form($form, &$form_state) {
       '#group' => 'settings',
     );
 
+    $form['wordpress_migrate_taxonomy']['header'] = array(
+      '#markup' => '<p>' . t('Select how WordPress tags and categories map to vocabularies in your Drupal site.') . '</p>',
+    );
+
     $vocabs = wordpress_migrate_vocabularies($selected_post_type);
     $options = array('' => t('Do not import'));
     foreach ($vocabs as $machine_name => $name) {
@@ -288,14 +300,14 @@ function wordpress_migrate_import_form($form, &$form_state) {
     $tags_default = (isset($options['tags']) ? 'tags' : '');
     $form['wordpress_migrate_taxonomy']['wordpress_migrate_tag_vocabulary'] = array(
       '#type' => 'select',
-      '#title' => t('Convert WordPress tags to the vocabulary'),
+      '#title' => t('Convert WordPress tags to'),
       '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', $tags_default),
       '#options' => $options,
     );
 
     $form['wordpress_migrate_taxonomy']['wordpress_migrate_category_vocabulary'] = array(
       '#type' => 'select',
-      '#title' => t('Convert WordPress categories to the vocabulary'),
+      '#title' => t('Convert WordPress categories to'),
       '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
       '#options' => $options,
     );
@@ -646,9 +658,9 @@ function wordpress_migrate_review_form($form, &$form_state) {
   }
   $form['overview'] = array(
     '#prefix' => '<p>',
-    '#markup' => t('These are the WordPress blogs which you have imported into your
-      Drupal site. For each component of the blog, the number of imported items is
-      displayed.'),
+    '#markup' => t('The following WordPress sites have been imported into your
+      Drupal site. For each component of the site, the number of imported items
+      is displayed.'),
     '#suffix' => '</p>',
   );
 
@@ -710,38 +722,36 @@ function wordpress_migrate_review_form($form, &$form_state) {
     '#type' => 'tableselect',
     '#header' => $header,
     '#options' => $rows,
-    '#empty' => t('No WordPress blogs have been migrated into your Drupal site'),
+    '#empty' => t('No WordPress sites have been imported.'),
   );
 
   // Build the 'Update options' form.
   $form['options'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Update options'),
-    '#attributes' => array('class' => array('container-inline')),
-  );
-  $options = array(
-    'rollback' => t('Remove imported content'),
-    'clear' => t('Remove migration bookkeeping'),
+    '#title' => t('Import rollback options'),
   );
   $form['options']['description'] = array(
     '#prefix' => '<div>',
-    '#markup' => t('The WordPress migration process does considerable bookkeeping,
-      tracking how the original WordPress content maps to the imported Drupal content.
-      This bookkeeping allows you to easily back out the migration, restoring your
-      Drupal site to its initial state; once you are satisfied with the imported
-      content, you may remove the bookkeeping overhead.
-      <ul><li><strong>Remove imported content</strong> will restore
-      your Drupal site to its state before the selected WordPress blogs were
-      imported, deleting all imported content as well as the bookkeeping overhead.</li>
-      <li><strong>Remove bookkeeping only</strong> will remove the bookkeeping
-      overhead, retaining all imported content.</li></ul>'),
+    '#markup' => t('The WordPress import process tracks how the content maps to
+      your Drupal site so you can roll back the import process and restore your
+      Drupal site to its original state. After you’ve finished the import, you
+      can remove the additional rollback data.'),
     '#postfix' => '</div>',
   );
   $form['options']['operation'] = array(
-    '#type' => 'select',
+    '#type' => 'radios',
     '#title' => t('Operation'),
     '#title_display' => 'invisible',
-    '#options' => $options,
+    '#options' => array(
+      'rollback' => t('Roll back import'),
+      'clear' => t('Delete tracking'),
+    ),
+  );
+  $form['options']['operation']['rollback'] = array(
+    '#description' => t('Restores your Drupal site to its pre-WordPress import state. All imported content and rollback information will be deleted.'),
+  );
+  $form['options']['operation']['clear'] = array(
+    '#description' => t('Removes the rollback information that allows you to roll back your import, and retains all imported content.'),
   );
   $form['options']['submit'] = array(
     '#type' => 'submit',
