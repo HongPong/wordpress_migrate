@@ -27,19 +27,18 @@ abstract class WordPressMigration extends DynamicMigration {
    *  'filename' => WXR file managed by this migration
    */
   public function __construct(array $arguments) {
-    if (!isset($arguments['filename'])) {
-      throw new Exception(t('Filename is a required parameter for WordPress migrations'));
-    }
+    $group = MigrateGroup::getInstance($arguments['group_name']);
+    $group_arguments = $group->getArguments();
 
     $this->arguments = $arguments;
     if (isset($arguments['dependencies'])) {
       $this->dependencies = $arguments['dependencies'];
     }
 
-    $filename = $arguments['filename'];
+    $filename = $group_arguments['filename'];
     $this->wxrFile = $filename;
     $this->blog = wordpress_migrate_blog($filename);
-    parent::__construct(MigrateGroup::getInstance($arguments['group']));
+    parent::__construct($group);
   }
 
   /**
@@ -52,7 +51,7 @@ abstract class WordPressMigration extends DynamicMigration {
   /**
    * Called after completion of each migration.
    */
-  public function postImport() {
+  protected function postImport() {
     parent::postImport();
     // Clear ignored rows from the map, so as not to confuse reporting.
     $map_table = $this->map->getMapTable();
@@ -165,6 +164,10 @@ class WordPressBlog {
   public function getTitle() {
     return $this->title;
   }
+  protected $displayTitle;
+  public function getDisplayTitle() {
+    return $this->displayTitle;
+  }
   protected $blog_url;
   public function getBlogUrl() {
     return $this->blog_url;
@@ -184,7 +187,6 @@ class WordPressBlog {
 
   public function __construct($filename, $arguments = array()) {
     $this->filename = $filename;
-    $arguments['filename'] = $filename;
     $this->arguments = $arguments;
 
     // Make sure the upload directory is properly protected
@@ -205,6 +207,7 @@ class WordPressBlog {
           switch ($reader->name) {
             case 'title':
               $title = WordPressBlog::readString($reader);
+              $this->displayTitle = $title;
               break;
             case 'wp:wxr_version':
               $this->wxrVersion = WordPressBlog::readString($reader);
@@ -265,31 +268,6 @@ class WordPressBlog {
                     ->condition('blog_url', $this->blog_url)
                     ->execute()
                     ->fetchField();
-  }
-
-  public function registerClasses() {
-    foreach ($this->migrationClasses() as $class) {
-      // Skip authors with WXR 1.0
-      if ($class == 'WordPressAuthor' && $this->wxrVersion == '1.0') {
-        continue;
-      }
-      // Skip comments if comment module is not enabled
-      if ($class == 'WordPressComment' && !module_exists('comment')) {
-        continue;
-      }
-      // Skip tags/categories if taxonomy is not enabled
-      if ($class == 'WordPressTag' || $class == 'WordPressCategory') {
-        if (!module_exists('taxonomy')) {
-          continue;
-        }
-      }
-      // Skip tags/categories if there's no destination vocabulary
-      if ($class == 'WordPressTag' && !$this->arguments['tag_vocabulary'] ||
-          $class == 'WordPressCategory' && !$this->arguments['category_vocabulary']) {
-        continue;
-      }
-      Migration::registerMigration($class, $this->machineName($class), $this->arguments);
-    }
   }
 
   public function machineName($class_name) {
