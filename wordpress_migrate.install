@@ -149,6 +149,18 @@ function wordpress_migrate_requirements($phase) {
 }
 
 /**
+ * Implements hook_update_dependencies().
+ */
+function wordpress_migrate_update_dependencies() {
+  // We don't want to run our updates for the new wizard API world until
+  // Migrate is updated.
+  $dependencies['wordpress_migrate'][7011] = array(
+    'migrate' => 7203,
+  );
+  return $dependencies;
+}
+
+/**
  * Implements hook_uninstall().
  */
 function wordpress_migrate_uninstall() {
@@ -395,9 +407,41 @@ function wordpress_migrate_update_7011() {
   foreach ($result as $row) {
     $original_arguments = unserialize($row->arguments);
     $arguments += $original_arguments;
+    $arguments['machine_name'] = $row->machine_name;
     db_update('migrate_status')
       ->fields(array('arguments' => serialize($arguments)))
       ->condition('machine_name', $row->machine_name)
       ->execute();
+  }
+}
+
+/**
+ * Support Migrate's new extensions to groups.
+ */
+function wordpress_migrate_update_7012() {
+  $blog_info = db_select('wordpress_migrate', 'wm')
+               ->fields('wm', array('filename', 'title'))
+               ->execute()
+               ->fetchAllKeyed();
+  foreach ($blog_info as $filename => $title) {
+    MigrateGroup::register($title, $title, array('filename' => $filename));
+  }
+  $result = db_select('migrate_status', 'ms')
+            ->fields('ms', array('machine_name', 'arguments'))
+            ->execute();
+  foreach ($result as $row) {
+    $arguments = unserialize($row->arguments);
+    if (isset($arguments['filename']) && in_array($arguments['filename'], array_keys($blog_info))) {
+      $filename = $arguments['filename'];
+      $arguments['group_name'] = $blog_info[$filename];
+      unset($arguments['filename']);
+      db_update('migrate_status')
+        ->fields(array(
+                   'group_name' => $blog_info[$filename],
+                   'arguments' => serialize($arguments),
+                 ))
+        ->condition('machine_name', $row->machine_name)
+        ->execute();
+    }
   }
 }

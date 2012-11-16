@@ -27,6 +27,9 @@ abstract class WordPressMigration extends DynamicMigration {
    *  'filename' => WXR file managed by this migration
    */
   public function __construct(array $arguments) {
+    if (empty($arguments['group_name'])) {
+      $arguments['group_name'] = 'default';
+    }
     $group = MigrateGroup::getInstance($arguments['group_name']);
     $group_arguments = $group->getArguments();
 
@@ -35,7 +38,16 @@ abstract class WordPressMigration extends DynamicMigration {
       $this->dependencies = $arguments['dependencies'];
     }
 
-    $filename = $group_arguments['filename'];
+    if (isset($arguments['filename'])) {
+      $filename = $arguments['filename'];
+    }
+    elseif (isset($group_arguments['filename'])) {
+      $filename = $group_arguments['filename'];
+    }
+    else {
+      throw new Exception(t('No file identified for WordPress migration !migration',
+                          array('!migration' => $this->machineName)));
+    }
     $this->wxrFile = $filename;
     $this->blog = wordpress_migrate_blog($filename);
     parent::__construct($group);
