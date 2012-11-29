@@ -134,6 +134,11 @@ class WordPressAuthorDestination extends MigrateDestinationUser {
    *  Array of user IDs to be deleted.
    */
   public function bulkRollback(array $uids) {
+    // Make sure we only attempt each uid once - if multiple authors had the
+    // same email address in WordPress, the corresponding Drupal uid will be in
+    // the array twice, we'll delete the linked_authors row the first time we
+    // see it, and the second pass on that uid will delete the account.
+    $uids = array_unique($uids, SORT_NUMERIC);
     $delete_uids = array();
     foreach ($uids as $uid) {
       $mail = db_select('wordpress_migrate_linked_authors', 'a')
