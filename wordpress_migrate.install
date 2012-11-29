@@ -149,18 +149,6 @@ function wordpress_migrate_requirements($phase) {
 }
 
 /**
- * Implements hook_update_dependencies().
- */
-function wordpress_migrate_update_dependencies() {
-  // We don't want to run our updates for the new wizard API world until
-  // Migrate is updated.
-  $dependencies['wordpress_migrate'][7011] = array(
-    'migrate' => 7203,
-  );
-  return $dependencies;
-}
-
-/**
  * Implements hook_uninstall().
  */
 function wordpress_migrate_uninstall() {
@@ -379,69 +367,5 @@ function wordpress_migrate_update_7010() {
   if (db_index_exists('wordpress_migrate', 'filename')) {
     db_drop_index('wordpress_migrate', 'filename');
     db_add_unique_key('wordpress_migrate', 'blog_url', array('blog_url'));
-  }
-}
-
-/**
- * Get import options out of variables and into arguments.
- */
-function wordpress_migrate_update_7011() {
-  $arguments = array();
-  $arguments['post_type'] = variable_get('wordpress_migrate_post_type', 'blog');
-  $arguments['import_users'] = variable_get('wordpress_migrate_create_new_users', 1);
-  $arguments['default_author_uid'] = variable_get('wordpress_migrate_default_author_uid', 1);
-  $arguments['attachment_field'] = variable_get('wordpress_migrate_attachment_field', '');
-  $arguments['podcast_field'] = variable_get('wordpress_migrate_podcast_field', '');
-  $arguments['text_format'] = variable_get('wordpress_migrate_text_format', 'filtered_html');
-  $arguments['text_format_comment'] = variable_get('wordpress_migrate_text_format_comment', 'filtered_html');
-  $arguments['page_type'] = variable_get('wordpress_migrate_page_type', 'page');
-  $arguments['tag_vocabulary'] = variable_get('wordpress_migrate_tag_vocabulary', 'tags');
-  $arguments['category_vocabulary'] = variable_get('wordpress_migrate_category_vocabulary', '');
-  $arguments['path_action'] = variable_get('wordpress_migrate_path_action', 1);
-  $arguments['generate_redirects'] = variable_get('wordpress_migrate_generate_redirects', 0);
-
-  $result = db_select('migrate_status', 'ms')
-            ->fields('ms', array('machine_name', 'arguments'))
-            ->condition('class_name', 'WordPress%', 'LIKE')
-            ->execute();
-  foreach ($result as $row) {
-    $original_arguments = unserialize($row->arguments);
-    $arguments += $original_arguments;
-    $arguments['machine_name'] = $row->machine_name;
-    db_update('migrate_status')
-      ->fields(array('arguments' => serialize($arguments)))
-      ->condition('machine_name', $row->machine_name)
-      ->execute();
-  }
-}
-
-/**
- * Support Migrate's new extensions to groups.
- */
-function wordpress_migrate_update_7012() {
-  $blog_info = db_select('wordpress_migrate', 'wm')
-               ->fields('wm', array('filename', 'title'))
-               ->execute()
-               ->fetchAllKeyed();
-  foreach ($blog_info as $filename => $title) {
-    MigrateGroup::register($title, $title, array('filename' => $filename));
-  }
-  $result = db_select('migrate_status', 'ms')
-            ->fields('ms', array('machine_name', 'arguments'))
-            ->execute();
-  foreach ($result as $row) {
-    $arguments = unserialize($row->arguments);
-    if (isset($arguments['filename']) && in_array($arguments['filename'], array_keys($blog_info))) {
-      $filename = $arguments['filename'];
-      $arguments['group_name'] = $blog_info[$filename];
-      unset($arguments['filename']);
-      db_update('migrate_status')
-        ->fields(array(
-                   'group_name' => $blog_info[$filename],
-                   'arguments' => serialize($arguments),
-                 ))
-        ->condition('machine_name', $row->machine_name)
-        ->execute();
-    }
   }
 }

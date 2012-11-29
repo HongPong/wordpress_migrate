@@ -20,6 +20,39 @@ function wordpress_migrate_permission() {
 }
 
 /**
+ * Implements hook_menu().
+ */
+function wordpress_migrate_menu() {
+  $items = array();
+
+  $items['admin/content/wordpress'] = array(
+    'title' => 'WordPress migration',
+    'type' => MENU_LOCAL_TASK | MENU_NORMAL_ITEM,
+    'description' => 'Migrate WordPress content into Drupal',
+    'page callback' => 'wordpress_migrate_import',
+    'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_MIGRATE),
+    'file' => 'wordpress_migrate.pages.inc',
+    'weight' => 10,
+  );
+  $items['admin/content/wordpress/import'] = array(
+    'title' => 'Import',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items['admin/content/wordpress/review'] = array(
+    'title' => 'Imported blogs',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Review and manage imported WordPress blogs',
+    'page callback' => 'wordpress_migrate_review',
+    'access arguments' => array(WORDPRESS_MIGRATE_ACCESS_MIGRATE),
+    'file' => 'wordpress_migrate.pages.inc',
+    'weight' => 0,
+  );
+
+  return $items;
+}
+
+/**
  * Implements hook_stream_wrappers().
  */
 function wordpress_migrate_stream_wrappers() {
@@ -66,13 +99,7 @@ function wordpress_migrate_blog_class() {
   return variable_get('wordpress_migrate_blog_class', 'WordPressBlog');
 }
 
-/**
- * @param $filename
- * @param array $arguments
- *
- * @return WordPressBlog
- */
-function wordpress_migrate_blog($filename, $arguments = array()) {
+function wordpress_migrate_blog($filename) {
   $blog_class = wordpress_migrate_blog_class();
-  return new $blog_class($filename, $arguments);
+  return new $blog_class($filename);
 }

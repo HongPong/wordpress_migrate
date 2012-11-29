@@ -116,7 +116,10 @@ class WordPressComment extends WordPressMigration {
    * Set it up
    */
   public function __construct(array $arguments = array()) {
+    $arguments['post_type'] = 'comment_node_' . variable_get('wordpress_migrate_post_type', 'blog');
     parent::__construct($arguments);
+    $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'));
+    $this->softDependencies = array($this->generateMachineName('WordPressPage'));
 
     // comment_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
@@ -153,11 +156,11 @@ class WordPressComment extends WordPressMigration {
     );
     $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/item/comment',
       'wp:comment_id', $fields, $source_options);
-    $this->destination = new MigrateDestinationComment('comment_node_' . $arguments['post_type']);
+    $this->destination = new MigrateDestinationComment($arguments['post_type']);
 
     // The basic mappings
     $this->addFieldMapping('nid', 'post_id')
-         ->sourceMigration(array($this->group->getName() . 'BlogPost', $this->group->getName() . 'Page'));
+         ->sourceMigration(array($this->generateMachineName('WordPressBlogEntry'), $this->generateMachineName('WordPressPage')));
     $this->addFieldMapping('pid', 'comment_parent')
          ->sourceMigration($this->generateMachineName('WordPressComment'));
     $this->addFieldMapping('uid')
@@ -190,8 +193,10 @@ class WordPressComment extends WordPressMigration {
     $this->addFieldMapping(NULL, 'comment_type')
          ->description('Always empty?')
          ->issueGroup('DNM');
-    $this->addFieldMapping('comment_body', 'comment_content');
-    $this->addFieldMapping('comment_body:format', $arguments['text_format_comment']);
+    $text_format = variable_get('wordpress_migrate_text_format_comment', 'filtered_html');
+    $arguments = array('format' => $text_format);
+    $this->addFieldMapping('comment_body', 'comment_content')
+         ->arguments($arguments);
   }
 
   /**

@@ -44,7 +44,8 @@ class WordPressCategory extends WordPressMigration {
     );
     $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/category',
       'wp:category_nicename', $fields, $source_options);
-    $this->destination = new MigrateDestinationTerm($this->arguments['category_vocabulary']);
+    $this->destination = new MigrateDestinationTerm(
+      variable_get('wordpress_migrate_category_vocabulary', ''));
 
     // The basic mappings
     $this->addFieldMapping('name', 'cat_name');

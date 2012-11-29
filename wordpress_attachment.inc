@@ -35,6 +35,9 @@ class WordPressAttachment extends WordPressMigration {
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
 
+    $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'),
+      $this->generateMachineName('WordPressPage'));
+
     // Construct the source object.
     $this->source = new WordPressAttachmentSource($this->wxrFile, $this->machineName);
     $this->destination = new MigrateDestinationFile();
@@ -164,8 +167,7 @@ class WordPressAttachment extends WordPressMigration {
     // Find the parent nid
     $row->post_parent = $this->handleSourceMigration($this->dependencies, $row->post_parent);
     // Populate the parent node's attachment field, if applicable
-    // @todo: attachment_field will have separate settings for blog posts and pages
-    $attachment_field = $this->arguments['attachment_field'];
+    $attachment_field = variable_get('wordpress_migrate_attachment_field', '');
     if ($attachment_field && $row->post_parent && $file->fid) {
       if ($row->post_parent) {
         $parent_node = node_load($row->post_parent);
