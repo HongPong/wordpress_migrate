@@ -58,7 +58,7 @@ class WordPressAuthor extends WordPressMigration {
     // Unmapped destination fields
     $this->addUnmigratedDestinations(array('pass', 'theme', 'signature',
       'signature_format', 'created', 'access', 'login', 'timezone', 'language',
-      'picture', 'init', 'is_new'));
+      'picture', 'init', 'is_new', 'role_names', 'data'));
     if (module_exists('path')) {
       $this->addUnmigratedDestinations(array('path'));
     }

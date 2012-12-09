@@ -251,7 +251,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
 
     // Unmapped destination fields
     $this->addUnmigratedDestinations(array('is_new', 'revision', 'language',
-                                     'promote', 'revision_uid', 'log', 'tnid'));
+      'promote', 'revision_uid', 'log', 'tnid', 'translate', 'body:language'));
 
     // Unmapped source fields
     $this->addUnmigratedSources(array('post_id', 'menu_order', 'post_type'));

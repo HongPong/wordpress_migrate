@@ -62,7 +62,7 @@ class WordPressAttachment extends WordPressMigration {
          ->description('Mapping is handled dynamically');
 
     // Unmapped destination fields
-    $this->addUnmigratedDestinations(array('path', 'destination_dir',
+    $this->addUnmigratedDestinations(array('destination_dir',
                                      'file_replace', 'preserve_files', 'source_dir'));
 
     // Unmapped source fields

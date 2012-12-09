@@ -1,5 +1,5 @@
 name = "Migration from WordPress"
-description = "Support for migrating WordPress blogs into Drupal"
+description = "Imports WordPress sites into Drupal"
 package = "Development"
 core = 7.x
 dependencies[] = migrate

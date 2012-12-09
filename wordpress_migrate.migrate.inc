@@ -38,7 +38,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    */
   public function __construct() {
     parent::__construct();
-    $this->addStep(t('Overview'), 'overviewForm');
+//    $this->addStep(t('Overview'), 'overviewForm');
     $this->addStep(t('Upload blog'), 'sourceDataForm');
     $this->addStep(t('Select content to import'), 'contentSelectForm');
     $this->addStep(t('Review'), 'reviewForm');
@@ -54,12 +54,22 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   }
 
   /**
-   * The first step of the wizard - explain what we're doing, and get the
-   * migration group.
-   *
-   * @return array
+   * First step - find out how to get the source data.
    */
-  protected function overviewForm(&$form_state) {
+  public function sourceDataForm(&$form_state) {
+    // Make sure we have a private directory configured
+    if (!variable_get('wordpress_migrate_private_path', '') &&
+        !variable_get('file_private_path', '')) {
+      $message = t('A private file system path must be <a href="@config">configured</a>
+        to securely store your uploaded WordPress file.',
+        array('@config' => url('admin/config/media/file-system')));
+      $form['unconfigured'] = array(
+        '#prefix' => '<div>',
+        '#markup' => $message,
+        '#suffix' => '</div>',
+      );
+      return $form;
+    }
     $form['overview'] = array(
       '#prefix' => '<p>',
       '#markup' => t('This wizard supports importing into your Drupal site from ' .
@@ -76,60 +86,6 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         'are generated and you will be left at the Migrate dashboard, from which ' .
         'you can perform the imports, monitor their progress, roll them back, etc.'),
       '#suffix' => '</p>',
-    );
-
-    $form['group_name'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Unique name'),
-      '#description' => t('Provide a unique alphanumeric name for this import. It ' .
-        'will be used to prefix and group the generated migrations.'),
-      '#size' => 16,
-      '#maxlength' => 16,
-      '#required' => TRUE,
-      '#default_value' => $this->groupName,
-    );
-    return $form;
-  }
-
-  /**
-  * Make sure the migration group is alphanumeric, and save it.
-  *
-  * @param array $form_state
-  */
-  protected function overviewFormValidate(&$form_state) {
-    $this->groupName = trim($form_state['values']['group_name']);
-    if (!preg_match('|^[[:alnum:]]+$|', $this->groupName)) {
-      form_set_error('group_name',
-        t('The name for your import, %name, must be alphanumeric.',
-          array('%name' => $this->groupName)));
-    }
-  }
-
-  /**
-   * Second step - find out how to get the source data.
-   */
-  public function sourceDataForm(&$form_state) {
-    // Make sure we have a private directory configured
-    if (!variable_get('wordpress_migrate_private_path', '') &&
-        !variable_get('file_private_path', '')) {
-      $message = t('A private file system path must be <a href="@config">configured</a>
-        to securely store your uploaded WordPress file.',
-        array('@config' => url('admin/config/media/file-system')));
-      $form['unconfigured'] = array(
-        '#prefix' => '<div>',
-        '#markup' => $message,
-        '#suffix' => '</div>',
-      );
-      return $form;
-    }
-
-    $form['overview'] = array(
-      '#prefix' => '<div>',
-      '#markup' => t('WordPress blogs can be imported into Drupal using this form.
-        You may either provide the necessary credentials for Drupal to retrieve
-        your WordPress blog data directly, or you may export the blog yourself
-        and upload the exported WXR file.'),
-      '#suffix' => '</div>',
     );
 
     if (module_exists('media') && !module_exists('migrate_extras')) {
@@ -316,6 +272,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       global $user;
       $this->defaultAuthorUid = $user->uid;
     }
+    $this->groupName = $blog->getTitle();
+    $this->groupTitle = t('!title (!url)',
+      array('!title' => $blog->getDisplayTitle(), '!url' => $blog->getBlogUrl()));
   }
 
   /**
@@ -647,6 +606,8 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    * to say yay or nay.
    */
   protected function reviewForm(&$form_state) {
+    $this->groupArguments['filename'] = $this->filename;
+
     $message = t('<p>Please review your migration configuration. When you submit this
       form, migration processes will be created and you will be left at the
       migration dashboard.</p>');
@@ -688,7 +649,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         'path_action' => $this->contentValues['blog']['path_action'],
         'generate_redirects' => $this->contentValues['blog']['generate_redirects'],
       );
-      $this->addMigration('BlogPost', 'WordPressBlogEntry', $this->contentValues['blog']);
+      $this->addMigration('BlogPost', 'WordPressBlogEntry', $arguments);
       $attachment_dependencies[] = 'BlogPost';
       if ($this->contentValues['blog']['comments']) {
         $migrations .= t('<li>WordPress blog post comments will be imported.</li>');
@@ -711,7 +672,6 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         array('%type' => $this->contentValues['page']['page_type']));
       $arguments = array(
         'dependencies' => array('Author'),
-        'post_type' => $this->contentValues['page']['page_type'],
         'page_type' => $this->contentValues['page']['page_type'],
         'tag_vocabulary' => $this->contentValues['page']['tag_vocabulary'],
         'category_vocabulary' => $this->contentValues['page']['category_vocabulary'],
@@ -727,7 +687,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       if ($this->contentValues['page']['comments']) {
         $migrations .= t('<li>WordPress page comments will be imported.</li>');
         $arguments = array(
-          'post_type' => $this->contentValues['page']['post_type'],
+          'post_type' => $this->contentValues['page']['page_type'],
           'dependencies' => array('Page'),
           'text_format_comment' => $this->contentValues['page']['text_format_comment'],
         );
@@ -790,24 +750,5 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       }
     }
     return $file_fields;
-  }
-
-  /**
-   * Record all the information necessary to register a migration when this is
-   * all over.
-   *
-   * @param string $machine_name
-   *  Machine name for the migration class.
-   * @param string $class_name
-   *  Name of the Migration class to instantiate.
-   * @param array $arguments
-   *  Further information configuring the migration.
-   */
-  protected function addMigration($machine_name, $class_name, $arguments) {
-    $arguments += array(
-      'filename' => $this->filename,
-    );
-    // prepend group top machine name
-    parent::addMigration($machine_name, $class_name, $arguments);
   }
 }

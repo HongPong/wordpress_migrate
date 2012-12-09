@@ -180,7 +180,6 @@ class WordPressComment extends WordPressMigration {
     $this->addFieldMapping('mail', 'comment_author_email');
     $this->addFieldMapping('homepage', 'comment_author_url');
     $this->addFieldMapping('language');
-    $this->addFieldMapping('path');
     $this->addFieldMapping(NULL, 'comment_id')
          ->description('Source primary key')
          ->issueGroup('DNM');
@@ -191,7 +190,9 @@ class WordPressComment extends WordPressMigration {
          ->description('Always empty?')
          ->issueGroup('DNM');
     $this->addFieldMapping('comment_body', 'comment_content');
-    $this->addFieldMapping('comment_body:format', $arguments['text_format_comment']);
+    $this->addFieldMapping('comment_body:format')
+         ->defaultValue($arguments['text_format_comment']);
+    $this->addFieldMapping('comment_body:language');
   }
 
   /**
