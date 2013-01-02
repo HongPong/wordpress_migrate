@@ -82,9 +82,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       '#prefix' => '<p>',
       '#markup' => t('You will be led through a series of steps, allowing you to ' .
         'customize what will be imported into Drupal and how it will be mapped. ' .
-        'At the end of this process, a set of import steps (called <em>Migrations</em>) '.
-        'are generated and you will be left at the Migrate dashboard, from which ' .
-        'you can perform the imports, monitor their progress, roll them back, etc.'),
+        'At the end of this process, an import job will be '.
+        'generated and you will be left at the Import dashboard, from which ' .
+        'you can perform the import, monitor its progress, roll it back, etc.'),
       '#suffix' => '</p>',
     );
 
@@ -702,7 +702,8 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     }
     $arguments = array(
       'dependencies' => $attachment_dependencies,
-      $this->contentValues['blog']['attachment_field'], // @todo: assumption
+      'blog_attachment_field' => $this->contentValues['blog']['attachment_field'],
+      'page_attachment_field' => $this->contentValues['page']['attachment_field'],
     );
     $this->addMigration('Attachment', 'WordPressAttachment', $arguments);
 

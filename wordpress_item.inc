@@ -94,6 +94,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
    * @var string
    */
   protected $postType;
+  public function getPostType() {
+    return $this->postType;
+  }
 
   /**
    * Indicates to the complete() method that the nid of this item needs to be
