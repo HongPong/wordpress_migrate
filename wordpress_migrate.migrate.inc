@@ -606,7 +606,10 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    * to say yay or nay.
    */
   protected function reviewForm(&$form_state) {
-    $this->groupArguments['filename'] = $this->filename;
+    $this->groupArguments = array(
+      'filename' => $this->filename,
+      'source_system' => $this->getSourceName(),
+    );
 
     $message = t('<p>Please review your migration configuration. When you submit this
       form, migration processes will be created and you will be left at the
