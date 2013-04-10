@@ -136,15 +136,23 @@ function wordpress_migrate_schema_linked_authors() {
  */
 function wordpress_migrate_requirements($phase) {
   $requirements = array();
+  $t = get_t();
   // Make sure the XMLReader extension is available.
   if (!extension_loaded('xmlreader')) {
-    $t = get_t();
-    $requirements['xmlreader']['severity'] = REQUIREMENT_ERROR;
-    $requirements['xmlreader']['title'] = $t('XMLReader extension');
-    $requirements['xmlreader']['description'] =
+    $requirements['wordpress_migrate_xmlreader']['severity'] = REQUIREMENT_ERROR;
+    $requirements['wordpress_migrate_xmlreader']['title'] = $t('XMLReader extension');
+    $requirements['wordpress_migrate_xmlreader']['description'] =
       $t('WordPress Migrate requires the PHP XMLReader extension.');
   }
-
+  // We need the MigrateUIWizard class, introduced in dev releases leading
+  // up to Migrate 2.6, to be present.
+  if (!class_exists('MigrateUIWizard')) {
+    $requirements['wordpress_migrate_wizard']['severity'] = REQUIREMENT_ERROR;
+    $requirements['wordpress_migrate_wizard']['title'] =
+      $t('Migrate wizard support');
+    $requirements['wordpress_migrate_wizard']['description'] =
+      $t('Migrate 2.6 or greater is required.');
+  }
   return $requirements;
 }
 
@@ -400,4 +408,16 @@ function wordpress_migrate_update_7011() {
       ->condition('machine_name', $row->machine_name)
       ->execute();
   }
+}
+
+/**
+ * Drush support has moved into core, remove the variables we were using.
+ */
+function wordpress_migrate_update_7012() {
+  variable_del('wordpress_migrate_drush');
+  variable_del('wordpress_migrate_import_method');
+  variable_del('wordpress_migrate_force_drush');
+  variable_del('wordpress_migrate_notification');
+  variable_del('wordpress_migrate_notification_subject');
+  variable_del('wordpress_migrate_notification_body');
 }
