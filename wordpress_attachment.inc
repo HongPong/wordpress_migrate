@@ -35,9 +35,6 @@ class WordPressAttachment extends WordPressMigration {
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
 
-    $this->dependencies = array($this->generateMachineName('WordPressBlogEntry'),
-      $this->generateMachineName('WordPressPage'));
-
     // Construct the source object.
     $this->source = new WordPressAttachmentSource($this->wxrFile, $this->machineName);
     $this->destination = new MigrateDestinationFile();
@@ -65,7 +62,7 @@ class WordPressAttachment extends WordPressMigration {
          ->description('Mapping is handled dynamically');
 
     // Unmapped destination fields
-    $this->addUnmigratedDestinations(array('path', 'destination_dir',
+    $this->addUnmigratedDestinations(array('destination_dir',
                                      'file_replace', 'preserve_files', 'source_dir'));
 
     // Unmapped source fields
@@ -85,6 +82,7 @@ class WordPressAttachment extends WordPressMigration {
     $url_info = parse_url($value);
     return $url_info['path'];
   }
+
   /**
    * Data manipulations to be performed before migrate module applies mappings.
    *
@@ -121,7 +119,7 @@ class WordPressAttachment extends WordPressMigration {
   }
 
   /**
-   * Prepare node - called just before node_save().
+   * Prepare node - called just before file_save().
    *
    * @param stdClass $node
    * @param stdClass $row
@@ -164,12 +162,33 @@ class WordPressAttachment extends WordPressMigration {
    * @param stdClass $row
    */
   public function complete(stdClass $file, stdClass $row) {
+    // Skip if no file entity was saved.
+    if (!$file->fid) {
+      return;
+    }
     // Find the parent nid
     $row->post_parent = $this->handleSourceMigration($this->dependencies, $row->post_parent);
+
     // Populate the parent node's attachment field, if applicable
-    $attachment_field = variable_get('wordpress_migrate_attachment_field', '');
-    if ($attachment_field && $row->post_parent && $file->fid) {
-      if ($row->post_parent) {
+    if ($row->post_parent) {
+      // Which migration did it come from, posts or pages?
+      $post_migration = Migration::getInstance($this->group->getName() . 'BlogPost');
+      $post_map_row = $post_migration->getMap()->getRowByDestination(array($row->post_parent));
+      if (!empty($post_map_row)) {
+        $attachment_field = $this->arguments['blog_attachment_field'];
+      }
+      else {
+        $page_migration = Migration::getInstance($this->group->getName() . 'Page');
+        $page_map_row = $page_migration->getMap()->getRowByDestination(array($row->post_parent));
+        if (!empty($page_map_row)) {
+          $attachment_field = $this->arguments['page_attachment_field'];
+        }
+        else {
+          $attachment_field = '';
+        }
+      }
+
+      if ($attachment_field) {
         $parent_node = node_load($row->post_parent);
         if ($parent_node) {
           $file->display = 1;
@@ -180,6 +199,7 @@ class WordPressAttachment extends WordPressMigration {
               !is_array($parent_node->{$attachment_field}[LANGUAGE_NONE][0])) {
             unset($parent_node->{$attachment_field}[LANGUAGE_NONE][0]);
           }
+
           $parent_node->{$attachment_field}[LANGUAGE_NONE][] = (array)$file;
           $this->disablePathauto($parent_node);
           // Maintain the original update datestamp
