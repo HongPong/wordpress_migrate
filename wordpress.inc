@@ -5,7 +5,7 @@
  * Implementation of migration from WordPress into Drupal
  */
 
-abstract class WordPressMigration extends DynamicMigration {
+abstract class WordPressMigration extends Migration {
   /**
    * The filespec of the WXR file this migration is based on.
    *
@@ -27,25 +27,11 @@ abstract class WordPressMigration extends DynamicMigration {
    *  'filename' => WXR file managed by this migration
    */
   public function __construct(array $arguments) {
-    $group = MigrateGroup::getInstance($arguments['group_name']);
-    $group_arguments = $group->getArguments();
+    parent::__construct($arguments);
 
-    $this->arguments = $arguments;
-    if (isset($arguments['dependencies'])) {
-      $this->dependencies = $arguments['dependencies'];
-    }
-
-    $filename = $group_arguments['filename'];
+    $filename = $this->arguments['filename'];
     $this->wxrFile = $filename;
     $this->blog = wordpress_migrate_blog($filename);
-    parent::__construct($group);
-  }
-
-  /**
-   * Construct the machine name from the blog title
-   */
-  protected function generateMachineName($class_name = NULL) {
-    return $this->arguments['machine_name'];
   }
 
   /**
