@@ -452,12 +452,22 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       $form['tag_vocabulary'] = $form['category_vocabulary'] = $empty_field;
     }
 
-    $form['comments'] = array(
-      '#type' => 'radios',
-      '#title' => t('Import comments?'),
-      '#options' => array(1 => t('Yes'), 0 => t('No')),
-      '#default_value' => 1,
-    );
+    if (module_exists('comment') &&
+        (variable_get('comment_' . $selected_post_type, COMMENT_NODE_OPEN)
+         != COMMENT_NODE_CLOSED)) {
+      $form['comments'] = array(
+        '#type' => 'radios',
+        '#title' => t('Import comments?'),
+        '#options' => array(1 => t('Yes'), 0 => t('No')),
+        '#default_value' => 1,
+      );
+    }
+    else {
+      $form['comments'] = array(
+        '#type' => 'value',
+        '#value' => 0,
+      );
+    }
 
     $file_fields = array('' => t('Do not import'));
     $file_fields += $this->fileFields($selected_post_type, 'file')
@@ -476,7 +486,6 @@ class WordPressMigrateWizard extends MigrateUIWizard {
             'input[name="destination_type"]' => array('value' => 'blog'),
           ),
         ),
-
       );
     }
     else {
