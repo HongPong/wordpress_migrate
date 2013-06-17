@@ -144,15 +144,7 @@ function wordpress_migrate_requirements($phase) {
     $requirements['wordpress_migrate_xmlreader']['description'] =
       $t('WordPress Migrate requires the PHP XMLReader extension.');
   }
-  // We need the MigrateUIWizard class, introduced in dev releases leading
-  // up to Migrate 2.6, to be present.
-  if (!class_exists('MigrateUIWizard')) {
-    $requirements['wordpress_migrate_wizard']['severity'] = REQUIREMENT_ERROR;
-    $requirements['wordpress_migrate_wizard']['title'] =
-      $t('Migrate wizard support');
-    $requirements['wordpress_migrate_wizard']['description'] =
-      $t('Migrate 2.6 or greater is required.');
-  }
+
   return $requirements;
 }
 
