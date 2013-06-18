@@ -327,12 +327,14 @@ class WordPressBlog {
     $dest_handle = fopen($destination, 'w');
 
     // First, get the header (everything before the <channel> element) to
-    // rewrite the namespaces
+    // rewrite the namespaces (skipping any empty lines).
     $header = '';
-    while ($line = fgets($source_handle)) {
-      $header .= $line;
-      if (strpos($line, '<channel>') !== FALSE) {
-        break;
+    while (($line = fgets($source_handle)) !== FALSE) {
+      if (trim($line)) {
+        $header .= $line;
+        if (strpos($line, '<channel>') !== FALSE) {
+          break;
+        }
       }
     }
 
