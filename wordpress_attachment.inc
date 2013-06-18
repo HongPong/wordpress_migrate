@@ -265,43 +265,44 @@ class WordPressAttachment extends WordPressMigration {
     // We'd like to just go through nodes with attachments (i.e., loop
     // through wordpress_migrate_attachment), but a node may reference
     // other posts' attachments without having any itself.
-    $map_table = 'migrate_map_' . strtolower($this->generateMachineName('WordPressBlogEntry'));
-    // Replicate the Migrate truncation to make sure we match the real map name.
-    $map_table = drupal_substr($map_table, 0, 63);
-    $nids = db_select($map_table, 'be')
-            ->fields('be', array('destid1'))
-            ->isNotNull('destid1')
-            ->execute();
-    foreach ($nids as $nid_row) {
-      $node = node_load($nid_row->destid1);
-      if ($node && is_array($node->body)) {
-        foreach ($node->body as $language => $body) {
-          $body = $body[0]['value'];
-          // If we have the media module, rewrite the img tags to media tags if
-          // we can.
-          if (module_exists('media')) {
-            $body = preg_replace_callback('|<img +(.*?)>|i',
-              array($this, 'replaceImgs'), $body);
+    foreach ($this->dependencies as $migration_name) {
+      $migration = Migration::getInstance($migration_name);
+      $map_table = $migration->getMap()->getMapTable();
+      $nids = db_select($map_table, 'be')
+              ->fields('be', array('destid1'))
+              ->isNotNull('destid1')
+              ->execute();
+      foreach ($nids as $nid_row) {
+        $node = node_load($nid_row->destid1);
+        if ($node && is_array($node->body)) {
+          foreach ($node->body as $language => $body) {
+            $body = $body[0]['value'];
+            // If we have the media module, rewrite the img tags to media tags if
+            // we can.
+            if (module_exists('media')) {
+              $body = preg_replace_callback('|<img +(.*?)>|i',
+                array($this, 'replaceImgs'), $body);
+            }
+            // See if any remaining images can be directly replaced.
+            $result = db_select('wordpress_migrate_attachment', 'a')
+                                ->fields('a', array('original_url', 'new_uri', 'new_fid'))
+                                ->condition('parent_nid', $nid_row->destid1)
+                                ->execute();
+            foreach ($result as $row) {
+              $body = str_replace($row->original_url, $row->new_uri, $body);
+            }
+            $node->body[$language][0]['value'] = $body;
           }
-          // See if any remaining images can be directly replaced.
-          $result = db_select('wordpress_migrate_attachment', 'a')
-                              ->fields('a', array('original_url', 'new_uri', 'new_fid'))
-                              ->condition('parent_nid', $nid_row->destid1)
-                              ->execute();
-          foreach ($result as $row) {
-            $body = str_replace($row->original_url, $row->new_uri, $body);
-          }
-          $node->body[$language][0]['value'] = $body;
-        }
 
-        // Maintain the original update datestamp
-        $changed = $node->changed;
-        $this->disablePathauto($node);
-        node_save($node);
-        db_update('node')
-          ->fields(array('changed' => $changed))
-          ->condition('nid', $node->nid)
-          ->execute();
+          // Maintain the original update datestamp
+          $changed = $node->changed;
+          $this->disablePathauto($node);
+          node_save($node);
+          db_update('node')
+            ->fields(array('changed' => $changed))
+            ->condition('nid', $node->nid)
+            ->execute();
+        }
       }
     }
 
@@ -323,6 +324,11 @@ class WordPressAttachment extends WordPressMigration {
     }
     else {
       return $result;
+    }
+
+    // Strip off any URL parameters.
+    if ($question = strpos($src, '?')) {
+      $src = substr($src, 0, $question);
     }
 
     // Get the fid, if any. If none, let the img tag stand
