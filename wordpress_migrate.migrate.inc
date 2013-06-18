@@ -645,7 +645,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     );
     $this->addMigration('Author', 'WordPressAuthor', $arguments);
 
-    $attachment_dependencies = array();
+    $attachment_arguments = array();
 
     if ($this->contentValues['blog']['post_type']) {
       $migrations .= t('<li>WordPress blog posts will be imported to %type nodes.</li>',
@@ -662,7 +662,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         'generate_redirects' => $this->contentValues['blog']['generate_redirects'],
       );
       $this->addMigration('BlogPost', 'WordPressBlogEntry', $arguments);
-      $attachment_dependencies[] = 'BlogPost';
+      $attachment_arguments['dependencies'][] = 'BlogPost';
+      $attachment_arguments['blog_attachment_field'] =
+        $this->contentValues['blog']['attachment_field'];
       if ($this->contentValues['blog']['comments']) {
         $migrations .= t('<li>WordPress blog post comments will be imported.</li>');
         $arguments = array(
@@ -695,7 +697,10 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       );
 
       $this->addMigration('Page', 'WordPressPage', $arguments);
-      $attachment_dependencies[] = 'Page';
+      $attachment_arguments['dependencies'][] = 'Page';
+      $attachment_arguments['page_attachment_field'] =
+        $this->contentValues['page']['attachment_field'];
+
       if ($this->contentValues['page']['comments']) {
         $migrations .= t('<li>WordPress page comments will be imported.</li>');
         $arguments = array(
@@ -712,12 +717,8 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     else {
       $migrations .= t('<li>WordPress pages and their comments will not be imported.</li>');
     }
-    $arguments = array(
-      'dependencies' => $attachment_dependencies,
-      'blog_attachment_field' => $this->contentValues['blog']['attachment_field'],
-      'page_attachment_field' => $this->contentValues['page']['attachment_field'],
-    );
-    $this->addMigration('Attachment', 'WordPressAttachment', $arguments);
+    $this->addMigration('Attachment', 'WordPressAttachment',
+                        $attachment_arguments);
 
     $form['migration_list'] = array(
       '#prefix' => '<ol>',
