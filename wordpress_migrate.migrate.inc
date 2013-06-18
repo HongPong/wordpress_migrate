@@ -461,9 +461,19 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         '#options' => array(1 => t('Yes'), 0 => t('No')),
         '#default_value' => 1,
       );
+      $form['pingbacks'] = array(
+        '#type' => 'radios',
+        '#title' => t('Ignore pingbacks?'),
+        '#options' => array(1 => t('Yes'), 0 => t('No')),
+        '#default_value' => 1,
+      );
     }
     else {
       $form['comments'] = array(
+        '#type' => 'value',
+        '#value' => 0,
+      );
+      $form['pingbacks'] = array(
         '#type' => 'value',
         '#value' => 0,
       );
@@ -671,6 +681,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
           'post_type' => $this->contentValues['blog']['post_type'],
           'dependencies' => array('BlogPost'),
           'text_format_comment' => $this->contentValues['blog']['text_format_comment'],
+          'skip_pingbacks' => $this->contentValues['blog']['pingbacks'],
         );
         $this->addMigration('BlogPostComment', 'WordPressComment', $arguments);
       }
@@ -707,6 +718,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
           'post_type' => $this->contentValues['page']['page_type'],
           'dependencies' => array('Page'),
           'text_format_comment' => $this->contentValues['page']['text_format_comment'],
+          'skip_pingbacks' => $this->contentValues['blog']['pingbacks'],
         );
         $this->addMigration('PageComment', 'WordPressComment', $arguments);
       }

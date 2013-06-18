@@ -157,7 +157,7 @@ class WordPressComment extends WordPressMigration {
 
     // The basic mappings
     $this->addFieldMapping('nid', 'post_id')
-         ->sourceMigration($this->dependencies);
+         ->sourceMigration($this->arguments['dependencies']);
     $this->addFieldMapping('pid', 'comment_parent')
          ->sourceMigration($this->generateMachineName('WordPressComment'));
     $this->addFieldMapping('uid')
@@ -203,16 +203,28 @@ class WordPressComment extends WordPressMigration {
     return $value;
   }
 
+  /**
+   * Implements Migration::prepareRow().
+   * 
+   * @param $row
+   *
+   * @return bool
+   */
   public function prepareRow($row) {
+    if (parent::prepareRow($row) === FALSE) {
+      return FALSE;
+    }
+
     // Reject spam
     if ($row->comment_approved == 'spam') {
       return FALSE;
     }
 
-    // Ignore pingbacks
-    if ($row->comment_type == 'pingback') {
+    // Ignore pingbacks if requested.
+    if ($row->comment_type == 'pingback' && $this->arguments['skip_pingbacks']) {
       return FALSE;
     }
+
     $row->comment_date = strtotime($row->comment_date);
 
     return TRUE;
