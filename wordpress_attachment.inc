@@ -30,6 +30,14 @@ class WordPressAttachmentSource extends WordPressItemSource {
  */
 class WordPressAttachment extends WordPressMigration {
   /**
+   * List of files created directly from IMG tags, to be added to the node's
+   * attachment field (if any).
+   *
+   * @var array
+   */
+  protected $referencedFiles = array();
+
+  /**
    * Set it up
    */
   public function __construct(array $arguments = array()) {
@@ -280,8 +288,18 @@ class WordPressAttachment extends WordPressMigration {
             // If we have the media module, rewrite the img tags to media tags if
             // we can.
             if (module_exists('media')) {
+              $this->referencedFiles = array();
               $body = preg_replace_callback('|<img +(.*?)>|i',
                 array($this, 'replaceImgs'), $body);
+              // Add any referenced files to the node's attachment field, if
+              // one is configured.
+              $migration_arguments = $migration->getArguments();
+              if (!empty($migration_arguments['attachment_field'])) {
+                $attachment_field = $migration_arguments['attachment_field'];
+                foreach ($this->referencedFiles as $file) {
+                  $node->{$attachment_field}[LANGUAGE_NONE][] = $file;
+                }
+              }
             }
             // See if any remaining images can be directly replaced.
             $result = db_select('wordpress_migrate_attachment', 'a')
@@ -389,6 +407,11 @@ class WordPressAttachment extends WordPressMigration {
     );
 
     $result = '[[' . drupal_json_encode($img_info) . ']]';
+
+    // Track file references so we can add to an attachment field (if any).
+    $file->display = 1;
+    $file->description = '';
+    $this->referencedFiles[] = (array)$file;
 
     return $result;
   }
