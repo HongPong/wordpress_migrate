@@ -375,6 +375,10 @@ class WordPressAttachment extends WordPressMigration {
         return $result;
       }
     }
+    else {
+      // Load the file from the fid.
+      $file = file_load($fid);
+    }
 
     // Extract the width, height, and classes for the media tag, if present
     $attributes = array(
