@@ -31,23 +31,23 @@ class WordPressTag extends WordPressMigration {
     );
 
     $fields = array(
-        'tag_slug' => 'Unique "machine name" of the tag',
-        'tag_name' => 'User-friendly tag name',
-        'tag_description' => 'Description of tag',
+        'wp:tag_slug' => 'Unique "machine name" of the tag',
+        'wp:tag_name' => 'User-friendly tag name',
+        'wp:tag_description' => 'Description of tag',
     );
 
     // Construct the source and destination objects.
     $source_options = array(
-      'reader_class' => 'WordPressXMLReader',
+      'reader_class' => 'MigrateXMLReader',
       'cache_counts' => TRUE,
     );
-    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/tag',
-      'wp:tag_slug', $fields, $source_options);
+    $this->source = new MigrateSourceXML($this->wxrFile, '/rss/channel/tag',
+      'wp:tag_slug', $fields, $source_options, $this->arguments['namespaces']);
     $this->destination = new MigrateDestinationTerm($arguments['tag_vocabulary']);
 
     // The basic mappings
-    $this->addFieldMapping('name', 'tag_name');
-    $this->addFieldMapping('description', 'tag_description');
+    $this->addFieldMapping('name', 'wp:tag_name');
+    $this->addFieldMapping('description', 'wp:tag_description');
     $this->addFieldMapping('parent_name')
          ->issueGroup('DNM');
 

@@ -10,7 +10,7 @@ class WordPressAttachmentSource extends WordPressItemSource {
    * @var array
    */
   protected $attachmentFields = array(
-    'attachment_url' => 'The URL of the attached file',
+    'wp:attachment_url' => 'The URL of the attached file',
     '_wp_attached_file' => 'Local (to WordPress) filespec',
     '_wp_attachment_metadata' => 'Serialized metadata (image size etc.)',
   );
@@ -50,7 +50,7 @@ class WordPressAttachment extends WordPressMigration {
     // post_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
       array(
-        'post_id' => array(
+        'wp:post_id' => array(
           'type' => 'int',
           'not null' => TRUE,
           'unsigned' => TRUE,
@@ -60,13 +60,18 @@ class WordPressAttachment extends WordPressMigration {
       MigrateDestinationFile::getKeySchema()
     );
 
-    $this->addFieldMapping('value', 'attachment_url');
-    $this->addFieldMapping('destination_file', 'attachment_url')
+    $this->addFieldMapping('value', 'wp:attachment_url')
+         ->xpath('wp:attachment_url');
+    $this->addFieldMapping('destination_file', 'wp:attachment_url')
+         ->xpath('wp:attachment_url')
          ->callbacks(array($this, 'fixDestinationFile'));
-    $this->addFieldMapping('uid', 'creator')
+    $this->addFieldMapping('uid', 'dc:creator')
+         ->xpath('dc:creator')
          ->description('Use matching username if any, otherwise current user');
-    $this->addFieldMapping('timestamp', 'post_date');
-    $this->addFieldMapping(NULL, 'post_parent')
+    $this->addFieldMapping('timestamp', 'wp:post_date')
+         ->xpath('wp:post_date');
+    $this->addFieldMapping(NULL, 'wp:post_parent')
+         ->xpath('wp:post_parent')
          ->description('Mapping is handled dynamically');
 
     // Unmapped destination fields
@@ -74,14 +79,14 @@ class WordPressAttachment extends WordPressMigration {
                                      'file_replace', 'preserve_files', 'source_dir'));
 
     // Unmapped source fields
-    $this->addUnmigratedSources(array('link', 'guid', 'description', 'excerpt',
-      'post_id', 'comment_status', 'ping_status', 'post_name', 'status',
-      'menu_order', 'post_type', 'post_password', 'is_sticky', 'tag', 'category',
-      '_wp_attached_file', '_wp_attachment_metadata', 'title', 'content'));
+    $this->addUnmigratedSources(array('link', 'guid', 'description', 'excerpt:encoded',
+      'wp:post_id', 'wp:comment_status', 'wp:ping_status', 'wp:post_name', 'wp:status',
+      'wp:menu_order', 'wp:post_type', 'wp:post_password', 'wp:is_sticky', 'tag', 'category',
+      '_wp_attached_file', '_wp_attachment_metadata', 'title', 'content:encoded'));
     $this->addFieldMapping(NULL, 'pubDate')
          ->description('Use post_date')
          ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_date_gmt')
+    $this->addFieldMapping(NULL, 'wp:post_date_gmt')
          ->description('Use post_date')
          ->issueGroup(t('DNM'));
   }
@@ -99,26 +104,26 @@ class WordPressAttachment extends WordPressMigration {
    */
   public function prepareRow($row) {
     // Skip any of the wrong post type
-    if ($row->post_type != 'attachment') {
+    if ($row->{'wp:post_type'} != 'attachment') {
       return FALSE;
     }
 
     // If incoming date is zero (indicates unpublished content), use the current time
-    if ($row->post_date == '0000-00-00 00:00:00') {
-      $row->post_date = time();
+    if ($row->{'wp:post_type'} == '0000-00-00 00:00:00') {
+      $row->{'wp:post_type'} = time();
     }
 
     // Sometimes URLs have doubled-up slashes - reduce to a single.
-    $pieces = explode('://', $row->attachment_url);
+    $pieces = explode('://', $row->{'wp:attachment_url'});
     if (count($pieces) == 1) {
-      $row->attachment_url = str_replace('//', '/', $row->attachment_url);
+      $row->{'wp:attachment_url'} = str_replace('//', '/', $row->{'wp:attachment_url'});
     }
     else {
-      $row->attachment_url = $pieces[0] . '://' . str_replace('//', '/', $pieces[1]);
+      $row->{'wp:attachment_url'} = $pieces[0] . '://' . str_replace('//', '/', $pieces[1]);
     }
 
     // Make sure we actually have a URL
-    if ($row->attachment_url) {
+    if ($row->{'wp:attachment_url'}) {
       return TRUE;
     }
     else {
@@ -141,13 +146,13 @@ class WordPressAttachment extends WordPressMigration {
       $drupal_static_fast['default_user'] = &drupal_static(__FUNCTION__ . 'DefaultUser');
     }
     $user_map = &$drupal_static_fast['user_map'];
-    if (!isset($user_map[$row->creator])) {
-      $user_map[$row->creator] = db_select('users', 'u')
+    if (!isset($user_map[$row->{'dc:creator'}])) {
+      $user_map[$row->{'dc:creator'}] = db_select('users', 'u')
                                  ->fields('u', array('uid'))
-                                 ->condition('name', $row->creator)
+                                 ->condition('name', $row->{'dc:creator'})
                                  ->execute()
                                  ->fetchField();
-      if (!$user_map[$row->creator]) {
+      if (!$user_map[$row->{'dc:creator'}]) {
         $default_user = &$drupal_static_fast['default_user'];
         if (!isset($default_user)) {
           $default_user = db_select('wordpress_migrate', 'wpm')
@@ -156,10 +161,10 @@ class WordPressAttachment extends WordPressMigration {
                           ->execute()
                           ->fetchField();
         }
-        $user_map[$row->creator] = $default_user;
+        $user_map[$row->{'dc:creator'}] = $default_user;
       }
     }
-    $file->uid = $user_map[$row->creator];
+    $file->uid = $user_map[$row->{'dc:creator'}];
   }
 
   /**
@@ -175,19 +180,20 @@ class WordPressAttachment extends WordPressMigration {
       return;
     }
     // Find the parent nid
-    $row->post_parent = $this->handleSourceMigration($this->dependencies, $row->post_parent);
+    $row->{'wp:post_parent'} = $this->handleSourceMigration($this->dependencies, $row->{'wp:post_parent'});
 
     // Populate the parent node's attachment field, if applicable
-    if ($row->post_parent) {
+    if ($row->{'wp:post_parent'}) {
       // Which migration did it come from, posts or pages?
       $post_migration = Migration::getInstance($this->group->getName() . 'BlogPost');
-      $post_map_row = $post_migration->getMap()->getRowByDestination(array($row->post_parent));
+      $post_map_row = $post_migration->getMap()->getRowByDestination(array($row->{'wp:post_parent'}));
+
       if (!empty($post_map_row)) {
         $attachment_field = $this->arguments['blog_attachment_field'];
       }
       else {
         $page_migration = Migration::getInstance($this->group->getName() . 'Page');
-        $page_map_row = $page_migration->getMap()->getRowByDestination(array($row->post_parent));
+        $page_map_row = $page_migration->getMap()->getRowByDestination(array($row->{'wp:post_parent'}));
         if (!empty($page_map_row)) {
           $attachment_field = $this->arguments['page_attachment_field'];
         }
@@ -197,7 +203,7 @@ class WordPressAttachment extends WordPressMigration {
       }
 
       if ($attachment_field) {
-        $parent_node = node_load($row->post_parent);
+        $parent_node = node_load($row->{'wp:post_parent'});
         if ($parent_node) {
           $file->display = 1;
           $file->description = '';
@@ -225,12 +231,13 @@ class WordPressAttachment extends WordPressMigration {
     // Record the attachment, so we can fix up the parent bodies later
     $fields['new_uri'] = parse_url(file_create_url($file->uri), PHP_URL_PATH);
     $fields['new_fid'] = $file->fid;
-    if ($row->post_parent) {
-      $fields['parent_nid'] = $row->post_parent;
+    if ($row->{'wp:post_parent'}) {
+      $fields['parent_nid'] = $row->{'wp:post_parent'};
     }
+
     db_merge('wordpress_migrate_attachment')
       ->key(array('blog_id' => $this->blog->getBlogID(),
-                  'original_url' => $row->attachment_url))
+                  'original_url' => $row->{'wp:attachment_url'}))
       ->fields($fields)
       ->execute();
 
@@ -374,10 +381,6 @@ class WordPressAttachment extends WordPressMigration {
       else {
         return $result;
       }
-    }
-    else {
-      // Load the file from the fid.
-      $file = file_load($fid);
     }
 
     // Extract the width, height, and classes for the media tag, if present

@@ -79,31 +79,6 @@ class WordPressCommentXMLReader extends MigrateXMLReader {
       }
     }
 
-    // Copy of code from WordPressXMLReader - turn the SimpleXML object
-    // into a flat list of fields.
-    if (is_a($this->currentElement, 'SimpleXMLElement')) {
-      $item = $this->currentElement;
-      $currentRow = new stdClass;
-      // Pull non-namespaced items
-      foreach ($item as $name => $value) {
-        $currentRow->$name = (string)$value;
-      }
-      $namespaces = $item->getNameSpaces(TRUE);
-      foreach ($namespaces as $ns => $nsuri) {
-        $item_ns = $item->children($namespaces[$ns]);
-        foreach ($item_ns as $name => $value) {
-          // Special-case content:encoded and excerpt:encoded, which otherwise
-          // would both be saved as "encoded"
-          if ($name == 'encoded') {
-            $currentRow->$ns = (string)$value;
-          }
-          else {
-            $currentRow->$name = (string)$value;
-          }
-        }
-      }
-      $this->currentElement = $currentRow;
-    }
     migrate_instrument_stop('WordPressCommentXMLReader::next');
   }
 }
@@ -121,7 +96,7 @@ class WordPressComment extends WordPressMigration {
     // comment_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
       array(
-        'comment_id' => array(
+        'wp:comment_id' => array(
           'type' => 'int',
           'unsigned' => TRUE,
           'not null' => TRUE,
@@ -132,64 +107,76 @@ class WordPressComment extends WordPressMigration {
     );
 
     $fields = array(
-        'post_id' => 'Unique ID of the item the comment is attached to',
-        'comment_id' => 'Unique ID of the comment',
-        'comment_author' => 'Name of comment author',
-        'comment_author_email' => 'Email address of comment author',
-        'comment_author_url' => 'URL of comment author',
-        'comment_author_IP' => 'IP address from which comment was posted',
-        'comment_date' => 'Date of comment (what timezone?)',
-        'comment_date_gmt' => 'Date of comment (GMT)',
-        'comment_content' => 'Body of comment',
-        'comment_approved' => '1/0/spam - spam comments will not be imported',
-        'comment_type' => '?',
-        'comment_parent' => 'comment_id (?) of parent comment',
-        'comment_user_id' => 'WordPress user ID of commenter (?)',
+        'wp:post_id' => 'Unique ID of the item the comment is attached to',
+        'wp:comment_id' => 'Unique ID of the comment',
+        'wp:comment_author' => 'Name of comment author',
+        'wp:comment_author_email' => 'Email address of comment author',
+        'wp:comment_author_url' => 'URL of comment author',
+        'wp:comment_author_IP' => 'IP address from which comment was posted',
+        'wp:comment_date' => 'Date of comment (what timezone?)',
+        'wp:comment_date_gmt' => 'Date of comment (GMT)',
+        'wp:comment_content' => 'Body of comment',
+        'wp:comment_approved' => '1/0/spam - spam comments will not be imported',
+        'wp:comment_type' => '?',
+        'wp:comment_parent' => 'comment_id (?) of parent comment',
+        'wp:comment_user_id' => 'WordPress user ID of commenter (?)',
       );
 
     $source_options = array(
       'reader_class' => 'WordPressCommentXMLReader',
       'cache_counts' => TRUE,
     );
-    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/item/comment',
-      'wp:comment_id', $fields, $source_options);
+    $this->source = new MigrateSourceXML($this->wxrFile, '/rss/channel/item/comment',
+      'wp:comment_id', $fields, $source_options, $this->arguments['namespaces']);
     $this->destination = new MigrateDestinationComment('comment_node_' . $arguments['post_type']);
 
     // The basic mappings
-    $this->addFieldMapping('nid', 'post_id')
+    $this->addFieldMapping('nid', 'wp:post_id')
+         ->xpath('wp:post_id')
          ->sourceMigration($this->arguments['dependencies']);
-    $this->addFieldMapping('pid', 'comment_parent')
+    $this->addFieldMapping('pid', 'wp:comment_parent')
+         ->xpath('wp:comment_parent')
          ->sourceMigration($this->generateMachineName('WordPressComment'));
     $this->addFieldMapping('uid')
          ->description('Use email to match Drupal account; if no match, default to anonymous');
     $this->addFieldMapping('subject')
          ->description('No comment subjects in WP')
          ->issueGroup('DNM');
-    $this->addFieldMapping('hostname', 'comment_author_IP');
-    $this->addFieldMapping('created', 'comment_date');
-    $this->addFieldMapping('changed', 'comment_date');
-    $this->addFieldMapping(NULL, 'comment_date_gmt')
+    $this->addFieldMapping('hostname', 'wp:comment_author_IP')
+         ->xpath('wp:comment_author_IP');
+    $this->addFieldMapping('created', 'wp:comment_date')
+         ->xpath('wp:comment_date')
+         ->callbacks('strtotime');
+    $this->addFieldMapping('changed', 'wp:comment_date')
+         ->xpath('wp:comment_date')
+         ->callbacks('strtotime');
+    $this->addFieldMapping(NULL, 'wp:comment_date_gmt')
          ->description('Using comment_date')
          ->issueGroup('DNM');
-    $this->addFieldMapping('status', 'comment_approved')
+    $this->addFieldMapping('status', 'wp:comment_approved')
+         ->xpath('wp:comment_approved')
          ->description('Do not import those with values of "spam"');
     $this->addFieldMapping('thread')
          ->issueGroup('DNM');
-    $this->addFieldMapping('name', 'comment_author')
+    $this->addFieldMapping('name', 'wp:comment_author')
+         ->xpath('wp:comment_author')
          ->callbacks(array($this, 'truncateName'));
-    $this->addFieldMapping('mail', 'comment_author_email');
-    $this->addFieldMapping('homepage', 'comment_author_url');
+    $this->addFieldMapping('mail', 'wp:comment_author_email')
+         ->xpath('wp:comment_author_email');
+    $this->addFieldMapping('homepage', 'wp:comment_author_url')
+         ->xpath('wp:comment_author_url');
     $this->addFieldMapping('language');
-    $this->addFieldMapping(NULL, 'comment_id')
+    $this->addFieldMapping(NULL, 'wp:comment_id')
          ->description('Source primary key')
          ->issueGroup('DNM');
-    $this->addFieldMapping(NULL, 'comment_user_id')
+    $this->addFieldMapping(NULL, 'wp:comment_user_id')
          ->description('Always 0?')
          ->issueGroup('DNM');
-    $this->addFieldMapping(NULL, 'comment_type')
+    $this->addFieldMapping(NULL, 'wp:comment_type')
          ->description('Always empty?')
          ->issueGroup('DNM');
-    $this->addFieldMapping('comment_body', 'comment_content');
+    $this->addFieldMapping('comment_body', 'wp:comment_content')
+         ->xpath('wp:comment_content');
     $this->addFieldMapping('comment_body:format')
          ->defaultValue($arguments['text_format_comment']);
     $this->addFieldMapping('comment_body:language');
@@ -216,16 +203,15 @@ class WordPressComment extends WordPressMigration {
     }
 
     // Reject spam
-    if ($row->comment_approved == 'spam') {
+    if ($this->xpathValue($row->xml->xpath('wp:comment_approved')) == 'spam') {
       return FALSE;
     }
 
     // Ignore pingbacks if requested.
-    if ($row->comment_type == 'pingback' && $this->arguments['skip_pingbacks']) {
+    if ($this->xpathValue($row->xml->xpath('wp:comment_type')) == 'pingback' &&
+        $this->arguments['skip_pingbacks']) {
       return FALSE;
     }
-
-    $row->comment_date = strtotime($row->comment_date);
 
     return TRUE;
   }
@@ -243,16 +229,28 @@ class WordPressComment extends WordPressMigration {
       $drupal_static_fast['user_map'] = &drupal_static(__FUNCTION__);
     }
     $user_map = &$drupal_static_fast['user_map'];
-    if (!isset($user_map[$row->comment_author_email])) {
-      $user_map[$row->comment_author_email] = db_select('users', 'u')
-                                              ->fields('u', array('uid'))
-                                              ->condition('mail', $row->comment_author_email)
-                                              ->execute()
-                                              ->fetchField();
-      if (!$user_map[$row->comment_author_email]) {
-        $user_map[$row->comment_author_email] = 0;
+    $comment_author_email = $this->xpathValue($row->xml->xpath('wp:comment_author_email'));
+    if (!isset($user_map[$comment_author_email])) {
+      $user_map[$comment_author_email] = db_select('users', 'u')
+        ->fields('u', array('uid'))
+        ->condition('mail', $row->{'wp:comment_author_email'})
+        ->execute()
+        ->fetchField();
+      if (!$user_map[$comment_author_email]) {
+        $user_map[$comment_author_email] = 0;
       }
     }
-    $comment->uid = $user_map[$row->comment_author_email];
+    $comment->uid = $user_map[$comment_author_email];
+  }
+
+  /**
+   * Turn an array of XML objects returned by xpath() into a single string.
+   *
+   * @param $result
+   *
+   * @return string
+   */
+  public function xpathValue($result) {
+    return (string)reset($result);
   }
 }

@@ -9,7 +9,7 @@
 /**
  * Implementation of MigrateSource, to handle migrating items from WordPress XML dumps.
  */
-class WordPressItemSource extends WordPressSourceXML {
+class WordPressItemSource extends MigrateSourceXML {
   /**
    * The <wp:post_type> value we're looking for in this migration
    * (post/page/attachment).
@@ -27,23 +27,23 @@ class WordPressItemSource extends WordPressSourceXML {
     'title' => 'Item title',
     'link' => 'WordPress URL of the item',
     'pubDate' => 'Published date',
-    'creator' => 'WordPress username of the item author',
+    'dc:creator' => 'WordPress username of the item author',
     'guid' => 'Alternate URL of the item (?)',
     'description' => '?',
-    'content' => 'Body of the item',
-    'excerpt' => 'Teaser for the item',
-    'post_id' => 'Unique ID of the item within the blog',
-    'post_date' => 'Date posted (author\s timezone?)',
-    'post_date_gmt' => 'Date posted (GMT)',
-    'comment_status' => 'Whether comments may be posted to this item (open/closed)',
-    'ping_status' => '?',
-    'post_name' => 'Trailing component of link',
-    'status' => 'Item status (publish/draft/inherit)',
-    'post_parent' => 'Parent item ID (?)',
-    'menu_order' => 'Equivalent to Drupal weight?',
-    'post_type' => 'Item type (post/page/attachment)',
-    'post_password' => '?',
-    'is_sticky' => 'Equivalent to Drupal sticky flag',
+    'content:encoded' => 'Body of the item',
+    'excerpt:encoded' => 'Teaser for the item',
+    'wp:post_id' => 'Unique ID of the item within the blog',
+    'wp:post_date' => 'Date posted (author\s timezone?)',
+    'wp:post_date_gmt' => 'Date posted (GMT)',
+    'wp:comment_status' => 'Whether comments may be posted to this item (open/closed)',
+    'wp:ping_status' => '?',
+    'wp:post_name' => 'Trailing component of link',
+    'wp:status' => 'Item status (publish/draft/inherit)',
+    'wp:post_parent' => 'Parent item ID (?)',
+    'wp:menu_order' => 'Equivalent to Drupal weight?',
+    'wp:post_type' => 'Item type (post/page/attachment)',
+    'wp:post_password' => '?',
+    'wp:is_sticky' => 'Equivalent to Drupal sticky flag',
     'category' => 'Categories (as nicename) assigned to this item',
     'tag' => 'Tags (as nicename) assigned to this item',
   );
@@ -52,14 +52,15 @@ class WordPressItemSource extends WordPressSourceXML {
    * Simple initialization.
    *
    */
-  public function __construct($filename, $post_type, $cache_key) {
+  public function __construct($filename, $post_type, $cache_key, $namespaces = array()) {
     $source_options = array(
-      'reader_class' => 'WordPressXMLReader',
+      'reader_class' => 'MigrateXMLReader',
       'cache_counts' => TRUE,
       'cache_key' => $cache_key,
     );
+
     parent::__construct($filename, '/rss/channel/item', 'wp:post_id',
-      $this->fields, $source_options);
+      $this->fields, $source_options, $namespaces);
     $this->postType = $post_type;
   }
 
@@ -72,7 +73,11 @@ class WordPressItemSource extends WordPressSourceXML {
       $reader = new $this->readerClass($url, $this->elementQuery, $this->idQuery);
       foreach ($reader as $element) {
         // Only count relevant postType
-        if ($element->post_type == $this->postType) {
+        $field = 'wp:post_type';
+
+        $post_type = current($element->xpath($field));
+
+        if ($post_type == $this->postType) {
           $count++;
         }
       }
@@ -136,7 +141,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     // post_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
       array(
-        'post_id' => array(
+        'wp:post_id' => array(
           'type' => 'int',
           'not null' => TRUE,
           'unsigned' => TRUE,
@@ -147,34 +152,42 @@ abstract class WordPressItemMigration extends WordPressMigration {
     );
 
     // Construct the source objects.
-    $this->source = new WordPressItemSource($this->wxrFile, $this->postType, $this->machineName);
+    $this->source = new WordPressItemSource($this->wxrFile, $this->postType, $this->machineName, $this->arguments['namespaces']);
     $this->destination = new MigrateDestinationNode($bundle);
 
     // Default mappings, applying to most or all migrations
-    $this->addFieldMapping('title', 'title');
-    $this->addFieldMapping('created', 'post_date')
+    $this->addFieldMapping('title', 'title')
+         ->xpath('title');
+    $this->addFieldMapping('created', 'wp:post_date')
+         ->xpath('wp:post_date')
          ->description('Empty dates handled in prepare()');
-    $this->addFieldMapping('changed', 'post_date')
+    $this->addFieldMapping('changed', 'wp:post_date')
+         ->xpath('wp:post_date')
          ->description('Empty dates handled in prepare()');
     // If we have a separate author migration, use it here
-    $uid_mapping = $this->addFieldMapping('uid', 'creator')
+    $uid_mapping = $this->addFieldMapping('uid', 'dc:creator')
+         ->xpath('dc:creator')
          ->description('Use matching username if any, otherwise current user');
     if ($this->blog->getWxrVersion() != '1.0') {
       $uid_mapping->sourceMigration($this->group->getName() . 'Author');
     }
     $this->addFieldMapping('body', 'content');
-    $this->addFieldMapping('body:summary', 'excerpt');
+    $this->addFieldMapping('body:summary', 'excerpt:encoded')
+         ->xpath('excerpt:encoded');
     $this->addFieldMapping('body:format')
          ->defaultValue($this->arguments['text_format']);
     if (module_exists('comment')) {
-      $this->addFieldMapping('comment', 'comment_status')
+      $this->addFieldMapping('comment', 'wp:comment_status')
+           ->xpath('wp:comment_status')
            ->description('WP "open" mapped to Drupal COMMENT_NODE_OPEN');
     }
     $this->addFieldMapping('status', 'status')
          ->description('Set Drupal status to 1 iff wp:status=publish');
-    $this->addFieldMapping(NULL, 'post_parent')
+    $this->addFieldMapping(NULL, 'wp:post_parent')
+         ->xpath('wp:post_parent')
          ->description('Only applies to attachments');
-    $this->addFieldMapping('sticky', 'is_sticky');
+    $this->addFieldMapping('sticky', 'wp:is_sticky')
+         ->xpath('wp:is_sticky');
     if (module_exists('path')) {
       switch ($this->arguments['path_action']) {
         // Do not set path aliases
@@ -257,7 +270,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
       'promote', 'revision_uid', 'log', 'tnid', 'translate', 'body:language'));
 
     // Unmapped source fields
-    $this->addUnmigratedSources(array('post_id', 'menu_order', 'post_type'));
+    $this->addUnmigratedSources(array('wp:post_id', 'wp:menu_order', 'wp:post_type'));
     $this->addFieldMapping(NULL, 'guid')
          ->description('same as link, plus isPermaLink attribute?')
          ->issueGroup(t('DNM'));
@@ -267,17 +280,17 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $this->addFieldMapping(NULL, 'pubDate')
          ->description('Use post_date')
          ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_date_gmt')
+    $this->addFieldMapping(NULL, 'wp:post_date_gmt')
          ->description('Use post_date')
          ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'ping_status')
+    $this->addFieldMapping(NULL, 'wp:ping_status')
          ->description('What does this mean?')
          ->issueGroup(t('Open issues'))
          ->issuePriority(MigrateFieldMapping::ISSUE_PRIORITY_MEDIUM);
-    $this->addFieldMapping(NULL, 'post_name')
+    $this->addFieldMapping(NULL, 'wp:post_name')
          ->description('Looks like last component of path')
          ->issueGroup(t('DNM'));
-    $this->addFieldMapping(NULL, 'post_password')
+    $this->addFieldMapping(NULL, 'wp:post_password')
          ->description('???')
          ->issueGroup(t('DNM'));
   }
@@ -289,14 +302,17 @@ abstract class WordPressItemMigration extends WordPressMigration {
    * @return string
    */
   public function prepareRow($row) {
+    $wp_row = $row->xml->children($this->arguments['namespaces']['wp']);
+    $content_row = $row->xml->children($this->arguments['namespaces']['content']);
+
     // Skip any of the wrong post type
-    if ($row->post_type != $this->postType) {
+    if ($wp_row->post_type != $this->postType) {
       return FALSE;
     }
 
     // Only publish those with wp:status == 'publish'
-    if (isset($row->status)) {
-      switch ($row->status) {
+    if (isset($wp_row->status)) {
+      switch ($wp_row->status) {
         case 'publish':
           $row->status = NODE_PUBLISHED;
           break;
@@ -311,8 +327,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // If incoming date is zero (indicates unpublished content), use the current time
-    if ($row->post_date == '0000-00-00 00:00:00') {
-      $row->post_date = time();
+    if ($wp_row->post_date == '0000-00-00 00:00:00') {
+      $row->{'wp:post_date'} = time();
     }
 
     // If the link has a query string, don't produce a path
@@ -334,11 +350,11 @@ abstract class WordPressItemMigration extends WordPressMigration {
 
     // Translate WordPress comment_status to Drupal values
     if (module_exists('comment')) {
-      if ($row->comment_status == 'open') {
-        $row->comment_status = COMMENT_NODE_OPEN;
+      if ($wp_row->comment_status == 'open') {
+        $row->{'wp:comment_status'} = COMMENT_NODE_OPEN;
       }
       else {
-        $row->comment_status = COMMENT_NODE_CLOSED;
+        $row->{'wp:comment_status'} = COMMENT_NODE_CLOSED;
       }
     }
 
@@ -347,6 +363,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
     if (count($broken) == 2) {
       $row->excerpt = $broken[0];
     }
+
+    $row->content = $content_row->encoded;
 
     // Interpret the [caption] tags
     $row->content = preg_replace_callback('|(\[caption.*?\])(.*?)(\[/caption\])|i',
@@ -385,6 +403,8 @@ abstract class WordPressItemMigration extends WordPressMigration {
     $row->content = preg_replace_callback(
       '|\[kml_flashembed *(.*?)/\]|i',
       array($this, 'replaceFlashEmbeds'), $row->content);
+
+    $row->{'content:encoded'} = $row->content;
 
     return TRUE;
   }

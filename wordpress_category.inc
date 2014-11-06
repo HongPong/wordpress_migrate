@@ -39,17 +39,17 @@ class WordPressCategory extends WordPressMigration {
 
     // Construct the source and destination objects.
     $source_options = array(
-      'reader_class' => 'WordPressXMLReader',
+      'reader_class' => 'MigrateXMLReader',
       'cache_counts' => TRUE,
     );
-    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/category',
-      'wp:category_nicename', $fields, $source_options);
+    $this->source = new MigrateSourceXML($this->wxrFile, '/rss/channel/category',
+      'wp:category_nicename', $fields, $source_options, $this->arguments['namespaces']);
     $this->destination = new MigrateDestinationTerm($this->arguments['category_vocabulary']);
 
     // The basic mappings
-    $this->addFieldMapping('name', 'cat_name');
-    $this->addFieldMapping('description', 'category_description');
-    $this->addFieldMapping('parent', 'category_parent')
+    $this->addFieldMapping('name', 'wp:cat_name');
+    $this->addFieldMapping('description', 'wp:category_description');
+    $this->addFieldMapping('parent', 'wp:category_parent')
          ->sourceMigration($this->machineName);
 
     // Unmapped destination fields

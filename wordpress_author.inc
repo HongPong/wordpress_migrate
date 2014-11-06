@@ -18,7 +18,7 @@ class WordPressAuthor extends WordPressMigration {
 
     $this->map = new MigrateSQLMap($this->machineName,
       array(
-        'author_login' => array(
+        'wp:author_login' => array(
           'type' => 'varchar',
           'length' => 255,
           'not null' => TRUE,
@@ -29,27 +29,29 @@ class WordPressAuthor extends WordPressMigration {
     );
 
     $fields = array(
-      'author_id' => 'Unique WordPress ID of the author',
-      'author_login' => 'Username (for login) of the author',
-      'author_email' => 'Author email address',
-      'author_display_name' => 'Displayed author name',
-      'author_first_name' => 'Author first name',
-      'author_last_name' => 'Author last name',
+      'wp:author_id' => 'Unique WordPress ID of the author',
+      'wp:author_login' => 'Username (for login) of the author',
+      'wp:author_email' => 'Author email address',
+      'wp:author_display_name' => 'Displayed author name',
+      'wp:author_first_name' => 'Author first name',
+      'wp:author_last_name' => 'Author last name',
     );
 
     // Construct the source and destination objects.
     $source_options = array(
-      'reader_class' => 'WordPressXMLReader',
+      'reader_class' => 'MigrateXMLReader',
       'cache_counts' => TRUE,
     );
-    $this->source = new WordPressSourceXML($this->wxrFile, '/rss/channel/wp:author',
-      'wp:author_login', $fields, $source_options);
+    $this->source = new MigrateSourceXML($this->wxrFile, '/rss/channel/wp:author',
+      'wp:author_login', $fields, $source_options, $this->arguments['namespaces']);
     $this->destination = new WordPressAuthorDestination($arguments);
 
     // The basic mappings
-    $this->addFieldMapping('name', 'author_login')
+    $this->addFieldMapping('name', 'wp:author_login')
+         ->xpath('wp:author_login')
          ->dedupe('users', 'name');
-    $this->addFieldMapping('mail', 'author_email');
+    $this->addFieldMapping('mail', 'wp:author_email')
+         ->xpath('wp:author_email');
     $this->addFieldMapping('roles')
          ->defaultValue(DRUPAL_AUTHENTICATED_RID);
     $this->addFieldMapping('status')
@@ -64,8 +66,8 @@ class WordPressAuthor extends WordPressMigration {
     }
 
     // Unmapped source fields
-    $this->addUnmigratedSources(array('author_display_name', 'author_first_name',
-                                'author_last_name', 'author_id'));
+    $this->addUnmigratedSources(array('wp:author_display_name',
+      'wp:author_first_name', 'wp:author_last_name', 'wp:author_id'));
   }
 }
 

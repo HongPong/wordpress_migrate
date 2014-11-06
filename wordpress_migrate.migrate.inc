@@ -34,6 +34,13 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   protected $contentValues = array();
 
   /**
+   * List of namespaces referenced by the WXR file, keyed by prefix.
+   *
+   * @var array
+   */
+  protected $namespaces = array();
+
+  /**
    * Lay out the basic steps of the wizard.
    */
   public function __construct() {
@@ -259,7 +266,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       }
     }
 
-    WordPressBlog::preprocessFile($tmpfile, $this->filename);
+    $this->namespaces = WordPressBlog::preprocessFile($tmpfile, $this->filename);
 
     // Only include the author step if we have author data (which was introduced
     // in WXR 1.1)
@@ -628,6 +635,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     $this->groupArguments = array(
       'filename' => $this->filename,
       'source_system' => $this->getSourceName(),
+      'namespaces' => $this->namespaces,
     );
 
     $message = t('<p>Please review your migration configuration. When you submit this

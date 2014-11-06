@@ -5,7 +5,7 @@
  * Implementation of migration from WordPress into Drupal
  */
 
-abstract class WordPressMigration extends Migration {
+abstract class WordPressMigration extends XMLMigration {
   /**
    * The filespec of the WXR file this migration is based on.
    *
@@ -319,6 +319,9 @@ class WordPressBlog {
    *  The raw WXR file as uploaded.
    * @param $destination
    *  Filespec to which to write the cleaned-up WXR file.
+   *
+   * @return array
+   *  List of referenced namespaces, keyed by prefix.
    */
   static public function preprocessFile($sourcefile, $destination) {
     // Cleanup some stuff in the process of moving the file to its final
@@ -353,6 +356,12 @@ class WordPressBlog {
     $itunes_ns = 'xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"';
     $header = str_replace($content_ns, $itunes_ns . "\n\t" . $content_ns, $header);
 
+    preg_match_all('|xmlns:(.+?)="(.+?)"|i', $header, $matches, PREG_SET_ORDER);
+    $namespaces = array();
+    foreach ($matches as $index => $match) {
+      $namespaces[$match[1]] = $match[2];
+    }
+
     // Replace HTML entities with XML entities
     $header = strtr($header, self::$entityReplacements);
     fputs($dest_handle, $header);
@@ -374,6 +383,8 @@ class WordPressBlog {
     fclose($dest_handle);
     fclose($source_handle);
     unlink($sourcefile);
+
+    return $namespaces;
   }
 
   /**
