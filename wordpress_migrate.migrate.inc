@@ -279,7 +279,8 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       global $user;
       $this->defaultAuthorUid = $user->uid;
     }
-    $this->groupName = $blog->getTitle();
+    // Truncate the groupName so map/message table names don't get too long.
+    $this->groupName = substr($blog->getTitle(), 0, 63 - strlen('migrate_message_blogpostcomment'));
     $this->groupTitle = t('!title (!url)',
       array('!title' => $blog->getDisplayTitle(), '!url' => $blog->getBlogUrl()));
   }
