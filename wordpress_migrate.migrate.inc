@@ -632,6 +632,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    * to say yay or nay.
    */
   protected function reviewForm(&$form_state) {
+    $blog = wordpress_migrate_blog($this->filename);
+    $migration_classes = $blog->migrationClasses();
+
     $this->groupArguments = array(
       'filename' => $this->filename,
       'source_system' => $this->getSourceName(),
@@ -661,7 +664,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       'default_author_uid' => $this->defaultAuthorUid,
       'import_users' => $this->authorMigration,
     );
-    $this->addMigration('Author', 'WordPressAuthor', $arguments);
+    $this->addMigration('Author', $migration_classes['WordPressAuthor'], $arguments);
 
     $attachment_arguments = array();
 
@@ -679,7 +682,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         'path_action' => $this->contentValues['blog']['path_action'],
         'generate_redirects' => $this->contentValues['blog']['generate_redirects'],
       );
-      $this->addMigration('BlogPost', 'WordPressBlogEntry', $arguments);
+      $this->addMigration('BlogPost', $migration_classes['WordPressBlogEntry'], $arguments);
       $attachment_arguments['dependencies'][] = 'BlogPost';
       $attachment_arguments['blog_attachment_field'] =
         $this->contentValues['blog']['attachment_field'];
@@ -691,7 +694,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
           'text_format_comment' => $this->contentValues['blog']['text_format_comment'],
           'skip_pingbacks' => $this->contentValues['blog']['pingbacks'],
         );
-        $this->addMigration('BlogPostComment', 'WordPressComment', $arguments);
+        $this->addMigration('BlogPostComment', $migration_classes['WordPressComment'], $arguments);
       }
       else {
         $migrations .= t('<li>WordPress blog post comments will not be imported.</li>');
@@ -715,7 +718,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         'generate_redirects' => $this->contentValues['page']['generate_redirects'],
       );
 
-      $this->addMigration('Page', 'WordPressPage', $arguments);
+      $this->addMigration('Page', $migration_classes['WordPressPage'], $arguments);
       $attachment_arguments['dependencies'][] = 'Page';
       $attachment_arguments['page_attachment_field'] =
         $this->contentValues['page']['attachment_field'];
@@ -728,7 +731,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
           'text_format_comment' => $this->contentValues['page']['text_format_comment'],
           'skip_pingbacks' => $this->contentValues['blog']['pingbacks'],
         );
-        $this->addMigration('PageComment', 'WordPressComment', $arguments);
+        $this->addMigration('PageComment', $migration_classes['WordPressComment'], $arguments);
       }
       else {
         $migrations .= t('<li>WordPress page comments will not be imported.</li>');
@@ -737,7 +740,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     else {
       $migrations .= t('<li>WordPress pages and their comments will not be imported.</li>');
     }
-    $this->addMigration('Attachment', 'WordPressAttachment',
+    $this->addMigration('Attachment', $migration_classes['WordPressAttachment'],
                         $attachment_arguments);
 
     $form['migration_list'] = array(
