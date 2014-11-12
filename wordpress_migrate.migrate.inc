@@ -130,7 +130,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     $form['source']['credentials']['domain'] = array(
       '#type' => 'textfield',
       '#title' => t('Blog URL'),
-      '#description' => t('Enter the URL of the blog to import (e.g. example.wordpress.com).'),
+      '#description' => t('Enter the URL of the blog to import (e.g. example.my-server.com). Note that some servers (in particular wordpress.com) will block remote access, preventing direct access - if you get a "Could not login" error you must manually export your blog from WordPress and import the file here.'),
       '#field_prefix' => 'http://',
       '#states' => array(
         'visible' => array(
@@ -229,7 +229,9 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       curl_close($ch);
 
       // Login successful? Grab the export
-      if ((strpos($login_result, 'Set-Cookie: wordpress_logged_in')) || (strpos($login_result, 'Set-Cookie: wordpressuser_'))) {
+      if ((strpos($login_result, 'Set-Cookie: wordpress_logged_in')) ||
+          (strpos($login_result, 'Set-Cookie: wordpressuser_')) ||
+          (strpos($login_result, 'Set-Cookie: wordpress_test_cookie'))) {
         $filename = $domain . '.xml';
         // The "domain" may have included a subdirectory - flatten things out
         $this->filename = $directory . '/' . str_replace('/', '_', $filename);
