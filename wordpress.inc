@@ -21,6 +21,14 @@ abstract class WordPressMigration extends XMLMigration {
   protected $blog;
 
   /**
+   * List of items skipped because they don't belong in the migration at all
+   * (e.g., wrong post type).
+   *
+   * @var array
+   */
+  protected $skippedItems = array();
+
+  /**
    * Constructor - general setup for WordPress migrations.
    *
    * @param array $arguments
@@ -41,9 +49,13 @@ abstract class WordPressMigration extends XMLMigration {
     parent::postImport();
     // Clear ignored rows from the map, so as not to confuse reporting.
     $map_table = $this->map->getMapTable();
-    db_delete($map_table)
-      ->condition('needs_update', MigrateMap::STATUS_IGNORED)
-      ->execute();
+    foreach ($this->skippedItems as $postID) {
+      db_delete($map_table)
+        ->condition('needs_update', MigrateMap::STATUS_IGNORED)
+        ->condition('sourceid1', $postID)
+        ->execute();
+    }
+    $this->skippedItems = array();
   }
 
   /**

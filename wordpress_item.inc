@@ -307,6 +307,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
 
     // Skip any of the wrong post type
     if ($wp_row->post_type != $this->postType) {
+      $this->skippedItems[] = $row->{'wp:post_id'};
       return FALSE;
     }
 

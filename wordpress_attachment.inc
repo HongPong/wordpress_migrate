@@ -105,6 +105,7 @@ class WordPressAttachment extends WordPressMigration {
   public function prepareRow($row) {
     // Skip any of the wrong post type
     if ($row->{'wp:post_type'} != 'attachment') {
+      $this->skippedItems[] = $row->{'wp:post_id'};
       return FALSE;
     }
 
