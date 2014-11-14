@@ -47,9 +47,11 @@ class WordPressTag extends WordPressMigration {
 
     // The basic mappings
     $this->addFieldMapping('name', 'wp:tag_name')
-         ->xpath('wp:tag_name');
+         ->xpath('wp:tag_name')
+         ->callbacks('html_entity_decode');
     $this->addFieldMapping('description', 'wp:tag_description')
-         ->xpath('wp:tag_description');
+         ->xpath('wp:tag_description')
+         ->callbacks('html_entity_decode');
     $this->addFieldMapping('parent_name')
          ->issueGroup('DNM');
 

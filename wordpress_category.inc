@@ -48,9 +48,11 @@ class WordPressCategory extends WordPressMigration {
 
     // The basic mappings
     $this->addFieldMapping('name', 'wp:cat_name')
-         ->xpath('wp:cat_name');
+         ->xpath('wp:cat_name')
+         ->callbacks('html_entity_decode');
     $this->addFieldMapping('description', 'wp:category_description')
-         ->xpath('wp:category_description');
+         ->xpath('wp:category_description')
+         ->callbacks('html_entity_decode');
     $this->addFieldMapping('parent', 'wp:category_parent')
          ->sourceMigration($this->machineName)
          ->xpath('wp:category_parent');
