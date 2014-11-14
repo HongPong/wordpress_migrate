@@ -413,3 +413,28 @@ function wordpress_migrate_update_7012() {
   variable_del('wordpress_migrate_notification_subject');
   variable_del('wordpress_migrate_notification_body');
 }
+
+/**
+ * Rewrite argument names for vocabulary references.
+ */
+function wordpress_migrate_update_7013() {
+  $query = db_select('migrate_status', 'ms')
+            ->fields('ms', array('machine_name', 'arguments'));
+  $query->innerJoin('wordpress_migrate', 'wm', 'ms.group_name = wm.title');
+  $result = $query->execute();
+  foreach ($result as $row) {
+    $arguments = unserialize($row->arguments);
+    if (isset($arguments['tag_vocabulary'])) {
+      $arguments['tag_field'] = $arguments['tag_vocabulary'];
+      unset($arguments['tag_vocabulary']);
+    }
+    if (isset($arguments['category_vocabulary'])) {
+      $arguments['category_field'] = $arguments['category_vocabulary'];
+      unset($arguments['category_vocabulary']);
+    }
+    db_update('migrate_status')
+      ->fields(array('arguments' => serialize($arguments)))
+      ->condition('machine_name', $row->machine_name)
+      ->execute();
+  }
+}

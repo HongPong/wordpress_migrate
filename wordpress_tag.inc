@@ -20,7 +20,7 @@ class WordPressTag extends WordPressMigration {
     // identifier of a tag.
     $this->map = new MigrateSQLMap($this->machineName,
       array(
-        'tag_slug' => array(
+        'wp:tag_slug' => array(
           'type' => 'varchar',
           'length' => 255,
           'not null' => TRUE,
@@ -46,8 +46,10 @@ class WordPressTag extends WordPressMigration {
     $this->destination = new MigrateDestinationTerm($arguments['tag_vocabulary']);
 
     // The basic mappings
-    $this->addFieldMapping('name', 'wp:tag_name');
-    $this->addFieldMapping('description', 'wp:tag_description');
+    $this->addFieldMapping('name', 'wp:tag_name')
+         ->xpath('wp:tag_name');
+    $this->addFieldMapping('description', 'wp:tag_description')
+         ->xpath('wp:tag_description');
     $this->addFieldMapping('parent_name')
          ->issueGroup('DNM');
 

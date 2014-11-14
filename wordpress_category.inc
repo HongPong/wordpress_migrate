@@ -20,7 +20,7 @@ class WordPressCategory extends WordPressMigration {
     // identifier of a category.
     $this->map = new MigrateSQLMap($this->machineName,
       array(
-        'category_nicename' => array(
+        'wp:category_nicename' => array(
           'type' => 'varchar',
           'length' => 255,
           'not null' => TRUE,
@@ -31,10 +31,10 @@ class WordPressCategory extends WordPressMigration {
     );
 
     $fields = array(
-        'category_nicename' => 'Unique "machine name" of the category',
-        'category_parent' => 'Category parent (nicename?)',
-        'cat_name' => 'User-friendly category name',
-        'category_description' => 'Description of category',
+      'wp:category_nicename' => 'Unique "machine name" of the category',
+      'wp:category_parent' => 'Category parent (nicename?)',
+      'wp:cat_name' => 'User-friendly category name',
+      'wp:category_description' => 'Description of category',
     );
 
     // Construct the source and destination objects.
@@ -47,10 +47,13 @@ class WordPressCategory extends WordPressMigration {
     $this->destination = new MigrateDestinationTerm($this->arguments['category_vocabulary']);
 
     // The basic mappings
-    $this->addFieldMapping('name', 'wp:cat_name');
-    $this->addFieldMapping('description', 'wp:category_description');
+    $this->addFieldMapping('name', 'wp:cat_name')
+         ->xpath('wp:cat_name');
+    $this->addFieldMapping('description', 'wp:category_description')
+         ->xpath('wp:category_description');
     $this->addFieldMapping('parent', 'wp:category_parent')
-         ->sourceMigration($this->machineName);
+         ->sourceMigration($this->machineName)
+         ->xpath('wp:category_parent');
 
     // Unmapped destination fields
     $this->addFieldMapping('parent_name');

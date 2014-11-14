@@ -444,22 +444,22 @@ class WordPressMigrateWizard extends MigrateUIWizard {
 
       // If field_tags exists, default to it.
       $tags_default = (isset($options['field_tags']) ? 'field_tags' : '');
-      $form['tag_vocabulary'] = array(
+      $form['tag_field'] = array(
         '#type' => 'select',
         '#title' => t('Import WordPress tags to the term reference field'),
-        '#default_value' => variable_get('wordpress_migrate_tag_vocabulary', $tags_default),
+        '#default_value' => $tags_default,
         '#options' => $options,
       );
 
-      $form['category_vocabulary'] = array(
+      $form['category_field'] = array(
         '#type' => 'select',
         '#title' => t('Import WordPress categories to the term reference field'),
-        '#default_value' => variable_get('wordpress_migrate_category_vocabulary', ''),
+        '#default_value' => '',
         '#options' => $options,
       );
     }
     else {
-      $form['tag_vocabulary'] = $form['category_vocabulary'] = $empty_field;
+      $form['tag_field'] = $form['category_field'] = $empty_field;
     }
 
     if (module_exists('comment') &&
@@ -677,14 +677,30 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       $arguments = array(
         'dependencies' => array('Author'),
         'post_type' => $this->contentValues['blog']['post_type'],
-        'tag_vocabulary' => $this->contentValues['blog']['tag_vocabulary'],
-        'category_vocabulary' => $this->contentValues['blog']['category_vocabulary'],
+        'tag_field' => $this->contentValues['blog']['tag_field'],
+        'category_field' => $this->contentValues['blog']['category_field'],
         'attachment_field' => $this->contentValues['blog']['attachment_field'],
         'podcast_field' => $this->contentValues['blog']['podcast_field'],
         'text_format' => $this->contentValues['blog']['text_format'],
         'path_action' => $this->contentValues['blog']['path_action'],
         'generate_redirects' => $this->contentValues['blog']['generate_redirects'],
       );
+      if ($arguments['tag_field']) {
+        $tag_vocabulary = $this->getVocabulary($arguments['tag_field']);
+        $tag_arguments = array('tag_vocabulary' => $tag_vocabulary);
+        $arguments['tag_migration'] = 'Tag' . $tag_vocabulary;
+        $arguments['dependencies'][] = $arguments['tag_migration'];
+        $this->addMigration($arguments['tag_migration'], $migration_classes['WordPressTag'],
+                            $tag_arguments);
+      }
+      if ($arguments['category_field']) {
+        $category_vocabulary = $this->getVocabulary($arguments['category_field']);
+        $category_arguments = array('category_vocabulary' => $category_vocabulary);
+        $arguments['category_migration'] = 'Category' . $category_vocabulary;
+        $arguments['dependencies'][] = $arguments['category_migration'];
+        $this->addMigration($arguments['category_migration'], $migration_classes['WordPressCategory'],
+                            $category_arguments);
+      }
       $this->addMigration('BlogPost', $migration_classes['WordPressBlogEntry'], $arguments);
       $attachment_arguments['dependencies'][] = 'BlogPost';
       $attachment_arguments['blog_attachment_field'] =
@@ -712,8 +728,8 @@ class WordPressMigrateWizard extends MigrateUIWizard {
       $arguments = array(
         'dependencies' => array('Author'),
         'page_type' => $this->contentValues['page']['page_type'],
-        'tag_vocabulary' => $this->contentValues['page']['tag_vocabulary'],
-        'category_vocabulary' => $this->contentValues['page']['category_vocabulary'],
+        'tag_field' => $this->contentValues['page']['tag_field'],
+        'category_field' => $this->contentValues['page']['category_field'],
         'attachment_field' => $this->contentValues['page']['attachment_field'],
         'podcast_field' => $this->contentValues['page']['podcast_field'],
         'text_format' => $this->contentValues['page']['text_format'],
@@ -761,7 +777,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    * @param $node_type
    * @return array
    */
-  function vocabularies($node_type) {
+  protected function vocabularies($node_type) {
     $fields = field_info_instances('node', $node_type);
     $term_fields = array();
     foreach ($fields as $field_name => $instance_info) {
@@ -774,13 +790,28 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   }
 
   /**
+   * Get the (first, if multiple) vocabulary assigned to the named field.
+   *
+   * @param $field_name
+   *
+   * @return string|null
+   */
+  protected function getVocabulary($field_name) {
+    $field_info = field_info_field($field_name);
+    if ($field_info['type'] == 'taxonomy_term_reference') {
+      return $field_info['settings']['allowed_values'][0]['vocabulary'];
+    }
+    return NULL;
+  }
+
+  /**
    * Return a list of file fields attached to a given node type (bundle).
    *
    * @param $node_type
    * @param $file_type
    * @return array
    */
-  function fileFields($node_type, $file_type) {
+  protected function fileFields($node_type, $file_type) {
     $fields = field_info_instances('node', $node_type);
     $file_fields = array();
     foreach ($fields as $field_name => $instance_info) {

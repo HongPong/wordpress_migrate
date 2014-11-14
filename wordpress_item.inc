@@ -235,19 +235,25 @@ abstract class WordPressItemMigration extends WordPressMigration {
 
     if (module_exists('taxonomy')) {
       // Map the source fields to the configured vocabularies
-      $vocabs = array(
-        'tag' => $arguments['tag_vocabulary'],
-        'category' => $arguments['category_vocabulary'],
-      );
-      foreach ($vocabs as $source_field => $field_name) {
-        if ($field_name) {
-          $this->addFieldMapping($field_name, $source_field);
-          $this->addFieldMapping($field_name . ':create_term')
-               ->defaultValue(TRUE);
-        }
-        else {
-          $this->addFieldMapping(NULL, $source_field);
-        }
+      if ($arguments['tag_field']) {
+        $this->addFieldMapping($arguments['tag_field'], 'tag')
+          ->sourceMigration($arguments['group_name'] . $arguments['tag_migration'])
+          ->xpath('category[@domain="post_tag"]/@nicename');
+        $this->addFieldMapping($arguments['tag_field'] . ':source_type')
+             ->defaultValue('tid');
+      }
+      else {
+        $this->addFieldMapping(NULL, 'tag');
+      }
+      if ($arguments['category_field']) {
+        $this->addFieldMapping($arguments['category_field'], 'category')
+          ->sourceMigration($arguments['group_name'] . $arguments['category_migration'])
+          ->xpath('category[@domain="category"]/@nicename');
+        $this->addFieldMapping($arguments['category_field'] . ':source_type')
+             ->defaultValue('tid');
+      }
+      else {
+        $this->addFieldMapping(NULL, 'category');
       }
     }
 
