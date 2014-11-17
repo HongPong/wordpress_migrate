@@ -709,6 +709,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         $migrations .= t('<li>WordPress blog post comments will be imported.</li>');
         $arguments = array(
           'post_type' => $this->contentValues['blog']['post_type'],
+          'source_post_type' => 'post',
           'dependencies' => array('BlogPost'),
           'text_format_comment' => $this->contentValues['blog']['text_format_comment'],
           'skip_pingbacks' => $this->contentValues['blog']['pingbacks'],
@@ -746,6 +747,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         $migrations .= t('<li>WordPress page comments will be imported.</li>');
         $arguments = array(
           'post_type' => $this->contentValues['page']['page_type'],
+          'source_post_type' => 'page',
           'dependencies' => array('Page'),
           'text_format_comment' => $this->contentValues['page']['text_format_comment'],
           'skip_pingbacks' => $this->contentValues['blog']['pingbacks'],

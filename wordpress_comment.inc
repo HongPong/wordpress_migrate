@@ -36,7 +36,14 @@ class WordPressCommentXMLReader extends MigrateXMLReader {
         if ($this->reader->name == 'wp:post_id') {
           $this->postId = WordPressBlog::readString($this->reader);
         }
+        elseif ($this->reader->name == 'wp:post_type') {
+          $this->currentPostType = WordPressBlog::readString($this->reader);
+        }
         if ($this->currentPath == $this->elementsToMatch) {
+          if ($this->postType != $this->currentPostType) {
+            continue;
+          }
+
           // We're positioned to the right element path - if filtering on an
           // attribute, check that as well before accepting this element.
           if (empty($this->attributeName) ||
@@ -83,6 +90,20 @@ class WordPressCommentXMLReader extends MigrateXMLReader {
   }
 }
 
+class WordPressPostCommentXMLReader extends WordPressCommentXMLReader {
+  public function __construct($xml_url, $element_query, $id_query) {
+    parent::__construct($xml_url, $element_query, $id_query);
+    $this->postType = 'post';
+  }
+}
+
+class WordPressPageCommentXMLReader extends WordPressCommentXMLReader {
+  public function __construct($xml_url, $element_query, $id_query) {
+    parent::__construct($xml_url, $element_query, $id_query);
+    $this->postType = 'page';
+  }
+}
+
 /**
  * Implementation of WordPressMigration, for comments
  */
@@ -92,6 +113,13 @@ class WordPressComment extends WordPressMigration {
    */
   public function __construct(array $arguments = array()) {
     parent::__construct($arguments);
+
+    if ($arguments['source_post_type'] == 'page') {
+      $reader_class = 'WordPressPageCommentXMLReader';
+    }
+    else {
+      $reader_class = 'WordPressPostCommentXMLReader';
+    }
 
     // comment_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
@@ -123,7 +151,7 @@ class WordPressComment extends WordPressMigration {
       );
 
     $source_options = array(
-      'reader_class' => 'WordPressCommentXMLReader',
+      'reader_class' => $reader_class,
       'cache_counts' => TRUE,
     );
     $this->source = new MigrateSourceXML($this->wxrFile, '/rss/channel/item/comment',
