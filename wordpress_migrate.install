@@ -145,6 +145,16 @@ function wordpress_migrate_requirements($phase) {
       $t('WordPress Migrate requires the PHP XMLReader extension.');
   }
 
+  if (!function_exists('curl_init')) {
+    $requirements['wordpress_migrate_curl'] = array(
+      'title' => $t('cURL'),
+      'value' => $t('Not found'),
+      'severity' => REQUIREMENT_ERROR,
+    );
+    $requirements['wordpress_migrate_curl']['description'] = $t('Wordpress Migrate requires the <a href="@curl_url">php cURL extension</a>.',
+      array('@curl_url' => 'http://php.net/manual/en/curl.setup.php'));
+  }
+
   return $requirements;
 }
 
