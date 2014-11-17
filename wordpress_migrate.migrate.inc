@@ -394,6 +394,12 @@ class WordPressMigrateWizard extends MigrateUIWizard {
   }
 
   protected function contentSelectFormValidate(&$form_state) {
+    // Start clean in case we came here via Previous.
+    unset($this->contentValues['blog']);
+    unset($this->contentValues['page']);
+    $this->removeStep(t('Blog posts'));
+    $this->removeStep(t('Pages'));
+
     $this->contentValues['page']['page_type'] = $form_state['values']['page_type'];
     if ($this->contentValues['page']['page_type']) {
       $this->addStep(t('Pages'), 'contentPageForm', $this->currentStep);
@@ -635,6 +641,10 @@ class WordPressMigrateWizard extends MigrateUIWizard {
    * to say yay or nay.
    */
   protected function reviewForm(&$form_state) {
+    // In case we've been going back-and-forth with Previous, make sure we
+    // start with no migrations - all migrations will be added here.
+    $this->migrations = array();
+
     $blog = wordpress_migrate_blog($this->filename);
     $migration_classes = $blog->migrationClasses();
 
@@ -750,7 +760,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
           'source_post_type' => 'page',
           'dependencies' => array('Page'),
           'text_format_comment' => $this->contentValues['page']['text_format_comment'],
-          'skip_pingbacks' => $this->contentValues['blog']['pingbacks'],
+          'skip_pingbacks' => $this->contentValues['page']['pingbacks'],
         );
         $this->addMigration('PageComment', $migration_classes['WordPressComment'], $arguments);
       }
