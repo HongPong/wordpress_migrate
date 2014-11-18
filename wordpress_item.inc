@@ -411,6 +411,9 @@ abstract class WordPressItemMigration extends WordPressMigration {
       '|\[kml_flashembed *(.*?)/\]|i',
       array($this, 'replaceFlashEmbeds'), $row->content);
 
+    // Remove [gallery] shortcode tags.
+    $row->content = preg_replace('|\[gallery (.+?)\]|i', '', $row->content);
+
     $row->{'content:encoded'} = $row->content;
 
     return TRUE;
