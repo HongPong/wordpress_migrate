@@ -331,11 +331,13 @@ class WordPressBlog {
    *  The raw WXR file as uploaded.
    * @param $destination
    *  Filespec to which to write the cleaned-up WXR file.
+   * @param bool $unlink
+   *  Indicates whether $sourcefile will be deleted after preprocessing.
    *
    * @return array
    *  List of referenced namespaces, keyed by prefix.
    */
-  static public function preprocessFile($sourcefile, $destination) {
+  static public function preprocessFile($sourcefile, $destination, $unlink = TRUE) {
     // Cleanup some stuff in the process of moving the file to its final
     // destination
     $source_handle = fopen($sourcefile, 'r');
@@ -394,7 +396,9 @@ class WordPressBlog {
 
     fclose($dest_handle);
     fclose($source_handle);
-    unlink($sourcefile);
+    if ($unlink) {
+      unlink($sourcefile);
+    }
 
     return $namespaces;
   }
