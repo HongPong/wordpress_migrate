@@ -169,7 +169,13 @@ abstract class WordPressItemMigration extends WordPressMigration {
          ->xpath('dc:creator')
          ->description('Use matching username if any, otherwise current user');
     if ($this->blog->getWxrVersion() != '1.0') {
-      $uid_mapping->sourceMigration($this->group->getName() . 'Author');
+      if (!empty($arguments['author_migration'])) {
+        $author_migration = $arguments['author_migration'];
+      }
+      else {
+        $author_migration = $this->group->getName() . 'Author';
+      }
+      $uid_mapping->sourceMigration($author_migration);
     }
     $this->addFieldMapping('body', 'content');
     $this->addFieldMapping('body:summary', 'excerpt:encoded')
