@@ -23,34 +23,10 @@ class WordPressItemSource extends MigrateSourceXML {
    *
    * @var array
    */
-  protected $fields = array(
-    'title' => 'Item title',
-    'link' => 'WordPress URL of the item',
-    'pubDate' => 'Published date',
-    'dc:creator' => 'WordPress username of the item author',
-    'guid' => 'Alternate URL of the item (?)',
-    'description' => '?',
-    'content:encoded' => 'Body of the item',
-    'excerpt:encoded' => 'Teaser for the item',
-    'wp:post_id' => 'Unique ID of the item within the blog',
-    'wp:post_date' => 'Date posted (author\s timezone?)',
-    'wp:post_date_gmt' => 'Date posted (GMT)',
-    'wp:comment_status' => 'Whether comments may be posted to this item (open/closed)',
-    'wp:ping_status' => '?',
-    'wp:post_name' => 'Trailing component of link',
-    'wp:status' => 'Item status (publish/draft/inherit)',
-    'wp:post_parent' => 'Parent item ID (?)',
-    'wp:menu_order' => 'Equivalent to Drupal weight?',
-    'wp:post_type' => 'Item type (post/page/attachment)',
-    'wp:post_password' => '?',
-    'wp:is_sticky' => 'Equivalent to Drupal sticky flag',
-    'category' => 'Categories (as nicename) assigned to this item',
-    'tag' => 'Tags (as nicename) assigned to this item',
-  );
+  protected $fields = array();
 
   /**
    * Simple initialization.
-   *
    */
   public function __construct($filename, $post_type, $cache_key, $namespaces = array()) {
     $source_options = array(
@@ -58,10 +34,44 @@ class WordPressItemSource extends MigrateSourceXML {
       'cache_counts' => TRUE,
       'cache_key' => $cache_key,
     );
+    $this->fields = $this->fields();
 
     parent::__construct($filename, '/rss/channel/item', 'wp:post_id',
       $this->fields, $source_options, $namespaces);
     $this->postType = $post_type;
+  }
+
+  /**
+   * Provides a list of available source fields, keyed by the field name
+   * as it appears in the source data, with descriptions as the values.
+   * 
+   * @return array
+   */
+  public function fields() {
+    return array(
+      'title' => 'Item title',
+      'link' => 'WordPress URL of the item',
+      'pubDate' => 'Published date',
+      'dc:creator' => 'WordPress username of the item author',
+      'guid' => 'Alternate URL of the item (?)',
+      'description' => '?',
+      'content:encoded' => 'Body of the item',
+      'excerpt:encoded' => 'Teaser for the item',
+      'wp:post_id' => 'Unique ID of the item within the blog',
+      'wp:post_date' => 'Date posted (author\s timezone?)',
+      'wp:post_date_gmt' => 'Date posted (GMT)',
+      'wp:comment_status' => 'Whether comments may be posted to this item (open/closed)',
+      'wp:ping_status' => '?',
+      'wp:post_name' => 'Trailing component of link',
+      'wp:status' => 'Item status (publish/draft/inherit)',
+      'wp:post_parent' => 'Parent item ID (?)',
+      'wp:menu_order' => 'Equivalent to Drupal weight?',
+      'wp:post_type' => 'Item type (post/page/attachment)',
+      'wp:post_password' => '?',
+      'wp:is_sticky' => 'Equivalent to Drupal sticky flag',
+      'category' => 'Categories (as nicename) assigned to this item',
+      'tag' => 'Tags (as nicename) assigned to this item',
+    );
   }
 
   /**
