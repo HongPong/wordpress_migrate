@@ -3,7 +3,7 @@ description = "Imports WordPress sites into Drupal"
 package = "Migration"
 core = 7.x
 dependencies[] = migrate
-dependencies[] = migrate_ui (>=7.x-2.6-rc2)
+dependencies[] = migrate_ui (>=7.x-2.6)
 
 files[] = wordpress_migrate.migrate.inc
 files[] = wordpress_source.inc
