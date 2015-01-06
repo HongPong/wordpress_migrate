@@ -103,28 +103,30 @@ class WordPressAttachment extends WordPressMigration {
    * @return string
    */
   public function prepareRow($row) {
+    $wp_row = $row->xml->children($this->arguments['namespaces']['wp']);
+
     // Skip any of the wrong post type
-    if ($row->{'wp:post_type'} != 'attachment') {
-      $this->skippedItems[] = $row->{'wp:post_id'};
+    if ($wp_row->post_type != 'attachment') {
+      $this->skippedItems[] = $wp_row->post_id;
       return FALSE;
     }
 
     // If incoming date is zero (indicates unpublished content), use the current time
-    if ($row->{'wp:post_type'} == '0000-00-00 00:00:00') {
-      $row->{'wp:post_type'} = time();
+    if ($wp_row->post_date == '0000-00-00 00:00:00') {
+      $wp_row->post_date = time();
     }
 
     // Sometimes URLs have doubled-up slashes - reduce to a single.
-    $pieces = explode('://', $row->{'wp:attachment_url'});
+    $pieces = explode('://', $wp_row->{'attachment_url'});
     if (count($pieces) == 1) {
-      $row->{'wp:attachment_url'} = str_replace('//', '/', $row->{'wp:attachment_url'});
+      $wp_row->attachment_url = str_replace('//', '/', $wp_row->attachment_url);
     }
     else {
-      $row->{'wp:attachment_url'} = $pieces[0] . '://' . str_replace('//', '/', $pieces[1]);
+      $wp_row->attachment_url = $pieces[0] . '://' . str_replace('//', '/', $pieces[1]);
     }
 
     // Make sure we actually have a URL
-    if ($row->{'wp:attachment_url'}) {
+    if ($wp_row->attachment_url) {
       return TRUE;
     }
     else {
