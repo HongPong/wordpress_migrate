@@ -71,6 +71,8 @@ class WordPressItemSource extends MigrateSourceXML {
       'wp:is_sticky' => 'Equivalent to Drupal sticky flag',
       'category' => 'Categories (as nicename) assigned to this item',
       'tag' => 'Tags (as nicename) assigned to this item',
+      'content' => 'Extracted from Wordpress content:encoded',
+      'status' => 'Extracted from Wordpress status',
     );
   }
 
