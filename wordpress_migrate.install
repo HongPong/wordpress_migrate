@@ -159,24 +159,15 @@ function wordpress_migrate_requirements($phase) {
 }
 
 /**
- * Implements hook_uninstall().
+ * Implements hook_update_dependencies().
  */
-function wordpress_migrate_uninstall() {
-  variable_del('wordpress_migrate_attachment_field');
-  variable_del('wordpress_migrate_category_vocabulary');
-  variable_del('wordpress_migrate_generate_redirects');
-  variable_del('wordpress_migrate_import_method');
-  variable_del('wordpress_migrate_notification');
-  variable_del('wordpress_migrate_notification_body');
-  variable_del('wordpress_migrate_notification_failure_body');
-  variable_del('wordpress_migrate_notification_subject');
-  variable_del('wordpress_migrate_page_type');
-  variable_del('wordpress_migrate_path_action');
-  variable_del('wordpress_migrate_podcast_field');
-  variable_del('wordpress_migrate_post_type');
-  variable_del('wordpress_migrate_tag_vocabulary');
-  variable_del('wordpress_migrate_text_format');
-  variable_del('wordpress_migrate_text_format_comment');
+function wordpress_migrate_update_dependencies() {
+  // Make sure migrate_ui uses our drush variables before we delete them.
+  $dependencies['wordpress_migrate'][7012] = array('migrate_ui' => 7202);
+
+  // Migrate must set up the new group support before we can reference it.
+  $dependencies['wordpress_migrate'][7013] = array('migrate' => 7203);
+  return $dependencies;
 }
 
 /**
@@ -445,6 +436,120 @@ function wordpress_migrate_update_7013() {
     db_update('migrate_status')
       ->fields(array('arguments' => serialize($arguments)))
       ->condition('machine_name', $row->machine_name)
+      ->execute();
+  }
+}
+
+/**
+ * Remove no-longer-used variables.
+ */
+function wordpress_migrate_update_7014() {
+  variable_del('wordpress_migrate_attachment_field');
+  variable_del('wordpress_migrate_category_vocabulary');
+  variable_del('wordpress_migrate_create_new_users');
+  variable_del('wordpress_migrate_default_author_uid');
+  variable_del('wordpress_migrate_generate_redirects');
+  variable_del('wordpress_migrate_page_type');
+  variable_del('wordpress_migrate_path_action');
+  variable_del('wordpress_migrate_podcast_field');
+  variable_del('wordpress_migrate_post_type');
+  variable_del('wordpress_migrate_tag_vocabulary');
+  variable_del('wordpress_migrate_text_format');
+  variable_del('wordpress_migrate_text_format_comment');
+}
+
+/**
+ * Updates to legacy wordpress migration arguments.
+ */
+function wordpress_migrate_update_7015() {
+  // We must force the module_implements cache to regenerate so destination
+  // handlers are registered and we can identify the destination fields below.
+  module_implements('migrate_api', FALSE, TRUE);
+
+  foreach (WordPressBlog::blogs() as $blog) {
+    $migrations = $blog->migrations();
+    $title = $blog->getTitle();
+    $group_created = FALSE;
+
+    foreach ($migrations as $migration) {
+      // We use the lack of namespaces to identify old blogs.
+      $group_arguments = $migration->getGroup()->getArguments();
+      if (!empty($group_arguments['namespaces'])) {
+        break;
+      }
+
+      // Set up the group properly, giving it the right name if it was 'default'.
+      $group_name = $migration->getGroup()->getName();
+      if ($group_name == 'default') {
+        $group_name = $title;
+      }
+      $arguments = $migration->getArguments();
+      $arguments['group_name'] = $group_name;
+      $arguments['post_type'] = $arguments['bundle'];
+      unset($arguments['bundle']);
+      if (!$group_created) {
+        $group_title = $group_name . ' (' . $blog->getBlogUrl() . ')';
+        $group_arguments['namespaces'] = WordPressBlog::preprocessFile(
+          $blog->getFilename(), NULL, FALSE, TRUE);
+        $group_arguments['source_system'] = 'WordPress';
+        $group_arguments['filename'] = $blog->getFilename();
+        MigrateGroup::register($group_name, $group_title, $group_arguments);
+        $group_created = TRUE;
+      }
+
+      if (is_a($migration, 'WordPressItemMigration')) {
+        // From tag_vocabulary/category_vocabulary, derive tag_field/category_field.
+        foreach (array('tag', 'category') as $vocab_type) {
+          $vocab = $vocab_type . '_vocabulary';
+          $field = $vocab_type . '_field';
+          if (!empty($arguments[$vocab])) {
+            foreach ($migration->getDestination()->fields() as $machine_name => $description) {
+              $field_info = field_info_field($machine_name);
+              if (isset($field_info['settings']['allowed_values'][0]['vocabulary']) &&
+                  $arguments[$vocab] == $field_info['settings']['allowed_values'][0]['vocabulary']
+              ) {
+                $arguments[$field] = $machine_name;
+                $arguments[$vocab_type . '_migration'] = ucfirst($vocab_type);
+                $arguments['dependencies'][] = $title . ucfirst($vocab_type);
+                unset($arguments[$vocab]);
+              }
+            }
+            if (!isset($arguments[$field])) {
+              $arguments[$field] = '';
+            }
+          }
+        }
+        $arguments['dependencies'][] = $title . 'Author';
+        $arguments['author_migration'] = $title . 'Author';
+      }
+
+      // For comment migrations (which were only on blogs previously), set source_post_type.
+      if (is_a($migration, 'WordPressComment')) {
+        $arguments['post_type'] = 'blog';
+        $arguments['source_post_type'] = 'post';
+        $arguments['dependencies'][] = $title . 'BlogEntry';
+      }
+
+      if (is_a($migration, 'WordPressAttachment')) {
+        $arguments['dependencies'][] = $title . 'BlogEntry';
+        $arguments['dependencies'][] = $title . 'Page';
+      }
+
+      MigrationBase::registerMigration(get_class($migration), $migration->getMachineName(),
+        $arguments);
+    }
+  }
+
+  // If no migrations remain belonging to the default group, remove it.
+  $count = db_select('migrate_status', 'ms')
+    ->fields('ms', array('machine_name'))
+    ->condition('group_name', 'default')
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+  if ($count == 0) {
+    db_delete('migrate_group')
+      ->condition('name', 'default')
       ->execute();
   }
 }

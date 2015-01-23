@@ -296,6 +296,11 @@ class WordPressBlog {
     );
   }
 
+  /**
+   * Get a list of all migrations in this blog.
+   *
+   * @return Migration[]
+   */
   public function migrations() {
     if (empty($this->migrations)) {
       $this->migrations = array();
@@ -312,6 +317,11 @@ class WordPressBlog {
     return $this->migrations;
   }
 
+  /**
+   * Get a list of all WordPress blogs.
+   *
+   * @return WordPressBlog[]
+   */
   static public function blogs() {
     $blogs = array();
     $result = db_select('wordpress_migrate', 'wm')
@@ -330,18 +340,23 @@ class WordPressBlog {
    * @param $sourcefile
    *  The raw WXR file as uploaded.
    * @param $destination
-   *  Filespec to which to write the cleaned-up WXR file.
+   *  Filespec to which to write the cleaned-up WXR file. Omit when
+   *  $namespaces_only == TRUE.
    * @param bool $unlink
    *  Indicates whether $sourcefile will be deleted after preprocessing.
+   * @param bool $namespaces_only
+   *  When TRUE, do not rewrite the file, simply gather and return the namespaces.
    *
    * @return array
    *  List of referenced namespaces, keyed by prefix.
    */
-  static public function preprocessFile($sourcefile, $destination, $unlink = TRUE) {
+  static public function preprocessFile($sourcefile, $destination, $unlink = TRUE, $namespaces_only = FALSE) {
     // Cleanup some stuff in the process of moving the file to its final
     // destination
     $source_handle = fopen($sourcefile, 'r');
-    $dest_handle = fopen($destination, 'w');
+    if (!$namespaces_only) {
+      $dest_handle = fopen($destination, 'w');
+    }
 
     // First, get the header (everything before the <channel> element) to
     // rewrite the namespaces (skipping any empty lines).
@@ -374,6 +389,10 @@ class WordPressBlog {
     $namespaces = array();
     foreach ($matches as $index => $match) {
       $namespaces[$match[1]] = $match[2];
+    }
+
+    if ($namespaces_only) {
+      return $namespaces;
     }
 
     // Replace HTML entities with XML entities

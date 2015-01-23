@@ -188,15 +188,28 @@ class WordPressAttachment extends WordPressMigration {
     // Populate the parent node's attachment field, if applicable
     if ($row->{'wp:post_parent'}) {
       // Which migration did it come from, posts or pages?
-      $post_migration = Migration::getInstance($this->group->getName() . 'BlogPost');
+      $post_migration_name = $this->group->getName() . 'BlogPost';
+      $exists = db_select('migrate_status', 'ms')
+        ->fields('ms', array('machine_name'))
+        ->condition('machine_name', $post_migration_name)
+        ->execute()
+        ->fetchField();
+      if (!$exists) {
+        // Legacy migrations used BlogEntry.
+        $post_migration_name = $this->group->getName() . 'BlogEntry';
+      }
+      /** @var Migration $post_migration */
+      $post_migration = Migration::getInstance($post_migration_name);
       $post_map_row = $post_migration->getMap()->getRowByDestination(array($row->{'wp:post_parent'}));
 
       if (!empty($post_map_row)) {
         $attachment_field = $this->arguments['blog_attachment_field'];
       }
       else {
+        /** @var Migration $page_migration */
         $page_migration = Migration::getInstance($this->group->getName() . 'Page');
-        $page_map_row = $page_migration->getMap()->getRowByDestination(array($row->{'wp:post_parent'}));
+        $page_map_row = $page_migration->getMap()
+                                       ->getRowByDestination(array($row->{'wp:post_parent'}));
         if (!empty($page_map_row)) {
           $attachment_field = $this->arguments['page_attachment_field'];
         }
