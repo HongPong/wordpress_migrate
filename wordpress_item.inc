@@ -150,6 +150,14 @@ abstract class WordPressItemMigration extends WordPressMigration {
     // Drupal content type (bundle)
     $bundle = $this->arguments['bundle'];
 
+    // Save tag/category fields (used in prepare()).
+    if (isset($arguments['tag_field'])) {
+      $this->tagField = $arguments['tag_field'];
+    }
+    if (isset($arguments['category_field'])) {
+      $this->categoryField = $arguments['category_field'];
+    }
+
     // post_id is the unique ID of items in WordPress
     $this->map = new MigrateSQLMap($this->machineName,
       array(
@@ -252,22 +260,29 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     if (module_exists('taxonomy')) {
-      // Map the source fields to the configured vocabularies
-      if ($arguments['tag_field']) {
-        $this->addFieldMapping($arguments['tag_field'], 'tag')
+      // Map the source fields to the configured vocabularies. Note the nicename
+      // (WordPress machine name) is used for matching on sourceMigration - we
+      // pull the actual tag/category separately in case we need to handle it
+      // in prepare().
+      if ($this->tagField) {
+        $this->addFieldMapping($this->tagField, 'tag')
           ->sourceMigration($arguments['group_name'] . $arguments['tag_migration'])
           ->xpath('category[@domain="post_tag"]/@nicename');
-        $this->addFieldMapping($arguments['tag_field'] . ':source_type')
+        $this->addFieldMapping(NULL, 'tag_value')
+          ->xpath('category[@domain="post_tag"]');
+        $this->addFieldMapping($this->tagField . ':source_type')
              ->defaultValue('tid');
       }
       else {
         $this->addFieldMapping(NULL, 'tag');
       }
-      if ($arguments['category_field']) {
-        $this->addFieldMapping($arguments['category_field'], 'category')
+      if ($this->categoryField) {
+        $this->addFieldMapping($this->categoryField, 'category')
           ->sourceMigration($arguments['group_name'] . $arguments['category_migration'])
           ->xpath('category[@domain="category"]/@nicename');
-        $this->addFieldMapping($arguments['category_field'] . ':source_type')
+        $this->addFieldMapping(NULL, 'category_value')
+          ->xpath('category[@domain="category"]');
+        $this->addFieldMapping($this->categoryField . ':source_type')
              ->defaultValue('tid');
       }
       else {
@@ -772,8 +787,10 @@ abstract class WordPressItemMigration extends WordPressMigration {
           $row_count = 0;
         }
         if ($node_count != $row_count) {
-          $vid_field = $term_type . 'Vid';
-          $vid = $this->$vid_field;
+          $field_info = field_info_field($field_name);
+          $vocabulary_name = $field_info['settings']['allowed_values'][0]['vocabulary'];
+          $vocabulary = taxonomy_vocabulary_machine_name_load($vocabulary_name);
+          $vid = $vocabulary->vid;
           // Get any terms already in the field
           $done_terms = array();
           if (is_array($field_values)) {
@@ -785,7 +802,14 @@ abstract class WordPressItemMigration extends WordPressMigration {
             }
           }
           if (isset($row->$value_name)) {
-            $diff = array_diff($row->$value_name, $done_terms);
+            if (!is_array($row->$value_name)) {
+              $row->$value_name = array($row->$value_name);
+            }
+            $values = array();
+            foreach ($row->$value_name as $value) {
+              $values[] = html_entity_decode($value);
+            }
+            $diff = array_diff($values, $done_terms);
             $field_language = field_language('node', $node, $field_name);
             foreach ($diff as $new_term_name) {
               // Let's see if the term already exists
