@@ -391,8 +391,12 @@ class WordPressAttachment extends WordPressMigration {
         );
         $source = new MigrateFileUri($file);
         // @todo: uid from parent node
-        $file = $source->processFile($src, 1);
-        $fid = $file->fid;
+        if ($file = $source->processFile($src, 1)) {
+          $fid = $file->fid;
+        }
+        else {
+          return $result;
+        }
       }
       else {
         return $result;
