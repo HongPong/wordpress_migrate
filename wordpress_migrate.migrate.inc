@@ -69,7 +69,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
         !variable_get('file_private_path', '')) {
       $message = t('A private file system path must be <a href="@config">configured</a>
         to securely store your uploaded WordPress file.',
-        array('@config' => url('admin/config/media/file-system')));
+        array('@config' => url('admin/config/media/file-system', array('query' => array('destination' => current_path())))));
       $form['unconfigured'] = array(
         '#prefix' => '<div>',
         '#markup' => $message,
