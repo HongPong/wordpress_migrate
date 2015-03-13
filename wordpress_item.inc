@@ -372,6 +372,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     }
 
     // If the link has a query string, don't produce a path
+    $row->link = (string) $row->xml->link;
     if (strpos($row->link, '?')) {
       unset($row->link);
     }
