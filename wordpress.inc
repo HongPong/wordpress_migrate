@@ -40,6 +40,10 @@ abstract class WordPressMigration extends XMLMigration {
     $filename = $this->arguments['filename'];
     $this->wxrFile = $filename;
     $this->blog = wordpress_migrate_blog($filename);
+
+    if (empty($this->arguments['namespaces'])) {
+      $this->arguments['namespaces'] = array();
+    }
   }
 
   /**
