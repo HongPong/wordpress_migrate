@@ -589,7 +589,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
     }
 
     if (module_exists('redirect')) {
-      if (class_exists('MigrateRedirectEntityHandler')) {
+      if (module_hook('redirect', 'migrate_api')) {
         $form['generate_redirects'] = array(
           '#type' => 'checkbox',
           '#title' => t('Generate redirects'),
@@ -608,7 +608,7 @@ class WordPressMigrateWizard extends MigrateUIWizard {
           '#markup' => t('You have the Redirect module enabled. To be able to '
             . 'generate redirects for your imported WordPress content, you need '
             . 'to <a href="@link">patch Redirect</a>.',
-            array('@link' => 'http://drupal.org/node/1116408#comment-6040494')),
+            array('@link' => 'http://drupal.org/node/1116408#comment-7603833')),
           '#suffix' => '</p>',
         );
       }
