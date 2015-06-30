@@ -379,7 +379,7 @@ abstract class WordPressItemMigration extends WordPressMigration {
     else {
       // Otherwise, strip the domain portion of the URL
       $matches = array();
-      if (preg_match('|http://[^/]+/(.*)|', $row->link, $matches)) {
+      if (preg_match('|https?://[^/]+/(.*)|', $row->link, $matches)) {
         $row->link = $matches[1];
         // Strip the last slash off of the URL (the Path module can't handle this)
         $row->link = rtrim($row->link, '/');
