@@ -3,6 +3,7 @@ description: 'Imports WordPress sites into Drupal'
 package: Migration
 core: 8.x
 dependencies:
+  - ctools
   - migrate
   - migrate_plus
 type: module

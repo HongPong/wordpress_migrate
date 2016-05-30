@@ -1,0 +1,42 @@
+id: wordpress_categories
+label: Import categories from WordPress XML
+migration_tags:
+  - WordPress
+source:
+  plugin: url
+  data_fetcher_plugin: http
+  data_parser_plugin: xml
+  item_selector: /rss/channel/wp:category
+  fields:
+    -
+      name: term_id
+      label: WordPress term ID
+      selector: wp:term_id
+    -
+      name: category_nicename
+      label: Analogous to machine name
+      selector: wp:category_nicename
+    -
+      name: category_parent
+      label: 'category_nicename of the parent term'
+      selector: wp:category_parent
+    -
+      name: cat_name
+      label: 'Human name of term'
+      selector: wp:cat_name
+  ids:
+    category_nicename:
+      type: string
+process:
+  vid:
+    plugin: default_value
+    # @todo - fill in from form
+    default_value: wordpress_categories
+  name: cat_name
+  parent:
+    plugin: migration
+    migration: wordpress_categories
+    source: category_parent
+destination:
+  plugin: entity:taxonomy_term
+migration_dependencies: {}

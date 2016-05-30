@@ -1,0 +1,34 @@
+id: wordpress_tags
+label: Import tags from WordPress XML
+migration_tags:
+  - WordPress
+source:
+  plugin: url
+  data_fetcher_plugin: http
+  data_parser_plugin: xml
+  item_selector: /rss/channel/wp:tag
+  fields:
+    -
+      name: term_id
+      label: WordPress term ID
+      selector: wp:term_id
+    -
+      name: tag_slug
+      label: Analogous to machine name
+      selector: wp:tag_slug
+    -
+      name: tag_name
+      label: 'Human name of term'
+      selector: wp:tag_name
+  ids:
+    tag_slug:
+      type: string
+process:
+  vid:
+    plugin: default_value
+    # @todo - fill in from form
+    default_value: wordpress_tags
+  name: tag_name
+destination:
+  plugin: entity:taxonomy_term
+migration_dependencies: {}

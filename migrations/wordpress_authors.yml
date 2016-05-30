@@ -1,0 +1,42 @@
+id: wordpress_authors
+label: Import authors from WordPress XML
+migration_tags:
+  - WordPress
+source:
+  plugin: url
+  data_fetcher_plugin: http
+  data_parser_plugin: xml
+  item_selector: /rss/channel/wp:author
+  fields:
+    -
+      name: author_login
+      label: WordPress username
+      selector: wp:author_login
+    -
+      name: author_email
+      label: WordPress email address
+      selector: wp:author_email
+    -
+      name: author_display_name
+      label: WordPress display name (defaults to username)
+      selector: wp:author_display_name
+    -
+      name: author_first_name
+      label: WordPress author first name
+      selector: wp:author_first_name
+    -
+      name: author_last_name
+      label: WordPress author last name
+      selector: wp:author_last_name
+  ids:
+    author_login:
+      type: string
+process:
+  name: author_login
+  mail: author_email
+  status:
+    plugin: default_value
+    default_value: 1
+destination:
+  plugin: entity:user
+migration_dependencies: {}

@@ -1,0 +1,58 @@
+id: wordpress_content
+label: Import content from WordPress XML
+migration_tags:
+  - WordPress
+source:
+  plugin: url
+  data_fetcher_plugin: http
+  data_parser_plugin: xml
+  item_selector: /rss/channel/item
+  fields:
+    -
+      name: title
+      label: Content title
+      selector: title
+    -
+      name: post_id
+      label: Unique content ID
+      selector: wp:post_id
+    -
+      name: content
+      label: Body of the content
+      selector: content:encoded
+    -
+      name: excerpt
+      label: Excerpt of the content
+      selector: excerpt:encoded
+    -
+      name: pubDate
+      label: Publish date of the content
+      selector: pubDate
+    -
+      name: post_date
+      label: Post date of the content
+      selector: wp:post_date
+    -
+      name: status
+      label: Published status of the content
+      selector: wp:status
+  ids:
+    post_id:
+      type: integer
+process:
+  title: title
+  'body/value': content
+  'body/summary': excerpt
+  created:
+    plugin: callback
+    source: post_date
+    callable: strtotime
+  changed: @created
+  status:
+    plugin: static_map
+    default_value: 0
+    map:
+      published: 1
+destination:
+  plugin: entity:node
+migration_dependencies: {}
