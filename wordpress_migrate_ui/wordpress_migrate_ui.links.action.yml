@@ -1,0 +1,5 @@
+wordpress_migrate_ui.add_group_action:
+  route_name: wordpress_migrate_ui.wizard.import
+  title: 'Add import from WordPress'
+  appears_on:
+    - entity.migration_group.list

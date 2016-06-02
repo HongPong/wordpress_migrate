@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\wordpress_migrate\Form;
+namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;

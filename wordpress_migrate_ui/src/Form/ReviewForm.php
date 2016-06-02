@@ -1,0 +1,55 @@
+<?php
+
+namespace Drupal\wordpress_migrate_ui\Form;
+
+use Drupal\Core\Form\FormBase;
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Simple wizard step form.
+ */
+class ReviewForm extends FormBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFormId() {
+    return 'wordpress_migrate_review_form';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function buildForm(array $form, FormStateInterface $form_state) {
+    // @todo: Display details of the configuration.
+    $form['description'] = [
+      '#markup' => $this->t('Please review your migration configuration. When you submit this form, migration processes will be created and you will be left at the migration dashboard.'),
+    ];
+    // @todo: Derive default values from blog title.
+    $form['group_id'] = [
+      '#type' => 'machine_name',
+      '#max_length' => 64,
+      '#title' => t('ID to assign to the generated migration group'),
+      '#default_value' => 'my_wordpress',
+    ];
+    $form['prefix'] = [
+      '#type' => 'machine_name',
+      '#max_length' => 64 - strlen('wordpress_content_page'),
+      '#title' => t('ID to prepend to each generated migration'),
+      '#default_value' => 'my_',
+    ];
+
+    return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitForm(array &$form, FormStateInterface $form_state) {
+    $cached_values = $form_state->getTemporaryValue('wizard');
+    $cached_values['group_id'] = $form_state->getValue('group_id');
+    $cached_values['prefix'] = $form_state->getValue('prefix');
+    $form_state->setTemporaryValue('wizard', $cached_values);
+  }
+
+}

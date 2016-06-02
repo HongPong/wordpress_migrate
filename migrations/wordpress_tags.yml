@@ -24,10 +24,7 @@ source:
     tag_slug:
       type: string
 process:
-  vid:
-    plugin: default_value
-    # @todo - fill in from form
-    default_value: wordpress_tags
+  # vid is populated dynamically.
   name: tag_name
 destination:
   plugin: entity:taxonomy_term

@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\wordpress_migrate\Form;
+namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -23,8 +23,8 @@ class ContentSelectForm extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     // Start clean in case we came here via Previous.
     $cached_values = $form_state->getTemporaryValue('wizard');
-    unset($cached_values['blog_post_type']);
-    unset($cached_values['page_type']);
+    unset($cached_values['post']);
+    unset($cached_values['page']);
     $form_state->setTemporaryValue('wizard', $cached_values);
 
     $form['overview'] = [
@@ -38,34 +38,16 @@ class ContentSelectForm extends FormBase {
       $options[$node_type] = $info->get('name');
     }
 
-    if (isset($options['blog'])) {
-      $default = 'blog';
-    }
-    else {
-      $default = '';
-    }
-
     $form['blog_post_type'] = [
       '#type' => 'select',
       '#title' => $this->t('Import WordPress blog posts as'),
-      '#default_value' => $default,
       '#options' => $options,
-      '#description' => $this->t(''),
     ];
-
-    if (isset($options['page'])) {
-      $default = 'page';
-    }
-    else {
-      $default = '';
-    }
 
     $form['page_type'] = [
       '#type' => 'select',
       '#title' => $this->t('Import WordPress pages as'),
-      '#default_value' => $default,
       '#options' => $options,
-      '#description' => t(''),
     ];
 
     return $form;
@@ -85,8 +67,8 @@ class ContentSelectForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $cached_values = $form_state->getTemporaryValue('wizard');
-    $cached_values['blog_post_type'] = $form_state->getValue('blog_post_type');
-    $cached_values['page_type'] = $form_state->getValue('page_type');
+    $cached_values['post']['type'] = $form_state->getValue('blog_post_type');
+    $cached_values['page']['type'] = $form_state->getValue('page_type');
     $form_state->setTemporaryValue('wizard', $cached_values);
   }
 

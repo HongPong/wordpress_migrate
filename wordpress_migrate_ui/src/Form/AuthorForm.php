@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\wordpress_migrate\Form;
+namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -64,11 +64,7 @@ class AuthorForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $cached_values = $form_state->getTemporaryValue('wizard');
-    if ($form_state->getValue('perform_user_migration')) {
-      $cached_values['user_migration'] = TRUE;
-    }
-    else {
-      $cached_values['user_migration'] = FALSE;
+    if (!$form_state->getValue('perform_user_migration')) {
       $account = user_load_by_name($form_state->getValue('default_author'));
       if ($account) {
         $cached_values['default_author_uid'] = $account->id();

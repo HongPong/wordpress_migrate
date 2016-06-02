@@ -1,18 +1,18 @@
-wordpress_migrate.wizard.import:
+wordpress_migrate_ui.wizard.import:
   path: '/admin/structure/migrate/wordpress_migrate'
   defaults:
-    _wizard: '\Drupal\wordpress_migrate\Wizard\ImportWizard'
+    _wizard: '\Drupal\wordpress_migrate_ui\Wizard\ImportWizard'
     _title: 'Import from WordPress'
-    tempstore_id: 'wordpress_migrate.wizard.import'
+    tempstore_id: 'wordpress_migrate_ui.wizard.import'
     machine_name: 'ImportWizard'
   requirements:
     _permission: 'migrate wordpress blogs'
-wordpress_migrate.wizard.import.step:
+wordpress_migrate_ui.wizard.import.step:
   path: '/admin/structure/migrate/wordpress_migrate/{step}'
   defaults:
-    _wizard: '\Drupal\wordpress_migrate\Wizard\ImportWizard'
+    _wizard: '\Drupal\wordpress_migrate_ui\Wizard\ImportWizard'
     _title: 'Import from WordPress'
-    tempstore_id: 'wordpress_migrate.wizard.import'
+    tempstore_id: 'wordpress_migrate_ui.wizard.import'
     machine_name: 'ImportWizard'
   requirements:
     _permission: 'migrate wordpress blogs'

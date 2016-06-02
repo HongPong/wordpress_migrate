@@ -1,9 +1,9 @@
-name: 'Migration from WordPress'
-description: 'Imports WordPress sites into Drupal'
+name: 'WordPress migration support'
+description: 'Support for importing WordPress sites into Drupal'
+type: module
 package: Migration
 core: 8.x
 dependencies:
-  - ctools
-  - migrate
   - migrate_plus
-type: module
+  # @todo Remove once https://www.drupal.org/node/2560795 is fixed.
+  - migrate_drupal

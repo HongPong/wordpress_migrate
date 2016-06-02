@@ -1,5 +1,5 @@
 id: wordpress_categories
-label: Import categories from WordPress XML
+label: Import from WordPress XML
 migration_tags:
   - WordPress
 source:
@@ -28,10 +28,7 @@ source:
     category_nicename:
       type: string
 process:
-  vid:
-    plugin: default_value
-    # @todo - fill in from form
-    default_value: wordpress_categories
+  # vid is populated dynamically.
   name: cat_name
   parent:
     plugin: migration
