@@ -1,0 +1,94 @@
+id: wordpress_comment
+label: Import comments from WordPress XML
+migration_tags:
+  - WordPress
+source:
+  plugin: url
+  data_fetcher_plugin: http
+  data_parser_plugin: xml
+  # The parent type selector is modified dynamically.
+  item_selector: /rss/channel/item[wp:post_type=":content_type"]/wp:comment
+  fields:
+    -
+      name: comment_id
+      label: Unique comment ID
+      selector: wp:comment_id
+    -
+      name: comment_author
+      label: Username of comment author, if logged in.
+      selector: wp:comment_author
+    -
+      name: comment_author_email
+      label: Email of comment author.
+      selector: wp:comment_author_meail
+    -
+      name: comment_author_url
+      label: Website of comment author.
+      selector: wp:comment_author_url
+    -
+      name: comment_author_IP
+      label: IP address of comment author.
+      selector: wp:comment_author_IP
+    -
+      name: comment_date
+      label: Datetime of comment (local time).
+      selector: wp:comment_date
+    -
+      name: comment_date_gmt
+      label: Datetime of comment (GMT).
+      selector: wp:comment_date_gmt
+    -
+      name: comment_content
+      label: Body of the content
+      selector: wp:comment_content
+    -
+      name: comment_approved
+      label: Whether the comment has been approved (published).
+      selector: wp:comment_approved
+    -
+      name: comment_type
+      label: The comment type.
+      selector: wp:comment_type
+    -
+      name: comment_parent
+      label: comment_id of the comment's parent.
+      selector: wp:comment_parent
+    -
+      name: post_id
+      label: post_id of the parent content item.
+      selector: ..\wp:post_id
+  ids:
+    comment_id:
+      type: integer
+process:
+  entity_id:
+    plugin: migration
+    source: post_id
+    # migration generated dynamically.
+  pid:
+    plugin: migration
+    source: comment_parent
+    # migration ID generated dynamically
+  entity_type:
+    plugin: default_value
+    default_value: node
+  comment_type:
+    plugin: default_value
+    # Comment type generated dynamically
+  field_name:
+    plugin: default_value
+    # Comment field name generated dynamically.
+  name: comment_author
+  mail: comment_author_email
+  homepage: comment_author_url
+  hostname: comment_author_IP
+  created:
+    plugin: callback
+    source: comment_date
+    callable: strtotime
+  changed: @created
+  status: comment_approved
+destination:
+  plugin: entity:comment
+# Dependencies are dynamically generated.
+migration_dependencies: {}

@@ -22,10 +22,12 @@ class ReviewForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     // @todo: Display details of the configuration.
+    // @link: https://www.drupal.org/node/2742289
     $form['description'] = [
       '#markup' => $this->t('Please review your migration configuration. When you submit this form, migration processes will be created and you will be left at the migration dashboard.'),
     ];
     // @todo: Derive default values from blog title.
+    // @link https://www.drupal.org/node/2742287
     $form['group_id'] = [
       '#type' => 'machine_name',
       '#max_length' => 64,

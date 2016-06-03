@@ -4,11 +4,9 @@ namespace Drupal\wordpress_migrate_ui\Wizard;
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\ctools\Wizard\FormWizardBase;
-use Drupal\wordpress_migrate\WordPressMigrationConfigurationTrait;
+use Drupal\wordpress_migrate\WordPressMigrationGenerator;
 
 class ImportWizard extends FormWizardBase {
-  
-  use WordPressMigrationConfigurationTrait;
 
   /**
    * {@inheritdoc}
@@ -74,7 +72,8 @@ class ImportWizard extends FormWizardBase {
    */
   public function finish(array &$form, FormStateInterface $form_state) {
     $cached_values = $form_state->getTemporaryValue('wizard');
-    $this->createMigrations($cached_values);
+    $generator = new WordPressMigrationGenerator($cached_values);
+    $generator->createMigrations();
     // Go to the dashboard for this migration group.
     $form_state->setRedirect('entity.migration.list', ['migration_group' => $cached_values['group_id']]);
     parent::finish($form, $form_state);

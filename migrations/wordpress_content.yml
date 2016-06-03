@@ -57,6 +57,8 @@ process:
   # uid mapping is dynamically generated.
   # tag/category field mappings are dynamically generated.
   title: title
+  # @todo: Will need process plugin to rewrite links/img refs.
+  # @link https://www.drupal.org/node/2742279
   'body/value': content
   'body/summary': excerpt
   created:

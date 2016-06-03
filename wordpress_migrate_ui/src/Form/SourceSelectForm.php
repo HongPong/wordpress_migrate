@@ -22,9 +22,13 @@ class SourceSelectForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     // @todo Make sure we have a private directory configured.
+    // @link https://www.drupal.org/node/2742291
     // @todo Support importing directly from WP admin interface.
+    // @link https://www.drupal.org/node/2742293
     // @todo Support importing from the directory directly.
+    // @link https://www.drupal.org/node/2742295
     // @todo Support importing from a database.
+    // @link https://www.drupal.org/node/2742299
     $form['overview'] = [
       '#markup' => $this->t('This wizard supports importing into your Drupal site from a WordPress blog. To be able to use this wizard, you must have an XML file exported from the blog.'),
     ];
@@ -60,6 +64,7 @@ class SourceSelectForm extends FormBase {
       $cached_values['file_uri'] = $file->getFileUri();
       $form_state->setTemporaryValue('wizard', $cached_values);
       // @todo: Preprocess the file
+      // @link https://www.drupal.org/node/2742301
     }
     else {
       drupal_set_message($this->t('File upload failed.'));

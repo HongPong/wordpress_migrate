@@ -1,0 +1,68 @@
+# @todo: Do not use - will be refactored when https://www.drupal.org/node/2695297 is committed.
+# @see https://www.drupal.org/node/2742269
+id: wordpress_attachments
+label: Import files from WordPress XML
+migration_tags:
+  - WordPress
+source:
+  plugin: url
+  data_fetcher_plugin: http
+  data_parser_plugin: xml
+  item_selector: '/rss/channel/item[wp:post_type="attachment"]'
+  fields:
+    -
+      name: title
+      label: Attachment title
+      selector: title
+    -
+      name: post_id
+      label: Unique content ID
+      selector: wp:post_id
+    -
+      name: content
+      label: Description of the file
+      selector: content:encoded
+    -
+      name: excerpt
+      label: Caption for the file
+      selector: excerpt:encoded
+    -
+      name: pubDate
+      label: Publish date of the file
+      selector: pubDate
+    -
+      name: post_date
+      label: Post date of the file
+      selector: wp:post_date
+    -
+      name: creator
+      label: Username of the content creator
+      selector: dc:creator
+    -
+      name: attachment_url
+      label: Full URL of the file on the source system
+      selector: wp:attachment_url
+    -
+      name: alt
+      label: Alt text for an image
+      # @todo: Make sure wp:meta_key is _wp_attachment_image_alt
+      # @link https://www.drupal.org/node/2742275
+      selector: wp:postmeta/wp:meta_value
+  ids:
+    post_id:
+      type: integer
+process:
+  # uid mapping is dynamically generated.
+  created:
+    plugin: callback
+    source: post_date
+    callable: strtotime
+  changed: @created
+  status:
+    plugin: default_value
+    default_value: 1
+destination:
+  plugin: entity:file
+  source_path_property: attachment_url
+# Dependencies are dynamically generated.
+migration_dependencies: {}

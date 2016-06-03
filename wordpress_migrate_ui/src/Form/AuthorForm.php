@@ -67,7 +67,7 @@ class AuthorForm extends FormBase {
     if (!$form_state->getValue('perform_user_migration')) {
       $account = user_load_by_name($form_state->getValue('default_author'));
       if ($account) {
-        $cached_values['default_author_uid'] = $account->id();
+        $cached_values['default_author'] = $form_state->getValue('default_author');
       }
     }
     $form_state->setTemporaryValue('wizard', $cached_values);
