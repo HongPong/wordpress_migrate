@@ -65,7 +65,7 @@ process:
     plugin: callback
     source: post_date
     callable: strtotime
-  changed: @created
+  changed: '@created'
   status:
     plugin: static_map
     source: status
