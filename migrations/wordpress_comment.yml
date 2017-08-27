@@ -7,7 +7,7 @@ source:
   data_fetcher_plugin: http
   data_parser_plugin: xml
   # The parent type selector is modified dynamically.
-  item_selector: /rss/channel/item[wp:post_type=":content_type"]/wp:comment
+  item_selector: /rss/channel/item/wp:comment
   fields:
     -
       name: comment_id
