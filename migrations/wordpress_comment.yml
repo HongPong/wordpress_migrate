@@ -82,6 +82,7 @@ process:
   mail: comment_author_email
   homepage: comment_author_url
   hostname: comment_author_IP
+  comment_body: comment_content
   created:
     plugin: callback
     source: comment_date
