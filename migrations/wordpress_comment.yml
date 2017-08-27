@@ -20,7 +20,7 @@ source:
     -
       name: comment_author_email
       label: Email of comment author.
-      selector: wp:comment_author_meail
+      selector: wp:comment_author_email
     -
       name: comment_author_url
       label: Website of comment author.
