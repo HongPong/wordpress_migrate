@@ -57,7 +57,7 @@ process:
     plugin: callback
     source: post_date
     callable: strtotime
-  changed: @created
+  changed: '@created'
   status:
     plugin: default_value
     default_value: 1

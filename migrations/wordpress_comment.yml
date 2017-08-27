@@ -86,7 +86,7 @@ process:
     plugin: callback
     source: comment_date
     callable: strtotime
-  changed: @created
+  changed: '@created'
   status: comment_approved
 destination:
   plugin: entity:comment
