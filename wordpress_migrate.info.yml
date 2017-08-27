@@ -5,6 +5,3 @@ package: Migration
 core: 8.x
 dependencies:
   - migrate_plus
-  # @todo Remove once https://www.drupal.org/node/2560795 is fixed.
-  # @link https://www.drupal.org/node/2742271
-  - migrate_drupal
