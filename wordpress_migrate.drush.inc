@@ -108,7 +108,7 @@ function drush_wordpress_migrate_generate($file_uri) {
  */
 function _wordpress_migrate_migration_list($group_id) {
   /** @var \Drupal\migrate_plus\Plugin\MigrationConfigEntityPluginManager $manager */
-  $manager = \Drupal::service('plugin.manager.config_entity_migration');
+  $manager = \Drupal::service('plugin.manager.migration');
   $plugins = $manager->createInstances([]);
   $migrations = [];
   foreach ($plugins as $id => $migration) {
