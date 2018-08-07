@@ -7,3 +7,5 @@ dependencies:
   - ctools:ctools
   - wordpress_migrate:wordpress_migrate
   - migrate_tools:migrate_tools
+  - drupal:file
+  - drupal:taxonomy
