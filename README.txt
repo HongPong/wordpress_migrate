@@ -1,8 +1,13 @@
+WordPress Migrate module for Drupal 8.x
+
 The WordPress Migrate module provides tools for setting up migration processes
 from the WordPress blog to a Drupal 8 site. By providing a few configuration
 settings and a pointer to an XML export file, migration configuration entities
 will be generated which can then be executed or otherwise managed with the
 migrate_tools module.
+
+This module has been developed since 2010 to reliably import WordPress sites into
+Drupal.
 
 There are a few ways to make use of wordpress_migrate:
 
@@ -42,6 +47,9 @@ will create the following migrations in the "old_blog" group:
 You can then use migrate_tools drush commands like "drush mi --group=old_blog"
 to manage the migrations.
 
+This command is not yet Drush 9 compatible. See issue:
+https://www.drupal.org/project/wordpress_migrate/issues/2955644
+
 UI
 ==
 Enabling the wordpress_migrate_ui module adds an "Add import from WordPress"
@@ -75,13 +83,49 @@ constructing a configuration array and passing it to the generator:
   $generator = new WordPressMigrationGenerator($configuration);
   $generator->createMigrations();
 
+Documentation
+=============
+A new documentation page is being developed here:
+https://www.drupal.org/docs/8/modules/wordpress-migrate
 
-Known issues
-============
-File (attachment) migration is not yet implemented - it will be done once
-https://www.drupal.org/node/2695297 gets into Drupal core.
+The Drupal 7 documentation is available here and partly relevant:
+https://www.drupal.org/node/1593370
 
-Comment migration will not work unless there's a version of migrate_plus that
-fixes https://www.drupal.org/node/2742233.
+Support, known issues and plans
+===============================
+Your support, questions and contributions are welcome:
+https://www.drupal.org/project/issues/wordpress_migrate
+Please try to provide example files to help reproduce errors and notices.
 
-Much more work to be done on the details...
+Plan for 8.x-3.x beta release:
+https://www.drupal.org/project/wordpress_migrate/issues/2904990
+
+File (attachment) migration is not yet implemented:
+https://www.drupal.org/project/wordpress_migrate/issues/2742269
+
+Comment migration may need to set a body text format:
+https://www.drupal.org/project/wordpress_migrate/issues/2742311
+
+Drush 9 support:
+https://www.drupal.org/project/wordpress_migrate/issues/2955644
+
+Random strings in taxonomies:
+https://www.drupal.org/project/wordpress_migrate/issues/2974024
+
+Permalinks and URL alias tables:
+https://www.drupal.org/project/wordpress_migrate/issues/2869595
+https://www.drupal.org/project/wordpress_migrate/issues/2904545
+
+Credits
+=======
+
+Current co-maintainer:
+* HongPong ( https://drupal.org/u/HongPong )
+
+Originally developed for Drupal 7 and 8 by mikeryan.
+
+Committers include:
+somersoft, lomasr, chaitanya17, felribeiro, maccath, MaskyS,
+mrmikedewolf, Darren Shelley, dwillems, othermachines, ohthehugemanatee,
+ezeedub, grasmash, bdone, queenvictoria, ksenzee, ptaff, pverrier,
+xurizaemon, hekele, aaron, emarchak, wizonesolutions
