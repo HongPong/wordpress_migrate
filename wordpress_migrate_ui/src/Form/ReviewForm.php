@@ -4,11 +4,14 @@ namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Simple wizard step form.
  */
 class ReviewForm extends FormBase {
+
+  use StringTranslationTrait;
 
   /**
    * {@inheritdoc}
@@ -31,13 +34,13 @@ class ReviewForm extends FormBase {
     $form['group_id'] = [
       '#type' => 'machine_name',
       '#max_length' => 64,
-      '#title' => t('ID to assign to the generated migration group'),
+      '#title' => $this->t('ID to assign to the generated migration group'),
       '#default_value' => 'my_wordpress',
     ];
     $form['prefix'] = [
       '#type' => 'machine_name',
       '#max_length' => 64 - strlen('wordpress_content_page'),
-      '#title' => t('ID to prepend to each generated migration'),
+      '#title' => $this->t('ID to prepend to each generated migration'),
       '#default_value' => 'my_',
     ];
 

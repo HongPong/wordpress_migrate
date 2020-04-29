@@ -4,11 +4,14 @@ namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Simple wizard step form.
  */
 class AuthorForm extends FormBase {
+
+  use StringTranslationTrait;
 
   /**
    * {@inheritdoc}
@@ -34,7 +37,7 @@ class AuthorForm extends FormBase {
 
     $form['default_author'] = [
       '#type' => 'textfield',
-      '#title' => t('Username of default content author:'),
+      '#title' => $this->t('Username of default content author:'),
       '#default_value' => \Drupal::currentUser()->getAccountName(),
       '#autocomplete_path' => 'user/autocomplete',
       '#states' => [
