@@ -11,8 +11,8 @@
         }
     ],
     "support": {
-        "issues":  "",
-        "source": "",
+        "issues": "https://www.drupal.org/project/issues/wordpress_migrate",
+        "source": "https://cgit.drupalcode.org/wordpress_migrate"
     },
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
