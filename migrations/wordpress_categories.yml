@@ -31,7 +31,7 @@ process:
   # vid is populated dynamically.
   name: cat_name
   parent:
-    plugin: migration
+    plugin: migration_lookup
     migration: wordpress_categories
     source: category_parent
 destination:

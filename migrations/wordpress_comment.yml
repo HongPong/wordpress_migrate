@@ -62,11 +62,11 @@ source:
       type: integer
 process:
   entity_id:
-    plugin: migration
+    plugin: migration_lookup
     source: post_id
     # migration generated dynamically.
   pid:
-    plugin: migration
+    plugin: migration_lookup
     source: comment_parent
     # migration ID generated dynamically
   entity_type:

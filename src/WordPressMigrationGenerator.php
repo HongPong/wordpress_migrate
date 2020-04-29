@@ -119,7 +119,7 @@ class WordPressMigrationGenerator {
       $migration->set('migration_group', $this->configuration['group_id']);
       $migration->save();
       $this->uidMapping = [
-        'plugin' => 'migration',
+        'plugin' => 'migration_lookup',
         'migration' => $this->authorID,
         'source' => 'creator',
       ];
@@ -200,7 +200,7 @@ class WordPressMigrationGenerator {
     if ($this->configuration['tag_vocabulary']) {
       if ($term_field = $this->termField($this->configuration[$wordpress_type]['type'], $this->configuration['tag_vocabulary'])) {
         $process[$term_field] = [
-          'plugin' => 'migration',
+          'plugin' => 'migration_lookup',
           'migration' => $this->tagsID,
           'source' => 'post_tag',
         ];
@@ -210,7 +210,7 @@ class WordPressMigrationGenerator {
     if ($this->configuration['category_vocabulary']) {
       if ($term_field = $this->termField($this->configuration[$wordpress_type]['type'], $this->configuration['category_vocabulary'])) {
         $process[$term_field] = [
-          'plugin' => 'migration',
+          'plugin' => 'migration_lookup',
           'migration' => $this->categoriesID,
           'source' => 'category',
         ];
