@@ -4,6 +4,7 @@ namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Component\Utility\Environment;
 
 /**
  * Simple wizard step form.
@@ -39,7 +40,7 @@ class SourceSelectForm extends FormBase {
       '#type' => 'file',
       '#title' => $this->t('WordPress exported file (WXR)'),
       '#description' => $this->t('Select an exported WordPress file (.xml extension). Maximum file size is @size.',
-        ['@size' => format_size(file_upload_max_size())]),
+        ['@size' => format_size(Environment::getUploadMaxSize())]),
     ];
     $form['keep_wxr_file'] = [
       '#type' => 'checkbox',
@@ -86,8 +87,8 @@ class SourceSelectForm extends FormBase {
     }
     else {
       $form_state->setRebuild();
-      drupal_set_message($this->t('File upload failed. Please try again.'));
-      \Drupal::logger('wordpress_migrate')->error('The WXR file failed to upload. Please try again.');
+      \Drupal::messenger()->addError($this->t('WXR file upload failed. Please try again. Your log messages may have additional information.'));
+      \Drupal::logger('wordpress_migrate')->error('The WXR file failed to upload.');
     }
   }
 

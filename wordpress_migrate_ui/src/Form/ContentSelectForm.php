@@ -4,6 +4,7 @@ namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\NodeType;
 
 /**
  * Simple wizard step form.
@@ -32,7 +33,7 @@ class ContentSelectForm extends FormBase {
     ];
 
     // Get destination node type(s)
-    $node_types = node_type_get_types();
+    $node_types = NodeType::loadMultiple();
     $options = ['' => $this->t('Do not import')];
     foreach ($node_types as $node_type => $info) {
       $options[$node_type] = $info->get('name');
