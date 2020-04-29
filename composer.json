@@ -17,6 +17,7 @@
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
     "require": {
-        "drupal/migrate_plus": "~5.0"
+        "drupal/migrate_plus": "~5.0",
+        "drupal/ctools": "~3.4"
     }
 }
