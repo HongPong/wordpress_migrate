@@ -30,16 +30,21 @@ class SourceSelectForm extends FormBase {
     // @todo Support importing from a database.
     // @link https://www.drupal.org/node/2742299
     $form['overview'] = [
-      '#markup' => $this->t('This wizard supports importing into your Drupal site from a WordPress blog. To be able to use this wizard, you must have an XML file exported from the blog.'),
+      '#markup' => $this->t('This wizard supports importing into your Drupal site from a WordPress blog. To be able to use this wizard, you must have an XML file exported from the blog. '),
     ];
     $form['description'] = [
-      '#markup' => $this->t('You will be led through a series of steps, allowing you to customize what will be imported into Drupal and how it will be mapped. At the end of this process, a migration group will be generated.'),
+      '#markup' => $this->t('<br /><br />You will be led through a series of steps, allowing you to customize what will be imported into Drupal and how it will be mapped. At the end of this process, a migration group will be generated.'),
     ];
     $form['wxr_file'] = [
       '#type' => 'file',
       '#title' => $this->t('WordPress exported file (WXR)'),
-      '#description' => $this->t('Select an exported WordPress file. Maximum file size is @size.',
+      '#description' => $this->t('Select an exported WordPress file (.xml extension). Maximum file size is @size.',
         ['@size' => format_size(file_upload_max_size())]),
+    ];
+    $form['keep_wxr_file'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Permanently save uploaded WXR file'),
+      '#description' => $this->t('The uploaded WXR file will be kept in your site permanently. It will always be visible on the "Files" section of the Content administration area.')
     ];
     return $form;
   }
@@ -59,15 +64,30 @@ class SourceSelectForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $validators = ['file_validate_extensions' => ['xml']];
-    if ($file = file_save_upload('wxr_file', $validators, 'public://', 0)) {
+    // file_save_upload renames if file already exists (default behavior)
+    $file = file_save_upload('wxr_file', $validators, 'public://', 0);
+    if ($file) {
       $cached_values = $form_state->getTemporaryValue('wizard');
       $cached_values['file_uri'] = $file->getFileUri();
+      if ($form_state->getValue('keep_wxr_file')) {
+        /* Set the status flag permanent of the file object */
+        $file->setPermanent();
+        /* Save the file in database */
+        try {
+          $file->save();
+        } catch (\Drupal\Core\Entity\EntityStorageException $e) {
+          \Drupal::messenger()->addError('The WXR file failed to upload. Please try again.');
+          \Drupal::logger('wordpress_migrate')->error('The WXR file failed to upload. (EntityStorageException)');
+        }
+      }
       $form_state->setTemporaryValue('wizard', $cached_values);
       // @todo: Preprocess the file
       // @link https://www.drupal.org/node/2742301
     }
     else {
-      drupal_set_message($this->t('File upload failed.'));
+      $form_state->setRebuild();
+      drupal_set_message($this->t('File upload failed. Please try again.'));
+      \Drupal::logger('wordpress_migrate')->error('The WXR file failed to upload. Please try again.');
     }
   }
 
