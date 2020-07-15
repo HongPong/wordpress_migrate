@@ -79,8 +79,8 @@ class SourceSelectForm extends FormBase {
           $file->save();
         }
         catch (EntityStorageException $e) {
-          \Drupal::messenger()->addError('The WXR file failed to upload. Please try again.');
-          \Drupal::logger('wordpress_migrate')->error('The WXR file failed to upload. (EntityStorageException)');
+          $this->messenger()->addError('The WXR file failed to upload. Please try again.');
+          $this->logger('wordpress_migrate')->error('The WXR file failed to upload. (EntityStorageException)');
         }
       }
       $form_state->setTemporaryValue('wizard', $cached_values);
@@ -89,8 +89,8 @@ class SourceSelectForm extends FormBase {
     }
     else {
       $form_state->setRebuild();
-      \Drupal::messenger()->addError($this->t('WXR file upload failed. Please try again. Your log messages may have additional information.'));
-      \Drupal::logger('wordpress_migrate')->error('The WXR file failed to upload.');
+      $this->messenger()->addError($this->t('WXR file upload failed. Please try again. Your log messages may have additional information.'));
+      $this->logger('wordpress_migrate')->error('The WXR file failed to upload.');
     }
   }
 

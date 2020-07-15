@@ -38,7 +38,7 @@ class AuthorForm extends FormBase {
     $form['default_author'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Username of default content author:'),
-      '#default_value' => \Drupal::currentUser()->getAccountName(),
+      '#default_value' => $this->currentUser()->getAccountName(),
       '#autocomplete_path' => 'user/autocomplete',
       '#states' => [
         'invisible' => [
