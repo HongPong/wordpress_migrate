@@ -1,4 +1,4 @@
-name: 'WordPress migration support'
+name: 'WordPress Migrate Support'
 description: 'Support for importing WordPress sites into Drupal'
 type: module
 package: Migration

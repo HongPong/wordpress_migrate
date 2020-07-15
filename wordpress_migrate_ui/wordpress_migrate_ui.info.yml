@@ -1,4 +1,4 @@
-name: 'WordPress Migration UI'
+name: 'WordPress Migrate UI'
 description: 'Wizard UI for configuring WordPress imports into Drupal'
 type: module
 package: Migration
