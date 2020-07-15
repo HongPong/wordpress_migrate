@@ -47,6 +47,13 @@ class WordPressMigrationGenerator {
   protected $categoriesID = '';
 
   /**
+   * ID of the configuration entity for attachment migration.
+   *
+   * @var string
+   */
+  protected $attachmentID = '';
+
+  /**
    * Constructs a WordPress migration generator, using provided configuration.
    *
    * @param array $configuration
@@ -129,20 +136,13 @@ class WordPressMigrationGenerator {
     }
 
     // Set up the attachment migration.
-    /*
-    @todo: Wait until https://www.drupal.org/node/2695297 to complete
-    implementation.
-    $attachment_id = $this->configuration['prefix'] . 'wordpress_attachments';
-    $migration = static::createEntityFromPlugin('wordpress_attachments', $attachment_id);
+    $this->attachmentID = $this->configuration['prefix'] . 'wordpress_attachments';
+    $migration = static::createEntityFromPlugin('wordpress_attachments', $this->attachmentID);
     $migration->set('migration_group', $this->configuration['group_id']);
     $process = $migration->get('process');
     $process['uid'] = $this->uidMapping;
     $migration->set('process', $process);
-    if (!empty($this->authorID)) {
-    $migration->set('migration_dependencies', ['required' => [$this->authorID]]);
-    }
     $migration->save();
-     */
 
     // Setup vocabulary migrations if requested.
     if ($this->configuration['tag_vocabulary']) {
@@ -226,6 +226,14 @@ class WordPressMigrationGenerator {
         ];
         $dependencies[]       = $this->categoriesID;
       }
+    }
+    if ($this->configuration['image_field']) {
+      $process[$this->configuration['image_field']] = [
+        'plugin' => 'migration',
+        'migration' => $this->attachmentID,
+        'source' => 'thumbnail_id',
+      ];
+      $dependencies[] = $this->attachmentID;
     }
     $migration->set('process', $process);
     if (!empty($this->authorID)) {

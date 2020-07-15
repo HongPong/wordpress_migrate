@@ -9,6 +9,8 @@ source:
   data_fetcher_plugin: http
   data_parser_plugin: xml
   item_selector: '/rss/channel/item[wp:post_type="attachment"]'
+  constants:
+    file_dest_uri: 'public://featured_images'
   fields:
     -
       name: title
@@ -53,6 +55,27 @@ source:
       type: integer
 process:
   # uid mapping is dynamically generated.
+  destination_file:
+    plugin: callback
+    callable:
+      - '\Drupal\Core\File\FileSystem'
+      - basename
+    source: attachment_url
+  filename: '@destination_file'
+  destination_full_path:
+    -
+      plugin: concat
+      delimiter: /
+      source:
+        - constants/file_dest_uri
+        - '@destination_file'
+    -
+      plugin: urlencode
+  uri:
+    plugin: file_copy
+    source:
+      - attachment_url
+      - '@destination_full_path'
   created:
     plugin: callback
     source: post_date
@@ -63,6 +86,5 @@ process:
     default_value: 1
 destination:
   plugin: entity:file
-  source_path_property: attachment_url
 # Dependencies are dynamically generated.
 migration_dependencies: {}

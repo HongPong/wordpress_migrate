@@ -34,6 +34,10 @@ class ImportWizard extends FormWizardBase {
         'form' => 'Drupal\wordpress_migrate_ui\Form\ContentSelectForm',
         'title' => $this->t('Content'),
       ],
+      'image_select' => [
+        'form' => 'Drupal\wordpress_migrate_ui\Form\ImageSelectForm',
+        'title' => $this->t('Featured images'),
+      ],
     ];
     // Dynamically add the content migration(s) that have been configured by
     // ContentSelectForm.

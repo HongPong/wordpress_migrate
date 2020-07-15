@@ -57,6 +57,22 @@ button to the migrate_tools UI at /admin/structure/migrate - this begins a
 wizard which prompts you for the same configuration options you see for the
 drush command above.
 
+Importing image assets
+======================
+
+For the new importation of attached images including post thumbnails
+(also known as featured images) you should:
+ - Assign an image field for these assets in the migrate process.
+ - Before importing the content posts, import the media assets.
+ - Import the media assets.
+
+See issue for more information and customization:
+https://www.drupal.org/project/wordpress_migrate/issues/2742269
+
+Important: While image assets can be imported to the Drupal filesystem,
+the paths of inline images from the WordPress body are not rewritten.
+See issue: https://www.drupal.org/project/wordpress_migrate/issues/2742279
+
 API
 ===
 You may also programmatically configure a set of WordPress migrations by
@@ -100,9 +116,6 @@ Please try to provide example files to help reproduce errors and notices.
 Plan for 8.x-3.x beta release:
 https://www.drupal.org/project/wordpress_migrate/issues/2904990
 
-File (attachment) migration is not yet implemented:
-https://www.drupal.org/project/wordpress_migrate/issues/2742269
-
 Comment migration may need to set a body text format:
 https://www.drupal.org/project/wordpress_migrate/issues/2742311
 
@@ -115,6 +128,12 @@ https://www.drupal.org/project/wordpress_migrate/issues/2974024
 Permalinks and URL alias tables:
 https://www.drupal.org/project/wordpress_migrate/issues/2869595
 https://www.drupal.org/project/wordpress_migrate/issues/2904545
+
+Rewrite local link/image references in content:
+https://www.drupal.org/project/wordpress_migrate/issues/2742279
+
+Extract and save blog metadata:
+https://www.drupal.org/project/wordpress_migrate/issues/2742287
 
 Credits
 =======

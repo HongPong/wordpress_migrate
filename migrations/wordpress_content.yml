@@ -49,6 +49,10 @@ source:
       name: category
       label: Categories assigned to the content item
       selector: 'category[@domain="category"]/@nicename'
+    -
+      name: thumbnail_id
+      label: Thumbnail assigned to the content item (Featured image)
+      selector: wp:postmeta[wp:meta_key='_thumbnail_id']/wp:meta_value
   ids:
     post_id:
       type: integer
