@@ -8,6 +8,8 @@ use Drupal\wordpress_migrate\WordPressMigrationGenerator;
 
 /**
  * Imports the wizard.
+ *
+ * @package Drupal\wordpress_migrate_ui\Wizard
  */
 class ImportWizard extends FormWizardBase {
 
