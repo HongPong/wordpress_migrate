@@ -5,7 +5,6 @@
  * Command-line tools for managing WordPress migrations.
  */
 
-use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\wordpress_migrate\WordPressMigrationGenerator;
 
 /**
@@ -71,6 +70,7 @@ function wordpress_migrate_drush_command() {
  * Generate WordPress migrations based on the command-line options.
  *
  * @param string $file_uri
+ *   The url of the file.
  */
 function drush_wordpress_migrate_generate($file_uri) {
   $configuration['file_uri'] = $file_uri;
@@ -101,9 +101,9 @@ function drush_wordpress_migrate_generate($file_uri) {
  * Retrieve a list of migrations in the specified group.
  *
  * @param string $group_id
- *  Group machine name.
+ *   Group machine name.
  *
- * @return MigrationInterface[]
+ * @return \Drupal\migrate\Plugin\MigrationInterface[]
  *   List of migrations in the given group.
  */
 function _wordpress_migrate_migration_list($group_id) {

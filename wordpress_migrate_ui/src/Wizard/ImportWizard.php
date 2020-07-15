@@ -6,6 +6,9 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\ctools\Wizard\FormWizardBase;
 use Drupal\wordpress_migrate\WordPressMigrationGenerator;
 
+/**
+ * Imports the wizard.
+ */
 class ImportWizard extends FormWizardBase {
 
   /**

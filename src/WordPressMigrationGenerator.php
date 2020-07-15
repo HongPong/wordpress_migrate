@@ -49,10 +49,7 @@ class WordPressMigrationGenerator {
   /**
    * Constructs a WordPress migration generator, using provided configuration.
    *
-   * @todo: Validate inputs (e.g., make sure post type exists).
-   * @link https://www.drupal.org/node/2742283
-   *
-   * @param $configuration
+   * @param array $configuration
    *   An associative array:
    *   - file_uri: Drupal stream wrapper of the source WordPress XML file.
    *   - group_id: ID of the MigrationGroup holding the generated migrations.
@@ -64,13 +61,19 @@ class WordPressMigrationGenerator {
    *   - [post|page]: Associative array of type-specific configuration:
    *     - type: Machine name of Drupal node bundle to hold content.
    *     - text_format: Machine name of text format for body field.
+   * @todo: Validate inputs (e.g., make sure post type exists).
+   * @link https://www.drupal.org/node/2742283
    */
   public function __construct(array $configuration) {
     $this->configuration = $configuration;
   }
-  
+
   /**
-   * Creates a set of WordPress import migrations based on configuration settings.
+   * Creates a set of WordPress import migrations based on configuration
+   * settings.
+   *
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   * @throws \Exception
    */
   public function createMigrations() {
     // Create the migration group.
@@ -115,7 +118,7 @@ class WordPressMigrationGenerator {
     }
     else {
       $this->authorID = $this->configuration['prefix'] . 'wordpress_authors';
-      $migration = static::createEntityFromPlugin('wordpress_authors', $this->authorID);
+      $migration      = static::createEntityFromPlugin('wordpress_authors', $this->authorID);
       $migration->set('migration_group', $this->configuration['group_id']);
       $migration->save();
       $this->uidMapping = [
@@ -126,7 +129,9 @@ class WordPressMigrationGenerator {
     }
 
     // Set up the attachment migration.
-    /* @todo: Wait until https://www.drupal.org/node/2695297 to complete implementation.
+    /*
+    @todo: Wait until https://www.drupal.org/node/2695297 to complete
+    implementation.
     $attachment_id = $this->configuration['prefix'] . 'wordpress_attachments';
     $migration = static::createEntityFromPlugin('wordpress_attachments', $attachment_id);
     $migration->set('migration_group', $this->configuration['group_id']);
@@ -134,32 +139,32 @@ class WordPressMigrationGenerator {
     $process['uid'] = $this->uidMapping;
     $migration->set('process', $process);
     if (!empty($this->authorID)) {
-      $migration->set('migration_dependencies', ['required' => [$this->authorID]]);
+    $migration->set('migration_dependencies', ['required' => [$this->authorID]]);
     }
     $migration->save();
-    */
-    
+     */
+
     // Setup vocabulary migrations if requested.
     if ($this->configuration['tag_vocabulary']) {
       $this->tagsID = $this->configuration['prefix'] . 'wordpress_tags';
-      $migration = static::createEntityFromPlugin('wordpress_tags', $this->tagsID);
+      $migration    = static::createEntityFromPlugin('wordpress_tags', $this->tagsID);
       $migration->set('migration_group', $this->configuration['group_id']);
-      $process = $migration->get('process');
+      $process        = $migration->get('process');
       $process['vid'] = [
         'plugin' => 'default_value',
-        'default_value' => $this->configuration['tag_vocabulary']
+        'default_value' => $this->configuration['tag_vocabulary'],
       ];
       $migration->set('process', $process);
       $migration->save();
     }
     if ($this->configuration['category_vocabulary']) {
       $this->categoriesID = $this->configuration['prefix'] . 'wordpress_categories';
-      $migration = static::createEntityFromPlugin('wordpress_categories', $this->categoriesID);
+      $migration          = static::createEntityFromPlugin('wordpress_categories', $this->categoriesID);
       $migration->set('migration_group', $this->configuration['group_id']);
-      $process = $migration->get('process');
+      $process        = $migration->get('process');
       $process['vid'] = [
         'plugin' => 'default_value',
-        'default_value' => $this->configuration['category_vocabulary']
+        'default_value' => $this->configuration['category_vocabulary'],
       ];
       $migration->set('process', $process);
       $migration->save();
@@ -176,45 +181,50 @@ class WordPressMigrationGenerator {
   /**
    * Setup the migration for a given WordPress content type.
    *
-   * @param $wordpress_type
+   * @param string $wordpress_type
    *   WordPress content type - 'post' or 'page'.
+   *
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   * @throws \Drupal\Component\Plugin\Exception\PluginException
    */
   protected function createContentMigration($wordpress_type) {
     $dependencies = [];
-    $content_id = $this->configuration['prefix'] . 'wordpress_content_' . $wordpress_type;
-    $migration = static::createEntityFromPlugin('wordpress_content', $content_id);
+    $content_id   = $this->configuration['prefix'] . 'wordpress_content_' . $wordpress_type;
+    $migration    = static::createEntityFromPlugin('wordpress_content', $content_id);
     $migration->set('migration_group', $this->configuration['group_id']);
-    $source = $migration->get('source');
+    $source                   = $migration->get('source');
     $source['item_selector'] .= '[wp:post_type="' . $wordpress_type . '"]';
     $migration->set('source', $source);
-    $process = $migration->get('process');
-    $process['uid'] = $this->uidMapping;
+    $process                = $migration->get('process');
+    $process['uid']         = $this->uidMapping;
     $process['body/format'] = [
       'plugin' => 'default_value',
       'default_value' => $this->configuration[$wordpress_type]['text_format'],
     ];
-    $process['type'] = [
+    $process['type']        = [
       'plugin' => 'default_value',
       'default_value' => $this->configuration[$wordpress_type]['type'],
     ];
     if ($this->configuration['tag_vocabulary']) {
-      if ($term_field = $this->termField($this->configuration[$wordpress_type]['type'], $this->configuration['tag_vocabulary'])) {
+      $term_field = $this->termField($this->configuration[$wordpress_type]['type'], $this->configuration['tag_vocabulary']);
+      if ($term_field) {
         $process[$term_field] = [
           'plugin' => 'migration_lookup',
           'migration' => $this->tagsID,
           'source' => 'post_tag',
         ];
-        $dependencies[] = $this->tagsID;
+        $dependencies[]       = $this->tagsID;
       }
     }
     if ($this->configuration['category_vocabulary']) {
-      if ($term_field = $this->termField($this->configuration[$wordpress_type]['type'], $this->configuration['category_vocabulary'])) {
+      $term_field = $this->termField($this->configuration[$wordpress_type]['type'], $this->configuration['category_vocabulary']);
+      if ($term_field) {
         $process[$term_field] = [
           'plugin' => 'migration_lookup',
           'migration' => $this->categoriesID,
           'source' => 'category',
         ];
-        $dependencies[] = $this->categoriesID;
+        $dependencies[]       = $this->categoriesID;
       }
     }
     $migration->set('process', $process);
@@ -223,24 +233,24 @@ class WordPressMigrationGenerator {
     }
     $migration->set('migration_dependencies', ['required' => $dependencies]);
     $migration->save();
-    
+
     // Also create a comment migration, if the content type has a comment field.
     /** @var \Drupal\Core\Field\FieldDefinitionInterface[] $all_fields */
     $all_fields = \Drupal::service('entity_field.manager')->getFieldDefinitions('node', $this->configuration[$wordpress_type]['type']);
     foreach ($all_fields as $field_name => $field_definition) {
       if ($field_definition->getType() == 'comment') {
-        $storage = $field_definition->getFieldStorageDefinition();
-        $id = $this->configuration['prefix'] . 'wordpress_comment_' . $wordpress_type;
+        $storage   = $field_definition->getFieldStorageDefinition();
+        $id        = $this->configuration['prefix'] . 'wordpress_comment_' . $wordpress_type;
         $migration = static::createEntityFromPlugin('wordpress_comment', $id);
         $migration->set('migration_group', $this->configuration['group_id']);
-        $source = $migration->get('source');
+        $source                  = $migration->get('source');
         $source['item_selector'] = str_replace(':content_type', $wordpress_type, $source['item_selector']);
         $migration->set('source', $source);
-        $process = $migration->get('process');
-        $process['entity_id'][0]['migration'] = $content_id;
+        $process                                     = $migration->get('process');
+        $process['entity_id'][0]['migration']        = $content_id;
         $process['comment_type'][0]['default_value'] = $storage->getSetting('comment_type');
-        $process['pid'][0]['migration'] = $id;
-        $process['field_name'][0]['default_value'] = $field_name;
+        $process['pid'][0]['migration']              = $id;
+        $process['field_name'][0]['default_value']   = $field_name;
         $migration->set('process', $process);
         $migration->set('migration_dependencies', ['required' => [$content_id]]);
         $migration->save();
@@ -253,8 +263,12 @@ class WordPressMigrationGenerator {
    * Returns the first field referencing a given vocabulary.
    *
    * @param string $bundle
+   *   Name of bundle.
    * @param string $vocabulary
+   *   Name of vocabulary.
+   *
    * @return string
+   *   Empty string.
    */
   protected function termField($bundle, $vocabulary) {
     /** @var \Drupal\Core\Field\FieldDefinitionInterface[] $all_fields */
@@ -276,30 +290,33 @@ class WordPressMigrationGenerator {
   /**
    * Create a configuration entity from a core migration plugin's configuration.
    *
-   * @todo: Remove and replace calls to use Migration::createEntityFromPlugin()
-   * when there's a migrate_plus release containing it we can have a dependency
-   * on.
-   *
    * @param string $plugin_id
    *   ID of a migration plugin managed by MigrationPluginManager.
    * @param string $new_plugin_id
    *   ID to use for the new configuration entity.
    *
-   * @return \Drupal\migrate_plus\Entity\MigrationInterface
+   * @return \Drupal\Core\Entity\EntityInterface
+   *   is same as \Drupal\migrate_plus\Entity\MigrationInterface
    *   A Migration configuration entity (not saved to persistent storage).
+   *
+   * @throws \Drupal\Component\Plugin\Exception\PluginException
+   *
+   * @todo: Remove and replace calls to use Migration::createEntityFromPlugin()
+   * when there's a migrate_plus release containing it we can have a dependency
+   * on.
    */
   protected static function createEntityFromPlugin($plugin_id, $new_plugin_id) {
     /** @var \Drupal\migrate\Plugin\MigrationPluginManagerInterface $plugin_manager */
-    $plugin_manager = \Drupal::service('plugin.manager.migration');
-    $migration_plugin = $plugin_manager->createInstance($plugin_id);
-    $entity_array['id'] = $new_plugin_id;
-    $entity_array['migration_tags'] = $migration_plugin->get('migration_tags');
-    $entity_array['label'] = $migration_plugin->label();
-    $entity_array['source'] = $migration_plugin->getSourceConfiguration();
-    $entity_array['destination'] = $migration_plugin->getDestinationConfiguration();
-    $entity_array['process'] = $migration_plugin->getProcess();
+    $plugin_manager                         = \Drupal::service('plugin.manager.migration');
+    $migration_plugin                       = $plugin_manager->createInstance($plugin_id);
+    $entity_array['id']                     = $new_plugin_id;
+    $entity_array['migration_tags']         = $migration_plugin->get('migration_tags');
+    $entity_array['label']                  = $migration_plugin->label();
+    $entity_array['source']                 = $migration_plugin->getSourceConfiguration();
+    $entity_array['destination']            = $migration_plugin->getDestinationConfiguration();
+    $entity_array['process']                = $migration_plugin->getProcess();
     $entity_array['migration_dependencies'] = $migration_plugin->getMigrationDependencies();
-    $migration_entity = Migration::create($entity_array);
+    $migration_entity                       = Migration::create($entity_array);
     return $migration_entity;
   }
 

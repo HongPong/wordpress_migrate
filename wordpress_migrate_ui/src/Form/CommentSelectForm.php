@@ -44,4 +44,5 @@ class CommentSelectForm extends FormBase {
     $cached_values = $form_state->getTemporaryValue('wizard');
     $form_state->setTemporaryValue('wizard', $cached_values);
   }
+
 }

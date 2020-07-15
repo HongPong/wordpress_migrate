@@ -2,6 +2,7 @@
 
 namespace Drupal\wordpress_migrate_ui\Form;
 
+use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Component\Utility\Environment;
@@ -31,7 +32,7 @@ class SourceSelectForm extends FormBase {
     // @todo Support importing from a database.
     // @link https://www.drupal.org/node/2742299
     $form['overview'] = [
-      '#markup' => $this->t('This wizard supports importing into your Drupal site from a WordPress blog. To be able to use this wizard, you must have an XML file exported from the blog. '),
+      '#markup' => $this->t('This wizard supports importing into your Drupal site from a WordPress blog. To be able to use this wizard, you must have an XML file exported from the blog.'),
     ];
     $form['description'] = [
       '#markup' => $this->t('<br /><br />You will be led through a series of steps, allowing you to customize what will be imported into Drupal and how it will be mapped. At the end of this process, a migration group will be generated.'),
@@ -45,7 +46,7 @@ class SourceSelectForm extends FormBase {
     $form['keep_wxr_file'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Permanently save uploaded WXR file'),
-      '#description' => $this->t('The uploaded WXR file will be kept in your site permanently. It will always be visible on the "Files" section of the Content administration area.')
+      '#description' => $this->t('The uploaded WXR file will be kept in your site permanently. It will always be visible on the "Files" section of the Content administration area.'),
     ];
     return $form;
   }
@@ -76,7 +77,8 @@ class SourceSelectForm extends FormBase {
         /* Save the file in database */
         try {
           $file->save();
-        } catch (\Drupal\Core\Entity\EntityStorageException $e) {
+        }
+        catch (EntityStorageException $e) {
           \Drupal::messenger()->addError('The WXR file failed to upload. Please try again.');
           \Drupal::logger('wordpress_migrate')->error('The WXR file failed to upload. (EntityStorageException)');
         }
