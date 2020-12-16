@@ -1,5 +1,5 @@
 id: wordpress_categories
-label: Import from WordPress XML
+label: Import categories from WordPress XML
 migration_tags:
   - WordPress
 source:
