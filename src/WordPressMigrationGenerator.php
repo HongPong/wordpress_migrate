@@ -318,7 +318,7 @@ class WordPressMigrationGenerator {
     $plugin_manager                         = \Drupal::service('plugin.manager.migration');
     $migration_plugin                       = $plugin_manager->createInstance($plugin_id);
     $entity_array['id']                     = $new_plugin_id;
-    $entity_array['migration_tags']         = $migration_plugin->get('migration_tags');
+    $entity_array['migration_tags']         = $migration_plugin->getMigrationTags();
     $entity_array['label']                  = $migration_plugin->label();
     $entity_array['source']                 = $migration_plugin->getSourceConfiguration();
     $entity_array['destination']            = $migration_plugin->getDestinationConfiguration();
