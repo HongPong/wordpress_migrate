@@ -229,7 +229,7 @@ class WordPressMigrationGenerator {
     }
     if ($this->configuration['image_field']) {
       $process[$this->configuration['image_field']] = [
-        'plugin' => 'migration',
+        'plugin' => 'migration_lookup',
         'migration' => $this->attachmentID,
         'source' => 'thumbnail_id',
       ];
