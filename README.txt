@@ -116,6 +116,10 @@ Please try to provide example files to help reproduce errors and notices.
 Plan for 8.x-3.x beta release:
 https://www.drupal.org/project/wordpress_migrate/issues/2904990
 
+"Failed to connect to your database server" requires settings.php
+Driver tweak in some cases:
+https://www.drupal.org/project/wordpress_migrate/issues/3214639
+
 Comment migration may need to set a body text format:
 https://www.drupal.org/project/wordpress_migrate/issues/2742311
 
