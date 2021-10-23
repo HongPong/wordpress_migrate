@@ -60,7 +60,11 @@ process:
   # type mapping is dynamically generated.
   # uid mapping is dynamically generated.
   # tag/category field mappings are dynamically generated.
-  title: title
+  title:
+    plugin: skip_on_empty
+    method: row
+    source: title
+    message: 'Cannot import empty titles. This may include trashed posts from the WordPress import file.'
   # @todo: Will need process plugin to rewrite links/img refs.
   # @link https://www.drupal.org/node/2742279
   'body/value': content
