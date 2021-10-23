@@ -57,9 +57,7 @@ process:
   # uid mapping is dynamically generated.
   destination_file:
     plugin: callback
-    callable:
-      - '\Drupal\Core\File\FileSystem'
-      - basename
+    callable: basename
     source: attachment_url
   filename: '@destination_file'
   destination_full_path:
