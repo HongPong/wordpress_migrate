@@ -1,4 +1,4 @@
-WordPress Migrate module for Drupal 8.x
+# WORDPRESS MIGRATE MODULE FOR DRUPAL 8.x
 
 The WordPress Migrate module provides tools for setting up migration processes
 from the WordPress blog to a Drupal 8 site. By providing a few configuration
@@ -11,8 +11,8 @@ Drupal.
 
 There are a few ways to make use of wordpress_migrate:
 
-Drush command
-=============
+## DRUSH COMMAND
+
 A single drush command, wordpress-migrate-generate, is provided for generating
 WordPress migrations from a few simple options:
 
@@ -48,17 +48,16 @@ You can then use migrate_tools drush commands like "drush mi --group=old_blog"
 to manage the migrations.
 
 This command is not yet Drush 9 compatible. See issue:
-https://www.drupal.org/project/wordpress_migrate/issues/2955644
+<https://www.drupal.org/project/wordpress_migrate/issues/2955644>
 
-UI
-==
+## UI
+
 Enabling the wordpress_migrate_ui module adds an "Add import from WordPress"
 button to the migrate_tools UI at /admin/structure/migrate - this begins a
 wizard which prompts you for the same configuration options you see for the
 drush command above.
 
-Importing image assets
-======================
+## IMPORTING IMAGE ASSETS
 
 For the new importation of attached images including post thumbnails
 (also known as featured images) you should:
@@ -67,14 +66,14 @@ For the new importation of attached images including post thumbnails
  - Import the media assets.
 
 See issue for more information and customization:
-https://www.drupal.org/project/wordpress_migrate/issues/2742269
+<https://www.drupal.org/project/wordpress_migrate/issues/2742269>
 
 Important: While image assets can be imported to the Drupal filesystem,
 the paths of inline images from the WordPress body are not rewritten.
-See issue: https://www.drupal.org/project/wordpress_migrate/issues/2742279
+See issue: <https://www.drupal.org/project/wordpress_migrate/issues/2742279>
 
-API
-===
+## API
+
 You may also programmatically configure a set of WordPress migrations by
 constructing a configuration array and passing it to the generator:
 
@@ -99,51 +98,48 @@ constructing a configuration array and passing it to the generator:
   $generator = new WordPressMigrationGenerator($configuration);
   $generator->createMigrations();
 
-Documentation
-=============
+## Documentation
+
 A new documentation page is being developed here:
-https://www.drupal.org/docs/8/modules/wordpress-migrate
+<https://www.drupal.org/docs/contributed-modules/wordpress-migrate>
 
-The Drupal 7 documentation is available here and partly relevant:
-https://www.drupal.org/node/1593370
 
-Support, known issues and plans
-===============================
+- Support, known issues and plans
+
 Your support, questions and contributions are welcome:
-https://www.drupal.org/project/issues/wordpress_migrate
+<https://www.drupal.org/project/issues/wordpress_migrate>
 Please try to provide example files to help reproduce errors and notices.
 
 Plan for 8.x-3.x beta release:
-https://www.drupal.org/project/wordpress_migrate/issues/2904990
+<https://www.drupal.org/project/wordpress_migrate/issues/2904990>
 
 "Failed to connect to your database server" requires settings.php
 Driver tweak in some cases:
-https://www.drupal.org/project/wordpress_migrate/issues/3214639
+<https://www.drupal.org/project/wordpress_migrate/issues/3214639>
 
 Comment migration may need to set a body text format:
-https://www.drupal.org/project/wordpress_migrate/issues/2742311
+<https://www.drupal.org/project/wordpress_migrate/issues/2742311>
 
 Drush 9 support:
-https://www.drupal.org/project/wordpress_migrate/issues/2955644
+<https://www.drupal.org/project/wordpress_migrate/issues/2955644>
 
 Random strings in taxonomies:
-https://www.drupal.org/project/wordpress_migrate/issues/2974024
+<https://www.drupal.org/project/wordpress_migrate/issues/2974024>
 
 Permalinks and URL alias tables:
-https://www.drupal.org/project/wordpress_migrate/issues/2869595
-https://www.drupal.org/project/wordpress_migrate/issues/2904545
+<https://www.drupal.org/project/wordpress_migrate/issues/2869595>
+<https://www.drupal.org/project/wordpress_migrate/issues/2904545>
 
 Rewrite local link/image references in content:
-https://www.drupal.org/project/wordpress_migrate/issues/2742279
+<https://www.drupal.org/project/wordpress_migrate/issues/2742279>
 
 Extract and save blog metadata:
-https://www.drupal.org/project/wordpress_migrate/issues/2742287
+<https://www.drupal.org/project/wordpress_migrate/issues/2742287>
 
-Credits
-=======
+## CREDITS
 
 Current co-maintainer:
-* HongPong ( https://drupal.org/u/HongPong )
+- HongPong - <https://drupal.org/u/HongPong>
 
 Originally developed for Drupal 7 and 8 by mikeryan.
 
