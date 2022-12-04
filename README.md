@@ -124,9 +124,9 @@ A new documentation page is being developed here:
 
 ### Support, known issues and plans
 
-- Your support, questions and contributions are welcome:
+- Your support, questions and contributions are welcome.
+  Please try to provide example files to help reproduce errors and notices:
   <https://www.drupal.org/project/issues/wordpress_migrate>
-  Please try to provide example files to help reproduce errors and notices.
 - Plan for 8.x-3.x beta release:
   <https://www.drupal.org/project/wordpress_migrate/issues/2904990>
 - "Failed to connect to your database server" requires settings.php
@@ -139,8 +139,8 @@ A new documentation page is being developed here:
 - Random strings in taxonomies:
   <https://www.drupal.org/project/wordpress_migrate/issues/2974024>
 - Permalinks and URL alias tables:
-  <https://www.drupal.org/project/wordpress_migrate/issues/2869595>
-  <https://www.drupal.org/project/wordpress_migrate/issues/2904545>
+    - <https://www.drupal.org/project/wordpress_migrate/issues/2869595>
+    - <https://www.drupal.org/project/wordpress_migrate/issues/2904545>
 - Rewrite local link/image references in content:
   <https://www.drupal.org/project/wordpress_migrate/issues/2742279>
 - Extract and save blog metadata:
