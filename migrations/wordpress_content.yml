@@ -6,6 +6,7 @@ source:
   plugin: url
   data_fetcher_plugin: http
   data_parser_plugin: xml
+  urls: []
   # The item type selector (e.g. '[wp:post_type="post"]') is appended dynamically.
   item_selector: /rss/channel/item
   fields:

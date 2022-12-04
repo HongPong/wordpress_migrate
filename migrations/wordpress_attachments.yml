@@ -8,6 +8,7 @@ source:
   plugin: url
   data_fetcher_plugin: http
   data_parser_plugin: xml
+  urls: []
   item_selector: '/rss/channel/item[wp:post_type="attachment"]'
   constants:
     file_dest_uri: 'public://featured_images'

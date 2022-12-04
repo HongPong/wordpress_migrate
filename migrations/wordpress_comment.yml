@@ -6,6 +6,7 @@ source:
   plugin: url
   data_fetcher_plugin: http
   data_parser_plugin: xml
+  urls: []
   # The parent type selector is modified dynamically.
   item_selector: /rss/channel/item/wp:comment
   fields:

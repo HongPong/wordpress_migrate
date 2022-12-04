@@ -6,6 +6,7 @@ source:
   plugin: url
   data_fetcher_plugin: http
   data_parser_plugin: xml
+  urls: []
   item_selector: /rss/channel/wp:tag
   fields:
     -
