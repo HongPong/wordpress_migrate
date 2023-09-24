@@ -24,7 +24,7 @@ final class LoadWordpressMigrateUITest extends BrowserTestBase {
     'migrate_tools',
     'ctools',
     'file',
-    'taxonomy'
+    'taxonomy',
   ];
 
   /**

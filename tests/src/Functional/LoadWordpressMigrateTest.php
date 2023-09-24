@@ -20,7 +20,7 @@ final class LoadWordpressMigrateTest extends BrowserTestBase {
   protected static $modules = [
     'wordpress_migrate',
     'migrate_plus',
-    'ctools'
+    'ctools',
   ];
 
   /**

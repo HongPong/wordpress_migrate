@@ -68,7 +68,7 @@ class WordPressMigrationGenerator {
    *     - type: Machine name of Drupal node bundle to hold content.
    *     - text_format: Machine name of text format for body field.
    *
-   * @todo: Validate inputs (e.g., make sure post type exists).
+   * @todo Validate inputs (e.g., make sure post type exists).
    * @link https://www.drupal.org/node/2742283
    */
   public function __construct(array $configuration) {
@@ -85,13 +85,13 @@ class WordPressMigrationGenerator {
     // Create the migration group.
     $group_configuration = [
       'id' => $this->configuration['group_id'],
-      // @todo: Add Wordpress site title in here.
+      // @todo Add Wordpress site title in here.
       // @link https://www.drupal.org/node/2742287
       'label' => 'Imports from WordPress site',
       'source_type' => 'WordPress',
       'shared_configuration' => [
         'source' => [
-          // @todo: Dynamically populate from the source XML.
+          // @todo Dynamically populate from the source XML.
           // @link https://www.drupal.org/node/2742287
           'namespaces' => [
             'wp' => 'http://wordpress.org/export/1.2/',

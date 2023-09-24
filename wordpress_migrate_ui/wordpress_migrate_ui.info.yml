@@ -9,3 +9,5 @@ dependencies:
   - migrate_tools:migrate_tools
   - drupal:file
   - drupal:taxonomy
+test_dependencies:
+  - migrate_tools:migrate_tools

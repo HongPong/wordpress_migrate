@@ -3,9 +3,10 @@
 namespace Drupal\wordpress_migrate_ui\Form;
 
 use Drupal\Core\Entity\EntityStorageException;
+use Drupal\Component\Utility\Environment;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Component\Utility\Environment;
+
 
 /**
  * Simple wizard step form.
@@ -84,7 +85,7 @@ class SourceSelectForm extends FormBase {
         }
       }
       $form_state->setTemporaryValue('wizard', $cached_values);
-      // @todo: Preprocess the file
+      // @todo Preprocess the file.
       // @link https://www.drupal.org/node/2742301
     }
     else {
