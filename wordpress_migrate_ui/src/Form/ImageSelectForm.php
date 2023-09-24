@@ -33,9 +33,9 @@ class ImageSelectForm extends FormBase {
     // @todo this should be dependency injection.
     $field_map = \Drupal::service('entity_field.manager')->getFieldMap();
     $options = ['' => $this->t('Do not import')];
-    foreach($field_map as $entity_type => $fields) {
+    foreach ($field_map as $entity_type => $fields) {
       if ($entity_type == 'node') {
-        foreach($fields as $field_name => $field_settings) {
+        foreach ($fields as $field_name => $field_settings) {
           if ($field_settings['type'] == 'image') {
             $options[$field_name] = $field_name;
           }

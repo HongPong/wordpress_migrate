@@ -91,7 +91,7 @@ class ReviewForm extends FormBase {
    * Determines if the migration group already exists.
    *
    * @param string $id
-   *   The migration group ID
+   *   The migration group ID.
    *
    * @return bool
    *   TRUE if the migration group exists, FALSE otherwise.
@@ -108,7 +108,7 @@ class ReviewForm extends FormBase {
    * Determines if the migration with prefix already exists.
    *
    * @param string $prefix
-   *   The migration prefix
+   *   The migration prefix.
    *
    * @return bool
    *   TRUE if the migration with prefix exists, FALSE otherwise.

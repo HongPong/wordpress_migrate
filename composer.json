@@ -2,7 +2,7 @@
     "name": "drupal/wordpress_migrate",
     "description": "wordpress_migrate supports migrating WordPress blog exports (WXR format) into Drupal using the Migrate module.",
     "type": "drupal-module",
-    "homepage": "https://www.drupal.org/project/wordpress_migrate",
+    "homepage": "https://drupal.org/project/wordpress_migrate",
     "authors": [
         {
             "name": "Dan Feidt (hongpong)",
@@ -12,12 +12,12 @@
     ],
     "support": {
         "issues": "https://www.drupal.org/project/issues/wordpress_migrate",
-        "source": "https://cgit.drupalcode.org/wordpress_migrate"
+        "source": "https://git.drupalcode.org/project/wordpress_migrate"
     },
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
     "require": {
-        "drupal/migrate_plus": "~5.0",
-        "drupal/ctools": "~3.4"
+        "drupal/migrate_plus": "~6.0",
+        "drupal/ctools": "~4.0"
     }
 }

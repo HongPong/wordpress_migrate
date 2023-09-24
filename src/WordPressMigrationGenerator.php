@@ -68,6 +68,7 @@ class WordPressMigrationGenerator {
    *   - [post|page]: Associative array of type-specific configuration:
    *     - type: Machine name of Drupal node bundle to hold content.
    *     - text_format: Machine name of text format for body field.
+   *
    * @todo: Validate inputs (e.g., make sure post type exists).
    * @link https://www.drupal.org/node/2742283
    */
