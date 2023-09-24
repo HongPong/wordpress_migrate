@@ -23,8 +23,10 @@ class ReviewForm extends FormBase {
   protected $entityTypeManager;
 
   /**
+   * Construct the entity type manager.
+   *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity type manager.
+   *   Entity type manager for controlling the creation of entities.
    */
   public function __construct(EntityTypeManagerInterface $entity_type_manager) {
     $this->entityTypeManager = $entity_type_manager;

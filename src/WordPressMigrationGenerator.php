@@ -6,8 +6,7 @@ use Drupal\migrate_plus\Entity\Migration;
 use Drupal\migrate_plus\Entity\MigrationGroup;
 
 /**
- * Functionality to construct WordPress migrations from broad configuration
- * settings.
+ * Construct WordPress migrations from broad configuration settings.
  */
 class WordPressMigrationGenerator {
 
@@ -77,8 +76,7 @@ class WordPressMigrationGenerator {
   }
 
   /**
-   * Creates a set of WordPress import migrations based on configuration
-   * settings.
+   * Creates a set of WordPress import migrations based on config settings.
    *
    * @throws \Drupal\Core\Entity\EntityStorageException
    * @throws \Exception

@@ -12,7 +12,6 @@ use Drupal\Tests\BrowserTestBase;
  *
  * @group wordpress_migrate
  */
-
 final class LoadWordpressMigrateTest extends BrowserTestBase {
 
   /**
