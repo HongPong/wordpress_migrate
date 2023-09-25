@@ -19,5 +19,8 @@
     "require": {
         "drupal/migrate_plus": "~6.0",
         "drupal/ctools": "~4.0"
+    },
+    "require-dev": {
+        "drupal/migrate_tools": "~6.0"
     }
 }

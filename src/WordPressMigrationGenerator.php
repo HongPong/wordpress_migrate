@@ -308,7 +308,7 @@ class WordPressMigrationGenerator {
    *
    * @throws \Drupal\Component\Plugin\Exception\PluginException
    *
-   * @todo: Remove and replace calls to use Migration::createEntityFromPlugin()
+   * @todo Remove and replace calls to use Migration::createEntityFromPlugin()
    * when there's a migrate_plus release containing it we can have a dependency
    * on.
    */
