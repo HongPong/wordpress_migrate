@@ -54,6 +54,10 @@ source:
       name: thumbnail_id
       label: Thumbnail assigned to the content item (Featured image)
       selector: wp:postmeta[wp:meta_key='_thumbnail_id']/wp:meta_value
+    -
+      name: link
+      label: Persistent path
+      selector: link
   ids:
     post_id:
       type: integer
@@ -81,6 +85,9 @@ process:
     default_value: 0
     map:
       publish: 1
+  path/pathauto:
+    plugin: default_value
+    default_value: 0
 destination:
   plugin: entity:node
 # Dependencies are dynamically generated.

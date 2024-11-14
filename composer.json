@@ -18,7 +18,8 @@
     "minimum-stability": "dev",
     "require": {
         "drupal/migrate_plus": "~6.0",
-        "drupal/ctools": "^3 || ^4"
+        "drupal/ctools": "^3 || ^4",
+        "drupal/pathauto": "^1.13"
     },
     "require-dev": {
         "drupal/migrate_tools": "~6.0"

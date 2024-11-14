@@ -5,5 +5,6 @@ package: Migration
 core_version_requirement: ^9 || ^10
 dependencies:
   - migrate_plus:migrate_plus
+  - pathauto:pathauto (>=1.13)
 test_dependencies:
   - migrate_tools:migrate_tools

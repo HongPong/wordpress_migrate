@@ -48,6 +48,11 @@ class SourceSelectForm extends FormBase {
       '#title' => $this->t('Permanently save uploaded WXR file'),
       '#description' => $this->t('The uploaded WXR file will be kept in your site permanently. It will always be visible on the "Files" section of the Content administration area.'),
     ];
+    $form['base_url'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Base url of the WordPress site'),
+      '#description' => $this->t('For example: \'https://test.example.com\'. Do not include trailing slashes. This is used for generating new URL paths using the pathauto module.'),
+    ];
     return $form;
   }
 
@@ -71,6 +76,7 @@ class SourceSelectForm extends FormBase {
     if ($file) {
       $cached_values = $form_state->getTemporaryValue('wizard');
       $cached_values['file_uri'] = $file->getFileUri();
+      $cached_values['base_url'] = $form_state->getValue('base_url');
       if ($form_state->getValue('keep_wxr_file')) {
         /* Set the status flag permanent of the file object */
         $file->setPermanent();
