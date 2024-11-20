@@ -195,28 +195,30 @@ class WordPressMigrationGenerator {
     $source['item_selector'] .= '[wp:post_type="' . $wordpress_type . '"]';
     $migration->set('source', $source);
     $process                = $migration->get('process');
-    // Path alias generator.
-    $process['path/alias'][] = [
-      'plugin' => 'str_replace',
-      'source' => 'link',
-      'search' => $this->configuration['base_url'],
-      'replace' => '',
-    ];
-    // This removes the trailing slash from the end of WP's aliases so that they
-    // will work with Drupal.
-    $process['path/alias'][] = [
-      'plugin' => 'str_replace',
-      'search' => '/\/$/',
-      'replace' => '',
-      'regex' => TRUE,
-    ];
-    // This removes the alias in case it starts with a '/?'.
-    $process['path/alias'][] = [
-      'plugin' => 'str_replace',
-      'search' => '/^(?=^\/\?)(.*)$/',
-      'replace' => '',
-      'regex' => TRUE,
-    ];
+    // Path alias generator, if it is set in form.
+    if ($this->configuration['base_url'] !== '') {
+      $process['path/alias'][] = [
+        'plugin' => 'str_replace',
+        'source' => 'link',
+        'search' => $this->configuration['base_url'],
+        'replace' => '',
+      ];
+      // This removes the trailing slash from the end of WP's aliases so that they
+      // will work with Drupal.
+      $process['path/alias'][] = [
+        'plugin' => 'str_replace',
+        'search' => '/\/$/',
+        'replace' => '',
+        'regex' => TRUE,
+      ];
+      // This removes the alias in case it starts with a '/?'.
+      $process['path/alias'][] = [
+        'plugin' => 'str_replace',
+        'search' => '/^(?=^\/\?)(.*)$/',
+        'replace' => '',
+        'regex' => TRUE,
+      ];
+    }
     $process['uid']         = $this->uidMapping;
     $process['body/format'] = [
       'plugin' => 'default_value',
