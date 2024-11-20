@@ -21,6 +21,7 @@ final class LoadWordpressMigrateTest extends BrowserTestBase {
     'wordpress_migrate',
     'migrate_plus',
     'ctools',
+    'pathauto',
   ];
 
   /**
