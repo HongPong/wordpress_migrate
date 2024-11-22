@@ -1,0 +1,25 @@
+# words for cspell to ignore (contributors and WordPress jargon)
+bdone
+ctools
+dwillems
+emarchak
+ezeedub
+felribeiro
+grasmash
+hekele
+ksenzee
+lomasr
+maccath
+Masky
+mikeryan
+mrmikedewolf
+nicename
+ohthehugemanatee
+othermachines
+postmeta
+ptaff
+pverrier
+queenvictoria
+somersoft
+wizonesolutions
+xurizaemon

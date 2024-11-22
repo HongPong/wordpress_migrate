@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Drupal\Tests\wordpress_migrate\Functional;
 
@@ -38,6 +38,8 @@ final class LoadWordpressMigrateTest extends BrowserTestBase {
 
   /**
    * {@inheritdoc}
+   *
+   * @throws \Drupal\Core\Entity\EntityStorageException
    */
   protected function setUp(): void {
     parent::setUp();
@@ -47,10 +49,13 @@ final class LoadWordpressMigrateTest extends BrowserTestBase {
 
   /**
    * Tests that the home page loads with a 200 response.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
    */
   public function testLoad(): void {
     $this->drupalGet(Url::fromRoute('<front>'));
     $this->assertSession()->statusCodeEquals(200);
+
   }
 
 }

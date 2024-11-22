@@ -6,6 +6,7 @@ use Drupal\Component\Utility\Environment;
 use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\StringTranslation\ByteSizeMarkup;
 
 /**
  * Simple wizard step form.
@@ -41,7 +42,7 @@ class SourceSelectForm extends FormBase {
       '#type' => 'file',
       '#title' => $this->t('WordPress exported file (WXR)'),
       '#description' => $this->t('Select an exported WordPress file (.xml extension). Maximum file size is @size.',
-        ['@size' => format_size(Environment::getUploadMaxSize())]),
+        ['@size' => ByteSizeMarkup::create(Environment::getUploadMaxSize())]),
     ];
     $form['keep_wxr_file'] = [
       '#type' => 'checkbox',
