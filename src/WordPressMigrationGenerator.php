@@ -109,7 +109,7 @@ class WordPressMigrationGenerator {
     MigrationGroup::create($group_configuration)->save();
 
     // Determine the uid mappings, creating an author migration if needed.
-    if ($this->configuration['default_author']) {
+    if (array_key_exists('default_author', $this->configuration)) {
       $account = user_load_by_name($this->configuration['default_author']);
       if ($account) {
         $this->uidMapping = [
@@ -258,9 +258,17 @@ class WordPressMigrationGenerator {
         $source['item_selector'] = str_replace(':content_type', $wordpress_type, $source['item_selector']);
         $migration->set('source', $source);
         $process                                     = $migration->get('process');
-        $process['entity_id'][0]['migration']        = $content_id;
+        $process['entity_id'][0] = [
+          'plugin' => 'migration_lookup',
+          'source' => 'post_id',
+          'migration' => $content_id,
+        ];
         $process['comment_type'][0]['default_value'] = $storage->getSetting('comment_type');
-        $process['pid'][0]['migration']              = $id;
+        $process['pid'][0] = [
+          'plugin' => 'migration_lookup',
+          'source' => 'comment_parent',
+          'migration' => $id,
+        ];
         $process['field_name'][0]['default_value']   = $field_name;
         $migration->set('process', $process);
         $migration->set('migration_dependencies', ['required' => [$content_id]]);
