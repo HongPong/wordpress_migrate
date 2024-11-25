@@ -197,27 +197,7 @@ class WordPressMigrationGenerator {
     $process                = $migration->get('process');
     // Path alias generator, if it is set in form.
     if ($this->configuration['base_url'] !== '') {
-      $process['path/alias'][] = [
-        'plugin' => 'str_replace',
-        'source' => 'link',
-        'search' => $this->configuration['base_url'],
-        'replace' => '',
-      ];
-      // This removes the trailing slash from the end of WP's aliases so that they
-      // will work with Drupal.
-      $process['path/alias'][] = [
-        'plugin' => 'str_replace',
-        'search' => '/\/$/',
-        'replace' => '',
-        'regex' => TRUE,
-      ];
-      // This removes the alias in case it starts with a '/?'.
-      $process['path/alias'][] = [
-        'plugin' => 'str_replace',
-        'search' => '/^(?=^\/\?)(.*)$/',
-        'replace' => '',
-        'regex' => TRUE,
-      ];
+      $process = $this->processUrlPathAliases($process);
     }
     $process['uid']         = $this->uidMapping;
     $process['body/format'] = [
@@ -349,6 +329,40 @@ class WordPressMigrationGenerator {
     $entity_array['migration_dependencies'] = $migration_plugin->getMigrationDependencies();
     $migration_entity                       = Migration::create($entity_array);
     return $migration_entity;
+  }
+
+  /**
+   * If base_url is set, set path aliases for each content node.
+   *
+   * @param array $process
+   *   From the wordpress_content $migration process element.
+   *
+   * @return array
+   *   Modified $process array with 'path/alias' elements added.
+   */
+  public function processUrlPathAliases(array $process): array {
+    $process['path/alias'][] = [
+      'plugin' => 'str_replace',
+      'source' => 'link',
+      'search' => $this->configuration['base_url'],
+      'replace' => '',
+    ];
+    // This removes the trailing slash from the end of WP's aliases so that they
+    // will work with Drupal.
+    $process['path/alias'][] = [
+      'plugin' => 'str_replace',
+      'search' => '/\/$/',
+      'replace' => '',
+      'regex' => TRUE,
+    ];
+    // This removes the alias in case it starts with a '/?'.
+    $process['path/alias'][] = [
+      'plugin' => 'str_replace',
+      'search' => '/^(?=^\/\?)(.*)$/',
+      'replace' => '',
+      'regex' => TRUE,
+    ];
+    return $process;
   }
 
 }

@@ -3,6 +3,8 @@
 ## Table of contents
 
 - Introduction
+- Requirements
+- Installation
 - Drush Command
 - User Interface
 - Importing Image Assets
@@ -12,7 +14,7 @@
 
 ## Introduction
 The WordPress Migrate module provides tools for setting up migration processes
-from the WordPress blog to a Drupal 9 site. By providing a few configuration
+from the WordPress blog to a Drupal 9/10 site. By providing a few configuration
 settings and a pointer to an XML export file, migration configuration entities
 will be generated which can then be executed or otherwise managed with the
 Migrate Tools module.
@@ -20,9 +22,83 @@ Migrate Tools module.
 This module has been developed since 2010 to reliably import WordPress sites into
 Drupal.
 
-There are a few ways to make use of Wordpress Migrate:
+See the [documentation page](https://drupal.org/docs/extending-drupal/contributed-modules/contributed-module-documentation/wordpress-migrate),
+the [FAQ](https://drupal.org/docs/extending-drupal/contributed-modules/contributed-module-documentation/wordpress-migrate/wordpress-migrate-faq),
+and [WordPress and Drupal terminology and concepts](https://drupal.org/docs/extending-drupal/contributed-modules/contributed-module-documentation/wordpress-migrate/wordpress-and-drupal-terminology-and-concepts).
 
-## Drush Command
+## Requirements
+
+The wordpress_migrate and wordpress_migrate_ui modules require [migrate_plus](https://drupal.org/project/migrate_plus) ~6.0, [ctools](https://drupal.org/project/ctools) 3.x or 4.x, and [pathauto](https://drupal.org/project/pathauto) above 1.13.
+
+## Installation
+
+Using Composer 2, install:
+
+```bash
+composer require 'drupal/wordpress_migrate:^3.0@alpha'
+````
+
+## Migrate via User Interface Wizard
+
+Enabling the WordPress Migrate UI module. This creates an
+"Add import from WordPress" button on the migrate_tools UI at **/admin/structure/migrate** . From there a wizard prompts you
+for the configuration options.
+
+Enter 'Base url of the WordPress site' into the first stage of the wizard
+to automatically generate permalinks to the new content nodes.
+
+The configurations will be created for the posts, pages, attachments, authors
+and comments from the source data as a _migration group_. Then they can be
+imported and reversed as needed.
+
+## Importing Image Assets
+
+For the new importation of attached images including post thumbnails
+(also known as featured images) you should:
+
+- Assign an image field for these assets in the migrate process.
+- Before importing the content posts, import the media assets.
+- Import the media assets.
+
+See issue for more information and customization:
+<https://drupal.org/project/wordpress_migrate/issues/2742269>
+
+Important: While image assets can be imported to the Drupal filesystem,
+the paths of inline images from the WordPress body are not rewritten.
+See issue: <https://drupal.org/project/wordpress_migrate/issues/2742279>
+
+## API
+
+You may also programmatically configure a set of WordPress migrations by
+constructing a configuration array and passing it to the generator:
+
+```php
+use Drupal\wordpress_migrate\WordPressMigrationGenerator;
+
+$configuration = [
+ 'file_uri' => '/var/data/my_wp_export.xml',
+ 'base_url' => 'https://myoriginalblogurl.com',
+ 'group_id' => 'old_blog',
+ 'prefix' => 'blog_',
+ 'default_author' => 'editor_account',
+ 'tag_vocabulary' => 'tags',
+ 'category_vocabulary' => 'wp_categories',
+ 'post' => [
+   'type' => 'article',
+   'text_format' => 'restricted_html',
+ ],
+ 'page' => [
+   'type' => 'page',
+   'text_format' => 'full_html',
+ ],
+];
+$generator = new WordPressMigrationGenerator($configuration);
+$generator->createMigrations();
+```
+
+## Drush Command (deprecated)
+
+This module is not Drush 9+ compatible. See original [issue](https://www.drupal.org/project/wordpress_migrate/issues/2955644) and new issue for [Drush 12](https://www.drupal.org/project/wordpress_migrate/issues/3489516). Previous docs follow:
 
 A single Drush command, `wordpress-migrate-generate`, is provided for generating
 WordPress migrations from a few simple options:
@@ -63,99 +139,40 @@ wordpress-migrate-generate /var/data/my_wp_export.xml --group-id=old_blog --pref
 You can then use Migrate Tools Drush commands like `drush mi --group=old_blog`
 to manage the migrations.
 
-This command is not yet Drush 9 compatible. See issue:
-<https://www.drupal.org/project/wordpress_migrate/issues/2955644>
-
-## Migrate via User Interface
-
-Enabling the Wordpress Migrate UI module adds an "Add import from WordPress"
-button to the migrate_tools UI at /admin/structure/migrate - this begins a
-wizard which prompts you for the same configuration options you see for the
-drush command above.
-
-## Importing Image Assets
-
-For the new importation of attached images including post thumbnails
-(also known as featured images) you should:
-
-- Assign an image field for these assets in the migrate process.
-- Before importing the content posts, import the media assets.
-- Import the media assets.
-
-See issue for more information and customization:
-<https://www.drupal.org/project/wordpress_migrate/issues/2742269>
-
-Important: While image assets can be imported to the Drupal filesystem,
-the paths of inline images from the WordPress body are not rewritten.
-See issue: <https://www.drupal.org/project/wordpress_migrate/issues/2742279>
-
-## API
-
-You may also programmatically configure a set of WordPress migrations by
-constructing a configuration array and passing it to the generator:
-
-```
-use Drupal\wordpress_migrate\WordPressMigrationGenerator;
-
-$configuration = [
- 'file_uri' => '/var/data/my_wp_export.xml',
- 'group_id' => 'old_blog',
- 'prefix' => 'blog_',
- 'default_author' => 'editor_account',
- 'tag_vocabulary' => 'tags',
- 'category_vocabulary' => 'wp_categories',
- 'post' => [
-   'type' => 'article',
-   'text_format' => 'restricted_html',
- ],
- 'page' => [
-   'type' => 'page',
-   'text_format' => 'full_html',
- ],
-];
-$generator = new WordPressMigrationGenerator($configuration);
-$generator->createMigrations();
-```
-
-## Documentation
-
-A new documentation page is being developed here:
-<https://www.drupal.org/docs/contributed-modules/wordpress-migrate>
-
 ### Support, known issues and plans
 
 - Your support, questions and contributions are welcome.
   Please try to provide example files to help reproduce errors and notices:
-  <https://www.drupal.org/project/issues/wordpress_migrate>
+  <https://drupal.org/project/issues/wordpress_migrate>
 - Plan for 8.x-3.x beta release:
-  <https://www.drupal.org/project/wordpress_migrate/issues/2904990>
-- "Failed to connect to your database server" requires settings.php
-  Driver tweak in some cases:
-  <https://www.drupal.org/project/wordpress_migrate/issues/3214639>
+  <https://drupal.org/project/wordpress_migrate/issues/2904990>
 - Comment migration may need to set a body text format:
-  <https://www.drupal.org/project/wordpress_migrate/issues/2742311>
-- Drush 9 support:
-  <https://www.drupal.org/project/wordpress_migrate/issues/2955644>
+  <https://drupal.org/project/wordpress_migrate/issues/2742311>
+- Drush 12+ support:
+  <https://drupal.org/project/wordpress_migrate/issues/3489516>
 - Random strings in taxonomies:
-  <https://www.drupal.org/project/wordpress_migrate/issues/2974024>
-- Permalinks and URL alias tables:
-    - <https://www.drupal.org/project/wordpress_migrate/issues/2869595>
-    - <https://www.drupal.org/project/wordpress_migrate/issues/2904545>
+  <https://drupal.org/project/wordpress_migrate/issues/2974024>
 - Rewrite local link/image references in content:
-  <https://www.drupal.org/project/wordpress_migrate/issues/2742279>
+  <https://drupal.org/project/wordpress_migrate/issues/2742279>
 - Extract and save blog metadata:
-  <https://www.drupal.org/project/wordpress_migrate/issues/2742287>
+  <https://drupal.org/project/wordpress_migrate/issues/2742287>
+
+### Similar projects
+
+[WordPress Migrate SQL](https://www.drupal.org/project/wordpress_migrate_sql): Enables customized migrations based on WordPress SQL sites, allowing migration of complex WordPress sites, using a SQL source. [wp_migrate](https://www.drupal.org/project/wp_migrate) is another module which is compatible with up to Drupal 9.
 
 ## Credits
 
 Current co-maintainer:
 
-- HongPong - <https://drupal.org/u/HongPong>
+- [HongPong](https://drupal.org/u/HongPong)
 
-Originally developed for Drupal 7 and 8 by mikeryan.
+Originally developed for Drupal 7 and 8 by [mikeryan](https://drupal.org/u/mikeryan).
 
 Committers include:
 somersoft, lomasr, chaitanya17, felribeiro, maccath, MaskyS,
 mrmikedewolf, Darren Shelley, dwillems, othermachines, ohthehugemanatee,
 ezeedub, grasmash, bdone, queenvictoria, ksenzee, ptaff, pverrier,
-xurizaemon, hekele, aaron, emarchak, wizonesolutions
+xurizaemon, hekele, aaron, emarchak, wizonesolutions, baltowen, msielski, ressa,
+vlad.dancer, nitapawar, phjou, el7cosmos, batonac, stargayte, darchuletajr,
+e.ruiter, ankshetty, i.vuchkov, sahana16081996, marktonino, john_b, frederickjh
