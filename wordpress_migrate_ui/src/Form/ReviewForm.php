@@ -61,7 +61,7 @@ class ReviewForm extends FormBase {
       '#type' => 'machine_name',
       '#max_length' => 64,
       '#title' => $this->t('ID to assign to the generated migration group'),
-      '#default_value' => 'my_wordpress',
+      '#attributes' => ['placeholder' => 'my_wordpress'],
       '#machine_name' => [
         'exists' => [$this, 'groupExists'],
       ],
@@ -70,7 +70,7 @@ class ReviewForm extends FormBase {
       '#type' => 'machine_name',
       '#max_length' => 64 - strlen('wordpress_content_page'),
       '#title' => $this->t('ID to prepend to each generated migration'),
-      '#default_value' => 'my_',
+      '#attributes' => ['placeholder' => 'my_'],
       '#machine_name' => [
         'exists' => [$this, 'prefixExists'],
       ],
