@@ -5,11 +5,12 @@
 - Introduction
 - Requirements
 - Installation
-- Drush Command
-- User Interface
+- Migrate via User Interface Wizard
 - Importing Image Assets
 - API
-- Documentation
+- Drush 12+ Support (In development)
+- Support
+- Similar Modules
 - Credits
 
 ## Introduction
@@ -96,48 +97,13 @@ $generator = new WordPressMigrationGenerator($configuration);
 $generator->createMigrations();
 ```
 
-## Drush Command (deprecated)
+## Drush 12+ Support (In development)
 
-This module is not Drush 9+ compatible. See original [issue](https://www.drupal.org/project/wordpress_migrate/issues/2955644) and new issue for [Drush 12](https://www.drupal.org/project/wordpress_migrate/issues/3489516). Previous docs follow:
+See original
+[issue](https://drupal.org/project/wordpress_migrate/issues/2955644)
+for Drush 9/10 and new issue for [Drush 12](https://drupal.org/project/wordpress_migrate/issues/3489516).
 
-A single Drush command, `wordpress-migrate-generate`, is provided for generating
-WordPress migrations from a few simple options:
-
-Arguments:
-
-```
- file_uri                             Address of the WordPress export file to migrate into Drupal.
-
-Options:
- --group-id=<my_wordpress_import>     ID of the migration group to create. Required.
- --prefix=<my_>                       String to prefix to the IDs of generated migrations.
- --post-type=<blog>                   Machine name of Drupal node bundle to hold imported post content.
- --post-text-format=<restricted_html> Machine name of text format for body field on imported post content.
- --page-type=<blog>                   Machine name of Drupal node bundle to hold imported page content.
- --page-text-format=<restricted_html> Machine name of text format for body field on imported page content.
- --category-vocabulary=<categories>   Machine name of vocabulary to hold imported categories.
- --tag-vocabulary=<tags>              Machine name of vocabulary to hold imported tags.
- --default-author=<author_account>    If present, username to author all imported content. If omitted, users will
-                                      be imported from WordPress.
-```
-
-Thus, this command (on a Drupal 9 system where articles have a comment field but pages don't):
-
-```
-wordpress-migrate-generate /var/data/my_wp_export.xml --group-id=old_blog --prefix=blog_ --tag-vocabulary=tags --post-type=article --post-text-format=restricted_html --page-type=page --page-text-format=full_html
-```
-
-... will create the following migrations in the "old_blog" group:
-
-- `blog_wordpress_authors`
-- `blog_wordpress_categories`
-- `blog_wordpress_tags`
-- `blog_wordpress_content_post`
-- `blog_wordpress_comment_post`
-- `blog_wordpress_content_page`
-
-You can then use Migrate Tools Drush commands like `drush mi --group=old_blog`
-to manage the migrations.
+Drush 8 code has been removed as it is no longer supported.
 
 ### Support, known issues and plans
 
