@@ -45,7 +45,8 @@ class SourceSelectForm extends FormBase {
         '#description' => $this->t('Select an exported WordPress file (.xml extension). Maximum file size is @size.',
           ['@size' => ByteSizeMarkup::create(Environment::getUploadMaxSize())]),
       ];
-    } else {
+    }
+    else {
       $form['wxr_file'] = [
         '#type' => 'file',
         '#title' => $this->t('WordPress exported file (WXR)'),

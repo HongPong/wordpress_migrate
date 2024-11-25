@@ -47,7 +47,7 @@ final class LoadWordpressMigrateUITest extends BrowserTestBase {
   protected function setUp(): void {
     parent::setUp();
     $this->user = $this->drupalCreateUser(['administer site configuration', 'access administration pages',
-      'administer migrations', 'view migration messages', 'migrate wordpress blogs', 'access site reports'
+      'administer migrations', 'view migration messages', 'migrate wordpress blogs', 'access site reports',
     ]);
     $this->drupalLogin($this->user);
   }
@@ -64,7 +64,7 @@ final class LoadWordpressMigrateUITest extends BrowserTestBase {
     $assert->statusCodeEquals(200);
 
     $account = $this->drupalCreateUser(['administer site configuration', 'access administration pages',
-      'administer migrations', 'view migration messages', 'migrate wordpress blogs', 'access site reports'
+      'administer migrations', 'view migration messages', 'migrate wordpress blogs', 'access site reports',
     ]);
     $this->drupalLogin($account);
 
@@ -78,7 +78,6 @@ final class LoadWordpressMigrateUITest extends BrowserTestBase {
 
     // $assert->buttonExists("Add import from WordPress");
     // Not working yet on Drupal 11
-
     $assert->statusCodeEquals(200);
 
     $this->drupalGet('admin/structure/migrate/wordpress_migrate');
