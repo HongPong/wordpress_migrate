@@ -38,12 +38,23 @@ class SourceSelectForm extends FormBase {
     $form['description'] = [
       '#markup' => $this->t('<br /><br />You will be led through a series of steps, allowing you to customize what will be imported into Drupal and how it will be mapped. At the end of this process, a migration group will be generated.'),
     ];
-    $form['wxr_file'] = [
-      '#type' => 'file',
-      '#title' => $this->t('WordPress exported file (WXR)'),
-      '#description' => $this->t('Select an exported WordPress file (.xml extension). Maximum file size is @size.',
-        ['@size' => ByteSizeMarkup::create(Environment::getUploadMaxSize())]),
-    ];
+    if (version_compare(\Drupal::VERSION, '10.2', '>=')) {
+      $form['wxr_file'] = [
+        '#type' => 'file',
+        '#title' => $this->t('WordPress exported file (WXR)'),
+        '#description' => $this->t('Select an exported WordPress file (.xml extension). Maximum file size is @size.',
+          ['@size' => ByteSizeMarkup::create(Environment::getUploadMaxSize())]),
+      ];
+    } else {
+      $form['wxr_file'] = [
+        '#type' => 'file',
+        '#title' => $this->t('WordPress exported file (WXR)'),
+        '#description' => $this->t('Select an exported WordPress file (.xml extension). Maximum file size is @size.',
+          // @phpstan-ignore-next-line
+          ['@size' => format_size(Environment::getUploadMaxSize())]),
+      ];
+    }
+
     $form['keep_wxr_file'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Permanently save uploaded WXR file'),
