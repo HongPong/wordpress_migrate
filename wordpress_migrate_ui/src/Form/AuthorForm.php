@@ -25,7 +25,7 @@ class AuthorForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form['overview'] = [
-      '#markup' => $this->t('User accounts for authors in the WordPress blog may be imported to Drupal. If you select <strong>Yes</strong>, any authors in the WordPress file who do not match existing Drupal accounts (based on email address) will have new Drupal accounts automatically created. Note that their passwords are not imported - they must be reset after import.<br/>If you select <strong>No</strong>, you must choose an existing Drupal account which will be the author of any WordPress content whose author is not imported.'),
+      '#markup' => $this->t('User accounts for authors in the WordPress blog may be imported to Drupal. If you select <strong>Yes</strong>, any authors in the WordPress file who do not match existing Drupal accounts (based on email address) will have new Drupal accounts automatically created.<br />Note that their passwords are not imported - they must be reset after import. This function does not overwrite or alter existing users (matches will be "ignored").<br />If you select <strong>No</strong>, you must choose an existing Drupal account which will be the author of any WordPress content whose author is not imported.<br />'),
     ];
 
     $form['perform_user_migration'] = [

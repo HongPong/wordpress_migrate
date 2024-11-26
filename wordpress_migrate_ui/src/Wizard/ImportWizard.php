@@ -16,7 +16,7 @@ class ImportWizard extends FormWizardBase {
   /**
    * {@inheritdoc}
    */
-  public function getOperations($cached_values) {
+  public function getOperations($cached_values): array {
     $steps = [
       'source_select' => [
         'form' => 'Drupal\wordpress_migrate_ui\Form\SourceSelectForm',
@@ -72,14 +72,14 @@ class ImportWizard extends FormWizardBase {
   /**
    * {@inheritdoc}
    */
-  public function getRouteName() {
+  public function getRouteName(): string {
     return 'wordpress_migrate_ui.wizard.import.step';
   }
 
   /**
    * {@inheritdoc}
    */
-  public function finish(array &$form, FormStateInterface $form_state) {
+  public function finish(array &$form, FormStateInterface $form_state): void {
     $cached_values = $form_state->getTemporaryValue('wizard');
     $generator = new WordPressMigrationGenerator($cached_values);
     $generator->createMigrations();

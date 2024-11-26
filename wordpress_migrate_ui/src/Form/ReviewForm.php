@@ -20,7 +20,7 @@ class ReviewForm extends FormBase {
    *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityTypeManager;
+  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * Construct the entity type manager.
@@ -42,14 +42,14 @@ class ReviewForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormId() {
+  public function getFormId(): string {
     return 'wordpress_migrate_review_form';
   }
 
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state) {
+  public function buildForm(array $form, FormStateInterface $form_state): array {
     // @todo Display details of the configuration.
     // @link: https://www.drupal.org/node/2742289
     $form['description'] = [
@@ -82,7 +82,7 @@ class ReviewForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
     $cached_values = $form_state->getTemporaryValue('wizard');
     $cached_values['group_id'] = $form_state->getValue('group_id');
     $cached_values['prefix'] = $form_state->getValue('prefix');
@@ -98,10 +98,11 @@ class ReviewForm extends FormBase {
    * @return bool
    *   TRUE if the migration group exists, FALSE otherwise.
    */
-  public function groupExists($id) {
+  public function groupExists($id): bool {
     return (bool) $this->entityTypeManager
       ->getStorage('migration_group')
       ->getQuery()
+      ->accessCheck(FALSE)
       ->condition('id', $id)
       ->execute();
   }
@@ -115,10 +116,11 @@ class ReviewForm extends FormBase {
    * @return bool
    *   TRUE if the migration with prefix exists, FALSE otherwise.
    */
-  public function prefixExists($prefix) {
+  public function prefixExists($prefix): bool {
     return (bool) $this->entityTypeManager
       ->getStorage('migration')
       ->getQuery()
+      ->accessCheck(FALSE)
       ->condition('id', $prefix . 'wordpress_attachments')
       ->execute();
   }

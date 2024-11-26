@@ -64,7 +64,7 @@ class SourceSelectForm extends FormBase {
     $form['base_url'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Base url of the WordPress site'),
-      '#description' => $this->t('For example: \'https://test.example.com\'. Do not include trailing slashes. This is used for generating new URL paths using the pathauto module.'),
+      '#description' => $this->t("For example: 'https://test.example.com'. Do not include trailing slashes. This is used for generating new URL paths using the pathauto module."),
     ];
     return $form;
   }
@@ -72,9 +72,9 @@ class SourceSelectForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
     $all_files = $this->getRequest()->files->get('files', []);
-    if (empty($all_files['wxr_file'])) {
+    if (!isset($all_files['wxr_file'])) {
       $form_state->setErrorByName('wxr_file', $this->t('You must upload a file to continue.'));
     }
   }
@@ -82,7 +82,7 @@ class SourceSelectForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
     $validators = ['file_validate_extensions' => ['xml']];
     // file_save_upload renames if file already exists (default behavior)
     $file = file_save_upload('wxr_file', $validators, 'public://', 0);
@@ -90,7 +90,7 @@ class SourceSelectForm extends FormBase {
       $cached_values = $form_state->getTemporaryValue('wizard');
       $cached_values['file_uri'] = $file->getFileUri();
       $cached_values['base_url'] = $form_state->getValue('base_url');
-      if ($form_state->getValue('keep_wxr_file')) {
+      if ($form_state->getValue('keep_wxr_file') === 1) {
         /* Set the status flag permanent of the file object */
         $file->setPermanent();
         /* Save the file in database */
