@@ -33,6 +33,21 @@ source:
     author_login:
       type: string
 process:
+  uid:
+    plugin: entity_lookup
+    source: author_login
+    entity_type: user
+    value_key: name
+    ignore_case: true
+  _skip_existing_user:
+    -
+      plugin: callback
+      source: '@uid'
+      callable: is_null
+    -
+      plugin: skip_on_empty
+      method: row
+      message: 'Updating existing users is not allowed.'
   name: author_login
   mail: author_email
   status:
