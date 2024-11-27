@@ -42,8 +42,8 @@ composer require 'drupal/wordpress_migrate:^3.0@alpha'
 ## Migrate via User Interface Wizard
 
 Enabling the WordPress Migrate UI module. This creates an
-"Add import from WordPress" button on the migrate_tools UI at **/admin/structure/migrate** . From there a wizard prompts you
-for the configuration options.
+"Add import from WordPress" button on the migrate_tools UI at **/admin/structure/migrate** . From there a wizard
+prompts you for the configuration options.
 
 Enter 'Base url of the WordPress site' into the first stage of the wizard
 to automatically generate permalinks to the new content nodes.
@@ -54,8 +54,7 @@ imported and reversed as needed.
 
 ## Importing Image Assets
 
-For the new importation of attached images including post thumbnails
-(also known as featured images) you should:
+For the new importation of attached images including post thumbnails (also known as featured images) you should:
 
 - Assign an image field for these assets in the migrate process.
 - Before importing the content posts, import the media assets.
@@ -67,6 +66,21 @@ See issue for more information and customization:
 Important: While image assets can be imported to the Drupal filesystem,
 the paths of inline images from the WordPress body are not rewritten.
 See issue: <https://drupal.org/project/wordpress_migrate/issues/2742279>
+
+## Security Note
+
+Existing users (keyed by email address) will not be overwritten if imported.
+new [access checks](https://www.drupal.org/node/3201242) are allowed in entity lookups during the migrate
+process.
+
+Our module assumes the operator of the migration is an administrator who has access to all entities. Also,
+this module can create new users (WordPress post authors) which are set to "active" so be sure to review your users
+after the migration is completed.
+
+Importing posts and comments can potentially include harmful JavaScript snippets or other malicious materials. We
+recommend you carefully review all imported content for security issues from unsanitized markup.
+
+The module can be disabled and its data deleted after your migration is complete. It does not need to stay enabled.
 
 ## API
 
@@ -110,7 +124,7 @@ Drush 8 code has been removed as it is no longer supported.
 - Your support, questions and contributions are welcome.
   Please try to provide example files to help reproduce errors and notices:
   <https://drupal.org/project/issues/wordpress_migrate>
-- Plan for 8.x-3.x beta release:
+- **Plan for 8.x-3.x beta release:** (The current main plan)
   <https://drupal.org/project/wordpress_migrate/issues/2904990>
 - Comment migration may need to set a body text format:
   <https://drupal.org/project/wordpress_migrate/issues/2742311>
@@ -125,20 +139,24 @@ Drush 8 code has been removed as it is no longer supported.
 
 ### Similar projects
 
-[WordPress Migrate SQL](https://www.drupal.org/project/wordpress_migrate_sql): Enables customized migrations based on WordPress SQL sites, allowing migration of complex WordPress sites, using a SQL source. [wp_migrate](https://www.drupal.org/project/wp_migrate) is another module which is compatible with up to Drupal 9.
+**[WordPress Migrate SQL](https://www.drupal.org/project/wordpress_migrate_sql):** Enables customized migrations based on WordPress SQL sites,
+allowing migration of complex WordPress sites, using a SQL source.
+**[wp_migrate](https://www.drupal.org/project/wp_migrate)** is another module which is compatible with up to Drupal 9.
 
 ## Credits
 
-Current co-maintainer:
+**Current co-maintainer:**
 
 - [HongPong](https://drupal.org/u/HongPong)
 
 Originally developed for Drupal 7 and 8 by [mikeryan](https://drupal.org/u/mikeryan).
 
-Committers include:
+**Committers and active volunteers have included:**
 somersoft, lomasr, chaitanya17, felribeiro, maccath, MaskyS,
 mrmikedewolf, Darren Shelley, dwillems, othermachines, ohthehugemanatee,
 ezeedub, grasmash, bdone, queenvictoria, ksenzee, ptaff, pverrier,
 xurizaemon, hekele, aaron, emarchak, wizonesolutions, baltowen, msielski, ressa,
 vlad.dancer, nitapawar, phjou, el7cosmos, batonac, stargayte, darchuletajr,
-e.ruiter, ankshetty, i.vuchkov, sahana16081996, marktonino, john_b, frederickjh
+e.ruiter, ankshetty, i.vuchkov, sahana16081996, marktonino, john_b, frederickjh,
+damienmckenna, splash112, caspervoogt, ivrh, tabestan, bserem, apmsooner, dinarcon,
+mithun-a-sridharan, ryumaou, tolstoydotcom, uridrupal, lobodakyrylo, vaidas_a, ryumaou
